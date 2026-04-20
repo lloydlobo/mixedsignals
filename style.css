@@ -1,0 +1,445 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap');
+
+:root {
+    --bg: #0a0c0f;
+    --bg2: #111418;
+    --bg3: #181c22;
+    --border: rgba(0, 255, 180, 0.15);
+    --border-bright: rgba(0, 255, 180, 0.4);
+    --green: #00ffb4;
+    --green-dim: rgba(0, 255, 180, 0.6);
+    --amber: #ffb830;
+    --red: #ff4554;
+    --blue: #38b4ff;
+    --text: #c8d8c8;
+    --text-dim: #5a7060;
+    --radius: 6px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+#game {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Share Tech Mono", monospace;
+    font-size: 13px;
+    padding: 12px;
+    line-height: 1.4;
+    min-height: clamp(500px, 100dvh, 900px);
+    display: flex;
+    flex-direction: column;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+/* scanline overlay */
+#game::before {
+    content: "";
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.08) 2px, rgba(0, 0, 0, 0.08) 4px);
+    z-index: 999;
+}
+
+.orb {
+    font-family: "Orbitron", sans-serif;
+}
+
+/* --- SCREENS --- */
+.screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    text-align: center;
+    gap: 1rem;
+    min-height: 320px;
+}
+
+.screen.active {
+    display: flex;
+}
+
+.screen h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(20px, 5vw, 32px);
+    color: var(--green);
+    letter-spacing: .1em;
+}
+
+.screen p {
+    color: var(--text-dim);
+    font-size: clamp(11px, 3vw, 13px);
+    max-width: 340px;
+    line-height: 1.8;
+}
+
+.crt-btn {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(11px, 3vw, 13px);
+    letter-spacing: .12em;
+    padding: .6rem 2rem;
+    cursor: pointer;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--green);
+    border: 1px solid var(--green);
+    transition: background .15s, box-shadow .15s;
+}
+
+.crt-btn:hover {
+    background: rgba(0, 255, 180, 0.1);
+    box-shadow: 0 0 12px rgba(0, 255, 180, 0.3);
+}
+
+.crt-btn:active {
+    transform: scale(.97);
+}
+
+.crt-btn.danger {
+    color: var(--red);
+    border-color: var(--red);
+}
+
+.crt-btn.danger:hover {
+    background: rgba(255, 69, 84, 0.1);
+    box-shadow: 0 0 12px rgba(255, 69, 84, .3);
+}
+
+.crt-btn.amber {
+    color: var(--amber);
+    border-color: var(--amber);
+}
+
+.crt-btn.amber:hover {
+    background: rgba(255, 184, 48, .1);
+}
+
+.crt-btn.sm {
+    font-size: 11px;
+    padding: .4rem 1rem;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+/* --- GAME SCREEN --- */
+#screen-game {
+    display: none;
+}
+
+#screen-game.active {
+    display: block;
+}
+
+/* --- TOP BAR --- */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.chip {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 3px 10px;
+    font-size: clamp(10px, 2.5vw, 12px);
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+
+.chip b {
+    color: var(--green);
+    font-weight: 400;
+}
+
+.chip.level-chip {
+    color: var(--amber);
+    border-color: rgba(255, 184, 48, 0.3);
+}
+
+.chip.level-chip b {
+    color: var(--amber);
+}
+
+/* --- METER --- */
+
+.meter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.meter-track {
+    flex: 1;
+    height: 6px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .08s, background .2s;
+}
+
+.meter-pct {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(12px, 3vw, 14px);
+    min-width: 3.5ch;
+    text-align: right;
+    color: var(--green);
+}
+
+/* --- OSCILLOSCOPE --- */
+
+.scope-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.scope-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.scope-label span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pip {
+    width: 8px;
+    height: 2px;
+    border-radius: 1px;
+    display: inline-block;
+}
+
+
+canvas.scope {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+    background: #060a06;
+    border: 1px solid var(--border);
+    /* CRT grid */
+    image-rendering: pixelated;
+}
+
+/* --- CONTROLS --- */
+
+.ctrl-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.ctrl-panel-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.type-btns {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.type-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(10px, 2.5vw, 12px);
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    transition: all .12s;
+    white-space: nowrap;
+}
+
+.type-btn:hover:not(:disabled) {
+    border-color: var(--green-dim);
+    color: var(--green);
+}
+
+.type-btn.active {
+    background: rgba(0, 255, 180, .12);
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.type-btn.disabled {
+    opacity: .25;
+    cursor: default;
+}
+
+.sliders {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+}
+
+@media (max-width: 420px) {
+    .sliders {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ctrl {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ctrl-lbl {
+    font-size: clamp(10px, 2.5vw, 11px);
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+}
+
+.ctrl-lbl b {
+    color: var(--text);
+    font-weight: 400;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+    border: 1px solid var(--border);
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-top: -6px;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 6px rgba(0, 255, 180, 0.5);
+    transition: box-shadow .15s;
+}
+
+input[type=range]:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 12px rgba(0, 255, 180, .8);
+}
+
+input[type=range]::-moz-range-track {
+    height: 3px;
+    background: var(--bg3);
+    border-radius: 2px;
+}
+
+input[type=range]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--green);
+    border: 2px solid var(--bg);
+}
+
+/* --- ACTION ROW --- */
+
+.action-row {
+    display: flex;
+    gap: 6px;
+}
+
+.action-row .crt-btn {
+    flex: 1;
+    text-align: center;
+    font-size: clamp(10px, 2.5vw, 11px);
+    padding: .45rem .5rem;
+}
+
+/* --- FEEDBACK --- */
+
+.feedback {
+    text-align: center;
+    min-height: 22px;
+    font-size: clamp(11px, 3vw, 13px);
+    color: var(--text-dim);
+    margin: .5rem 0;
+    letter-spacing: .03em;
+    transition: color .2s;
+}
+
+.feedback.win {
+    color: var(--green);
+}
+
+.feedback.close {
+    color: var(--amber);
+}
+
+.feedback.bad {
+    color: var(--red);
+}
+
+/* --- FLASH --- */
+.flash-overlay {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    opacity: 0;
+    transition: opacity .05s;
+}
+
+.flash-overlay.go {
+    opacity: .18;
+    transition: none;
+}
