@@ -315,9 +315,9 @@ function buildTarget() {
 
 function resetYours() {
     yoursSignal = { type: "sine", freqHz: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
-    ["freqHz", "amp", "phase", "dc", "harm", "noise"].forEach(k => {
+    ["freq", "amp", "phase", "dc", "harm", "noise"].forEach(k => {
         const el = $(`sl-${k}`);
-        if (el) el.value = yoursSignal[k];
+        if (el) el.value = yoursSignal[k === "freq" ? "freqHz" : k]; // NOTE: Adjust for Signal.freqHz
     });
     document.querySelectorAll(".type-btn").forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
     recompute();
