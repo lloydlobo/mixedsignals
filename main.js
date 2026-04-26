@@ -67,6 +67,76 @@ function unimplemented(msg = "") {
     throw new Error(`UNIMPLEMENTED: ${msg}`);
 }
 
+// ─── BGM ────────────────────────────────────────────────────────────────────
+
+let muted = localStorage.getItem("bgmMuted") === "true";
+let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.25"); // ideal: 0.4
+
+// NOTE: apply initial UI + audio state
+(function initAudio() {
+    const audio = $("bgm-audio");
+    const btn = $("mute-btn");
+
+    audio.muted = muted;
+    audio.volume = volume;
+
+    btn.textContent = muted ? "🔇" : "🎵";
+    btn.style.color = muted ? "var(--text-dim)" : "";
+})();
+
+/* 
+TODO:
+Examples:
+    - Set to 20%:
+        setVolume(0.2);
+    - Fade down for menus:
+        setVolume(0.1);
+    - Restore for gameplay:
+        setVolume(0.4); 
+*/
+function setVolume(v) { // future proofing
+    volume = Math.max(0, Math.min(1, v));
+    const audio = $("bgm-audio");
+    audio.volume = volume;
+    localStorage.setItem("bgmVolume", volume);
+}
+
+function startMusic() {
+    const audio = $("bgm-audio");
+    audio.volume = volume;
+    if (!muted && audio.paused) audio.play();
+}
+
+function stopMusic() {
+    const audio = $("bgm-audio");
+    if (!audio.paused) audio.pause();
+}
+
+function toggleMute() {
+    muted = !muted;
+
+    const audio = $("bgm-audio");
+    const btn = $("mute-btn");
+
+    audio.muted = muted; // critical sync
+    localStorage.setItem("bgmMuted", muted);
+
+    btn.textContent = muted ? "🔇" : "🎵";
+    btn.style.color = muted ? "var(--text-dim)" : "";
+
+    if (muted) {
+        stopMusic();
+    } else if ($("screen-game").style.display !== "none") {
+        startMusic();
+    }
+}
+
+// autoplay gate
+document.addEventListener("click", () => {
+    if (!muted) startMusic();
+}, { once: true });
+
+
 function sample(sig, t, addNoise) {
     const a = sig.amp / 10;
     const p = (sig.phase / 180) * Math.PI;

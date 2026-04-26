@@ -41,15 +41,21 @@
 
         <!-- GAME -->
         <div id="screen-game">
-            <!--  -->
+            <!-- TOPBAR -->
             <div class="topbar">
                 <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
                 <div class="chip">score <b id="score">0</b></div>
                 <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
-                <div class="timer-wrap">
+                <div class="topbar-end-wrap">
+                    <div class="chip" style="padding: 0;">
+                        <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop preload="none"></audio>
+                        <button class="crt-btn mute" id="mute-btn" onclick="toggleMute()"
+                            title="Toggle audio">♪</button>
+                    </div>
                     <div class="chip" style="padding: 0;">
                         <div class="timer" id="timer">30</div>
                     </div>
+
                 </div>
             </div>
 

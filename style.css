@@ -34,17 +34,10 @@ body {
     font-size: 13px;
     padding: 12px;
     line-height: 1.4;
+
     min-height: clamp(500px, 100dvh, 900px);
     display: flex;
     flex-direction: column;
-}
-
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
 }
 
 /* scanline overlay */
@@ -61,7 +54,16 @@ body {
     font-family: "Orbitron", sans-serif;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
 /* --- SCREENS --- */
+
 .screen {
     display: none;
     flex-direction: column;
@@ -135,7 +137,14 @@ body {
 .crt-btn.sm {
     font-size: 11px;
     padding: .4rem 1rem;
-    font-family: 'Share Tech Mono', monospace;
+    font-family: "Share Tech Mono", monospace;
+}
+
+.crt-btn.mute {
+    font-size: 10px;
+    padding: 3px 8px;
+    font-family: "Share Tech Mono", monospace;
+    letter-spacing: .05em;
 }
 
 /* --- GAME SCREEN --- */
@@ -148,12 +157,13 @@ body {
 }
 
 /* --- TOP BAR --- */
+
 .topbar {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
 }
@@ -181,6 +191,14 @@ body {
 .chip.level-chip b {
     color: var(--amber);
 }
+
+.topbar-end-wrap {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .timer {
     font-family: 'Orbitron', sans-serif;
     font-size: clamp(16px, 4.5vw, 24px);
@@ -273,7 +291,6 @@ body {
     border-radius: 1px;
     display: inline-block;
 }
-
 
 canvas.scope {
     display: block;
@@ -454,6 +471,7 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* --- FLASH --- */
+
 .flash-overlay {
     pointer-events: none;
     position: fixed;
