@@ -523,8 +523,9 @@ input[type=range]::-moz-range-thumb {
     padding: 8px 12px;
     font-size: 11px;
     color: var(--text-dim);
-    white-space: nowrap;
-    text-align: right;
+    white-space: normal;
+    width: 320px;
+    max-width: 90vw;
 }
 
 .credits-wrap:hover .credits-popup {
