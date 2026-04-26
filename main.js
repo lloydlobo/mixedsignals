@@ -379,12 +379,12 @@ function useHint() {
     $("score").textContent = score;
 
     const hints = [
-        "type: " + target.type,
-        "freq: " + target.freq + " Hz",
-        "amp: " + (target.amp / 10).toFixed(1),
-        ...(LEVELS[level].phase ? ['phase: ' + target.phase + "°"] : []),
-        ...(LEVELS[level].dc && target.dc !== 0 ? ["dc: " + (target.dc / 10).toFixed(1)] : []),
-        ...(LEVELS[level].harm && target.harm > 0 ? ["harmonic: " + (target.harm / 10).toFixed(1)] : []),
+        "type: " + targetSignal.type,
+        "freq: " + targetSignal.freqHz + " Hz",
+        "amp: " + (targetSignal.amp / 10).toFixed(1),
+        ...(LEVELS[level].phase ? ['phase: ' + targetSignal.phase + "°"] : []),
+        ...(LEVELS[level].dc && target.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(1)] : []),
+        ...(LEVELS[level].harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(1)] : []),
     ];
 
     const h = hints[rng(0, hints.length - 1)];
