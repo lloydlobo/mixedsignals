@@ -181,6 +181,30 @@ body {
 .chip.level-chip b {
     color: var(--amber);
 }
+.timer {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(16px, 4.5vw, 24px);
+    color: var(--green);
+    min-width: 2ch;
+    text-align: right;
+    padding: 2px 8px;
+    transition: color .3s;
+}
+
+.timer.urgent {
+    color: var(--red);
+    animation: pulse .6s infinite alternate;
+}
+
+@keyframes pulse {
+    from {
+        opacity: 1
+    }
+
+    to {
+        opacity: .5
+    }
+}
 
 /* --- METER --- */
 
