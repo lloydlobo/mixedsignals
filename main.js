@@ -136,6 +136,112 @@ document.addEventListener("click", () => {
     if (!muted) startMusic();
 }, { once: true });
 
+// ─── SFX ────────────────────────────────────────────────────────────────────
+
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+
+/** @type {AudioContext | null} */
+let _actx = null; // type AudioContextState = "closed" | "interrupted" | "running" | "suspended";
+
+/** @returns {AudioContext} */
+function actx() { // or simply `return _actx || (_actx = new AudioCtx());`
+    if (!_actx) _actx = new AudioCtx();
+    if (_actx.state === "suspended") _actx.resume();
+    return _actx;
+}
+
+let _lastSliderSfx = 0;
+let _lastUrgentSfx = 0;
+let _urgentBeepDone = false;
+let _wasCloseSfx = false;
+
+const SFX = {
+    tick: (pitch = 880) => { // In setType()
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = pitch;
+        g.gain.setValueAtTime(0.12, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(ac.currentTime + 0.06);
+    },
+    slider: () => { // In recompute(), after reading the slider values
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = 440 + yoursSignal.freqHz * 40;
+        g.gain.setValueAtTime(0.06, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(ac.currentTime + 0.05);
+    },
+    lock: () => { // In updateMeter(), inside the pct >= 95 branch
+        if (muted) return;
+        const ac = actx();
+        [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.type = "triangle"; o.frequency.value = f;
+            g.gain.setValueAtTime(0, ac.currentTime + t);
+            g.gain.linearRampToValueAtTime(0.15, ac.currentTime + t + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
+            o.connect(g); g.connect(ac.destination);
+            o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.2);
+        });
+    },
+    fail: () => { // In gameOver(), skipRound()
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        [[200, 0], [160, 0.1], [120, 0.22]].forEach(([f, t]) => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.type = "sawtooth"; o.frequency.value = f;
+            g.gain.setValueAtTime(0.12, ac.currentTime + t);
+            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + t + 0.18);
+            o.connect(g); g.connect(ac.destination);
+            o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.2);
+        });
+    },
+    hint: () => { // In useHint(), after deducting score
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = 660;
+        o.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.12);
+        g.gain.setValueAtTime(0.1, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(ac.currentTime + 0.2);
+    },
+    levelUp: () => { // In showLevelUp(), victory()
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.type = "triangle";; o.frequency.value = f;
+            g.gain.setValueAtTime(0.13, ac.currentTime + t);
+            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
+            o.connect(g); g.connect(ac.destination);
+            o.start(ac.currentTime + t); o.stop(ac.currentTime + 0.28);
+        });
+    },
+    urgent: () => { // In startTimer()'s setInterval, inside the timeLeft <= 8 branch
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "square"; o.frequency.value = 330;
+        g.gain.setValueAtTime(0.07, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(ac.currentTime + 0.09);
+    },
+    close: () => { // In updateMeter(), inside the pct >= 75 branch
+        // Soft rising tone as we get close to matching the signal
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = 330;
+        o.frequency.linearRampToValueAtTime(440, ac.currentTime + 0.15);
+        g.gain.setValueAtTime(0.05, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
+        o.connect(g); g.connect(ac.destination);
+        o.start(); o.stop(ac.currentTime + 0.05);
+    },
+}
 
 function sample(sig, t, addNoise) {
     const a = sig.amp / 10;
@@ -147,8 +253,14 @@ function sample(sig, t, addNoise) {
         case "sine": v = Math.sin(x); break;
         case "square": v = Math.sign(Math.sin(x)); break;
         case "sawtooth": v = 2 * ((sig.freqHz * t + sig.phase / 360) % 1) - 1; break;
-        case "triangle": { const u = (sig.freqHz * t + sig.phase / 360) % 1; v = u < .5 ? 4 * u - 1 : 3 - 4 * u; }; break;
-        case "pwm": { const u = (sig.freqHz * t + sig.phase / 360) % 1; v = u < .65 ? 1 : -1; }; break;
+        case "triangle": {
+            const u = (sig.freqHz * t + sig.phase / 360) % 1;
+            v = u < .5 ? 4 * u - 1 : 3 - 4 * u;
+        }; break;
+        case "pwm": {
+            const u = (sig.freqHz * t + sig.phase / 360) % 1;
+            v = u < .65 ? 1 : -1;
+        }; break;
         case "am": v = Math.sign(Math.sin(x)); break;
         default: {
             const msg = `Exhausted all enumerated values for "Waveform". Got ${sig.type}`;
@@ -252,6 +364,7 @@ function updateMeter() {
     if (!won && !revealed) {
         if (pct >= 95) {
             won = true;
+            _wasCloseSfx = false; // reset state
 
             clearInterval(timerInterval);
 
@@ -263,13 +376,23 @@ function updateMeter() {
             fb.className = "feedback win";
 
             flash("#00ffb4");
+            SFX.lock();
+
             setTimeout(() => nextRound(), 1800);
         } else if (pct >= 75) {
             fb.textContent = "Getting close…";
             fb.className = "feedback close";
+
+            // Make the “close” state edge-triggered, not continuous
+            if (!_wasCloseSfx) {
+                SFX.close();
+                _wasCloseSfx = true;
+            }
         } else {
             fb.textContent = "Match the target signal.";
             fb.className = "feedback";
+
+            _wasCloseSfx = false; // must be state-based (not per-frame)
         }
     }
 }
@@ -289,6 +412,13 @@ function recompute() {
     $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(1);
     $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(1);
 
+    // Subtle slider sfx - throttled
+    const now = Date.now();
+    if (now - _lastSliderSfx > 80) {
+        SFX.slider();
+        _lastSliderSfx = now;
+    }
+
     updateMeter();
 }
 
@@ -296,6 +426,8 @@ function setType(btn) {
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
+
+    SFX.tick();
     updateMeter();
 }
 
@@ -359,6 +491,7 @@ function showLevelUp() {
     $("lu-title").textContent = `LEVEL ${level + 1}`;
     $("lu-msg").textContent = "New parameters unlocked. Less time. Good luck.";
     $("screen-levelup").classList.add("active");
+    SFX.levelUp();
 }
 
 function continueLevel() {
@@ -386,6 +519,8 @@ function victory() {
     $("dead-msg").textContent = "All 5 levels cleared with " + score + " pts. Legendary.";
 
     dead.classList.add("active");
+    SFX.levelUp();
+
     cancelAnimationFrame(animRaf);
 }
 
@@ -400,6 +535,8 @@ function gameOver() {
     $("dead-msg").textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
 
     dead.classList.add("active");
+    SFX.fail();
+
     cancelAnimationFrame(animRaf);
 }
 
@@ -432,6 +569,15 @@ function startTimer() {
         el.textContent = timeLeft;
         el.className = `timer${timeLeft <= 8 ? " urgent" : ""}`;
 
+        if (timeLeft <= 8) {
+            // Throttle
+            const now = Date.now();
+            if (now - _lastUrgentSfx > 500) { // play every 0.5s (tweak)
+                SFX.urgent();
+                _lastUrgentSfx = now;
+            }
+        }
+
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
             gameOver();
@@ -459,8 +605,9 @@ function useHint() {
 
     const h = hints[rng(0, hints.length - 1)];
     $("feedback").textContent = `hint: ${h}`;
-
     $("feedback").className = "feedback close";
+
+    SFX.hint();
 }
 
 function skipRound() {
@@ -470,6 +617,7 @@ function skipRound() {
     score = Math.max(0, score - cost);
     $("score").textContent = score;
 
+    SFX.fail();
     nextRound();
 }
 
