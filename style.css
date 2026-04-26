@@ -485,3 +485,48 @@ input[type=range]::-moz-range-thumb {
     opacity: .18;
     transition: none;
 }
+
+/* --- CREDITS --- */
+
+.credits-wrap {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+    z-index: 100;
+}
+
+.credits-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: all .15s;
+}
+
+.credits-title:hover {
+    color: var(--green);
+    border-color: var(--green-dim);
+}
+
+.credits-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 6px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-align: right;
+}
+
+.credits-wrap:hover .credits-popup {
+    display: block;
+}
