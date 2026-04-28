@@ -174,7 +174,7 @@ const SFX = {
         o.connect(g); g.connect(ac.destination);
         o.start(); o.stop(ac.currentTime + 0.05);
     },
-    lock: () => { // In updateMeter(), inside the pct >= 95 branch
+    lock: () => { // In updateMeter(), inside the pct >= WIN_PCT branch
         if (muted) return;
         const ac = actx();
         [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) => {
@@ -351,6 +351,7 @@ function flash(color) {
 
 // NOTE: Win results are mutated here
 function updateMeter() {
+    const WIN_PCT = 92; // was 95 when sliders used fixed steps
     const sc = matchScore();
 
     const pct = Math.round(sc * 100);
@@ -362,7 +363,7 @@ function updateMeter() {
 
     const fb = $("feedback");
     if (!won && !revealed) {
-        if (pct >= 95) {
+        if (pct >= WIN_PCT) {
             won = true;
             _wasCloseSfx = false; // reset state
 
@@ -405,12 +406,13 @@ function recompute() {
     yoursSignal.harm = +$("sl-harm").value;
     yoursSignal.noise = +$("sl-noise").value;
 
+    const precision = 2; // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
     $("lbl-freq").textContent = `${yoursSignal.freqHz} Hz`;
-    $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(1);
+    $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(precision);
     $("lbl-phase").textContent = `${yoursSignal.phase}°`;
-    $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(1);
-    $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(1);
-    $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(1);
+    $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(precision);
+    $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(precision);
+    $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(precision);
 
     // Subtle slider sfx - throttled
     const now = Date.now();
@@ -513,7 +515,7 @@ function victory() {
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
-    dead.querySelector("h3").textContent = "SIGNAL MASTERED";
+    dead.querySelector("h3").textContent = "MIXED SIGNALS MASTERED";
     dead.querySelector("h3").style.color = "var(--green)";
 
     $("dead-msg").textContent = "All 5 levels cleared with " + score + " pts. Legendary.";

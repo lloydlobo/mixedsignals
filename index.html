@@ -90,29 +90,30 @@
                     <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>am</button>
                 </div>
                 <div class="sliders">
+                    <!-- freq stays integer, pitch doesn't benefit from floats -->
                     <div class="ctrl">
                         <div class="ctrl-lbl">frequency <b id="lbl-freq">1 Hz</b></div>
                         <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" oninput="recompute()">
                     </div>
                     <div class="ctrl">
                         <div class="ctrl-lbl">amplitude <b id="lbl-amp">0.5</b></div>
-                        <input type="range" id="sl-amp" min="1" max="10" step="1" value="5" oninput="recompute()">
+                        <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" oninput="recompute()">
                     </div>
                     <div class="ctrl" id="ctrl-phase">
                         <div class="ctrl-lbl">phase <b id="lbl-phase">0&deg;</b></div>
-                        <input type="range" id="sl-phase" min="0" max="360" step="5" value="0" oninput="recompute()">
+                        <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" oninput="recompute()">
                     </div>
                     <div class="ctrl" id="ctrl-dc">
                         <div class="ctrl-lbl">DC offset <b id="lbl-dc">0.0</b></div>
-                        <input type="range" id="sl-dc" min="-5" max="5" step="1" value="0" oninput="recompute()">
+                        <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" oninput="recompute()">
                     </div>
                     <div class="ctrl" id="ctrl-harm" style="display: none;">
                         <div class="ctrl-lbl">harmonic <b id="lbl-harm">0.0</b></div>
-                        <input type="range" id="sl-harm" min="0" max="10" step="1" value="0" oninput="recompute()">
+                        <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" oninput="recompute()">
                     </div>
                     <div class="ctrl" id="ctrl-noise" style="display: none;">
                         <div class="ctrl-lbl">noise <b id="lbl-noise">0.0</b></div>
-                        <input type="range" id="sl-noise" min="0" max="10" step="1" value="0" oninput="recompute()">
+                        <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0" oninput="recompute()">
                     </div>
                 </div>
             </div>
@@ -129,7 +130,8 @@
             <span class="credits-title">Credits</span>
             <div class="credits-popup">
                 <div style="font-size: 9px; opacity: 0.6;">Thanks to (playtesters, feedback, ratings):</div>
-                <div style="font-size: 10px;">Eric Nguyen, Grummelchen, Khushi Rathi, Makim Terskov, Nikhil Lakhra, oxnh, Ray Dino, Reed Molbak</div>
+                <div style="font-size: 10px;">Eric Nguyen, Grummelchen, Khushi Rathi, Makim Terskov, Nikhil Lakhra,
+                    oxnh, Ray Dino, Reed Molbak</div>
                 <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
                 <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
                 <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
