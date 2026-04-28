@@ -1,22 +1,60 @@
 // NOTE: I want to share with you the joy of playing this fun little game. 
 // NOTE: Heavely Vibed with le' AI
+/**
+ * @fileoverview Mixed Signals Game - Main Entry Point
+ * @description A signal matching puzzle game where players adjust waveform parameters to match a randomly generated target signal.
+ * @version 1.0.0
+ */
 
 /**
  * @typedef {"sine" | "square" | "sawtooth" | "triangle"} Waveform
+ * @description Available oscillator waveform types.
  */
 
 /**
- * A parametric periodic signal model.
  * @typedef {Object} Signal
- * @property {Waveform} type     base oscillator shape // TODO: Rename this to waveform later
- * @property {number} freqHz     frequency in Hz
- * @property {number} amp        amplitude (linear gain)
- * @property {number} phase      phase offset in degrees
- * @property {number} dc         DC offset
- * @property {number} harm       harmonic content / distortion amount
- * @property {number} noise      noise level (0-1 typical)
+ * @description A parametric periodic signal model.
+ * @property {Waveform} type base oscillator shape // TODO: Rename this to waveform later
+ * @property {number} freq   frequency in Hz
+ * @property {number} amp    amplitude (linear gain)
+ * @property {number} phase  phase offset in degrees
+ * @property {number} dc     DC offset
+ * @property {number} harm   harmonic content / distortion amount
+ * @property {number} noise  noise level (0-1 typical)
  */
 
+/**
+ * @typedef {Object} Level
+ * @description Game level configuration.
+ * @property {number} rounds    number of rounds in the level
+ * @property {number} time      number of rounds in the level
+ * @property {Waveform[]} types number of rounds in the level
+ * @property {boolean} phase    whether phase control is enabled
+ * @property {boolean} dc       whether DC offset control is enabled
+ * @property {boolean} harm     whether harmonic control is enabled
+ * @property {boolean} noise    whether noise control is enabled
+ */
+
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
+
+/**
+ * Game configuration constants.
+ * @readonly
+ * @enum {number}
+ */
+const CONFIG = {
+    FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
+    COST_HINT: 5,
+    COST_SKIP: 10,
+    WIN_PERCENTAGE: 92, // was 95 when sliders used fixed steps
+    CLOSE_PERCENTAGE: 75,
+}
+
+/**
+ * Level configurations from easy to hard.
+ * @readonly 
+ * @type {Level[]}
+ */
 const LEVELS = [
     { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
     { rounds: 5, time: 25, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false },
@@ -29,7 +67,9 @@ const LEVELS = [
 let targetSignal = {};
 
 /** @type {Signal} */
-let yoursSignal = { type: "sine", freqHz: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+
+// ─── GAME STATE VARIABLES ────────────────────────────────────────────────────────────────────
 
 let score = 0,
     levelStartScore = 0,
@@ -42,28 +82,29 @@ let score = 0,
     revealed = false;
 
 /**
- * The getElementById() method of the Document interface returns an Element
- * object representing the element whose id property matches the specified
- * string. Since element IDs are required to be unique if specified, they're a
- * useful way to get access to a specific element quickly.
- * @param {string} id elementId
- * @returns {HTMLElement | null}
+ * Shorthand for document.getElementById.
+ * @param {string} id - The element ID.
+ * @returns {HTMLElement|null} The element or null.
  */
 function $(id) {
     return document.getElementById(id);
 }
 
 /**
- * Random Number Generator
- * @param {number} lo 
- * @param {number} hi 
- * @returns {number}
+ * Generates a random integer between lo and hi (inclusive).
+ * @param {number} lo - Lower bound.
+ * @param {number} hi - Upper bound.
+ * @returns {number} Random integer.
  */
 function rng(lo, hi) {
     return lo + Math.floor(Math.random() * (hi - lo + 1));
 }
 
-/** @param {string?} msg */
+/**
+ * Throws an error for unimplemented features.
+ * @param {string} [msg=""] - Error message.
+ * @throws {Error} Always throws.
+ */
 function unimplemented(msg = "") {
     throw new Error(`UNIMPLEMENTED: ${msg}`);
 }
@@ -95,6 +136,10 @@ Examples:
     - Restore for gameplay:
         setVolume(0.4); 
 */
+/**
+ * Sets the background music volume.
+ * @param {number} v - Volume level (0-1).
+ */
 function setVolume(v) { // future proofing
     volume = Math.max(0, Math.min(1, v));
     const audio = $("bgm-audio");
@@ -157,6 +202,10 @@ let _urgentBeepDone = false;
 let _wasCloseSfx = false;
 
 const SFX = {
+    /**
+     * Plays a short tick sound.
+     * @param {number} [pitch=880] - Frequency in Hz.
+     */
     tick: (pitch = 880) => { // In setType()
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
@@ -169,7 +218,7 @@ const SFX = {
     slider: () => { // In recompute(), after reading the slider values
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = 440 + yoursSignal.freqHz * 40;
+        o.type = "sine"; o.frequency.value = 440 + yoursSignal.freq * 40;
         g.gain.setValueAtTime(0.06, ac.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
         o.connect(g); g.connect(ac.destination);
@@ -244,22 +293,29 @@ const SFX = {
     },
 }
 
+/**
+ * Samples the signal value at a given time.
+ * @param {Signal} sig - The signal to sample.
+ * @param {number} t - Time (0-1 normalized).
+ * @param {boolean} addNoise - Whether to add noise.
+ * @returns {number} The sampled value.
+ */
 function sample(sig, t, addNoise) {
     const a = sig.amp / 10;
     const p = (sig.phase / 180) * Math.PI;
-    const x = 2 * Math.PI * sig.freqHz * t + p;
+    const x = 2 * Math.PI * sig.freq * t + p;
     const h = (sig.harm || 0) / 10, n = (sig.noise || 0) / 10;
     let v;
     switch (sig.type) {
         case "sine": v = Math.sin(x); break;
         case "square": v = Math.sign(Math.sin(x)); break;
-        case "sawtooth": v = 2 * ((sig.freqHz * t + sig.phase / 360) % 1) - 1; break;
+        case "sawtooth": v = 2 * ((sig.freq * t + sig.phase / 360) % 1) - 1; break;
         case "triangle": {
-            const u = (sig.freqHz * t + sig.phase / 360) % 1;
+            const u = (sig.freq * t + sig.phase / 360) % 1;
             v = u < .5 ? 4 * u - 1 : 3 - 4 * u;
         }; break;
         case "pwm": {
-            const u = (sig.freqHz * t + sig.phase / 360) % 1;
+            const u = (sig.freq * t + sig.phase / 360) % 1;
             v = u < .65 ? 1 : -1;
         }; break;
         case "am": v = Math.sign(Math.sin(x)); break;
@@ -273,6 +329,10 @@ function sample(sig, t, addNoise) {
     return a * v + (sig.dc || 0) / 10;
 }
 
+/**
+ * Calculates the similarity score between target and player signals.
+ * @returns {number} Score from 0 (no match) to 1 (perfect match).
+ */
 function matchScore() {
     let d = 0;
     const N = 300;
@@ -285,6 +345,12 @@ function matchScore() {
     return Math.max(0, 1 - d / (2 * N));
 }
 
+/**
+ * Draws the background grid on the canvas.
+ * @param {CanvasRenderingContext2D} ctx - Canvas context.
+ * @param {number} W - Canvas width.
+ * @param {number} H - Canvas height.
+ */
 function drawGrid(ctx, W, H) {
     ctx.strokeStyle = "rgba(0,255,180,0.07)"; ctx.lineWidth = .5;
     const cols = 8, rows = 4;
@@ -294,6 +360,17 @@ function drawGrid(ctx, W, H) {
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
 }
 
+/**
+ * Draws a waveform on the canvas.
+ * @param {CanvasRenderingContext2D} ctx - Canvas context.
+ * @param {Signal} sig - The signal to draw.
+ * @param {string} color - Stroke color.
+ * @param {number} W - Canvas width.
+ * @param {number} H - Canvas height.
+ * @param {number} scroll - Scroll offset (0-1).
+ * @param {boolean} noisy - Whether to add noise.
+ * @param {number} [lineW=1.8] - Line width.
+ */
 function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineW || 1.8;
@@ -307,6 +384,10 @@ function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
     ctx.stroke();
 }
 
+/**
+ * Main animation loop for rendering waveforms.
+ * @param {number} ts - Timestamp from requestAnimationFrame.
+ */
 function loop(ts) {
     const scroll = (ts / 4200) % 1;
     const c = $("c-overlay");
@@ -343,6 +424,10 @@ function loop(ts) {
     animRaf = requestAnimationFrame(loop);
 }
 
+/**
+ * Flashes the screen with a color.
+ * @param {string} color - CSS color value.
+ */
 function flash(color) {
     const el = $("flash");
     el.style.background = color;
@@ -350,9 +435,10 @@ function flash(color) {
     setTimeout(() => el.classList.remove("go"), 80);
 }
 
-// NOTE: Win results are mutated here
+/**
+ * Updates the match percentage meter and checks win condition.
+ */
 function updateMeter() {
-    const WIN_PCT = 92; // was 95 when sliders used fixed steps
     const sc = matchScore();
 
     const pct = Math.round(sc * 100);
@@ -364,7 +450,7 @@ function updateMeter() {
 
     const fb = $("feedback");
     if (!won && !revealed) {
-        if (pct >= WIN_PCT) {
+        if (pct >= CONFIG.WIN_PERCENTAGE) {
             won = true;
             _wasCloseSfx = false; // reset state
 
@@ -381,7 +467,7 @@ function updateMeter() {
             SFX.lock();
 
             setTimeout(() => nextRound(), 1800);
-        } else if (pct >= 75) {
+        } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
             fb.textContent = "Getting close…";
             fb.className = "feedback close";
 
@@ -399,21 +485,23 @@ function updateMeter() {
     }
 }
 
+/**
+ * Reads slider values and updates player signal.
+ */
 function recompute() {
-    yoursSignal.freqHz = +$("sl-freq").value;
+    yoursSignal.freq = +$("sl-freq").value;
     yoursSignal.amp = +$("sl-amp").value;
     yoursSignal.phase = +$("sl-phase").value;
     yoursSignal.dc = +$("sl-dc").value;
     yoursSignal.harm = +$("sl-harm").value;
     yoursSignal.noise = +$("sl-noise").value;
 
-    const precision = 2; // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
-    $("lbl-freq").textContent = `${yoursSignal.freqHz} Hz`;
-    $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(precision);
+    $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
+    $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
     $("lbl-phase").textContent = `${yoursSignal.phase}°`;
-    $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(precision);
-    $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(precision);
-    $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(precision);
+    $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+    $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+    $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
 
     // Subtle slider sfx - throttled
     const now = Date.now();
@@ -425,6 +513,10 @@ function recompute() {
     updateMeter();
 }
 
+/**
+ * Sets the waveform type from button click.
+ * @param {HTMLElement} btn - The clicked button.
+ */
 function setType(btn) {
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
@@ -434,12 +526,16 @@ function setType(btn) {
     updateMeter();
 }
 
+/**
+ * Builds a random target signal based on current level.
+ * @returns {Signal} The generated target signal.
+ */
 function buildTarget() {
     const lv = LEVELS[level];
     /** @type {Signal} */
     const t = {};
     t.type = lv.types[rng(0, lv.types.length - 1)];
-    t.freqHz = rng(1, 6);
+    t.freq = rng(1, 6);
     t.amp = rng(3, 10);
     t.phase = lv.phase ? rng(0, 7) * 45 : 0;
     t.dc = lv.dc ? rng(-3, 3) : 0;
@@ -448,16 +544,22 @@ function buildTarget() {
     return t;
 }
 
+/**
+ * Resets player signal to default values.
+ */
 function resetYours() {
-    yoursSignal = { type: "sine", freqHz: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+    yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
     ["freq", "amp", "phase", "dc", "harm", "noise"].forEach(k => {
         const el = $(`sl-${k}`);
-        if (el) el.value = yoursSignal[k === "freq" ? "freqHz" : k]; // NOTE: Adjust for Signal.freqHz
+        if (el) el.value = yoursSignal[k];
     });
     document.querySelectorAll(".type-btn").forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
     recompute();
 }
 
+/**
+ * Advances to the next round.
+ */
 function nextRound() {
     won = false;
     revealed = false;
@@ -488,6 +590,9 @@ function nextRound() {
     startTimer();
 }
 
+/**
+ * Shows the level up screen.
+ */
 function showLevelUp() {
     clearInterval(timerInterval);
     $("screen-game").classList.remove("active");
@@ -498,6 +603,9 @@ function showLevelUp() {
     SFX.levelUp();
 }
 
+/**
+ * Continues to the next level after level up screen.
+ */
 function continueLevel() {
     $("screen-levelup").classList.remove("active");
     $("screen-game").style.display = "block";
@@ -513,6 +621,9 @@ function continueLevel() {
     startTimer();
 }
 
+/**
+ * Shows the victory screen.
+ */
 function victory() {
     $("screen-game").style.display = "none";
 
@@ -528,6 +639,9 @@ function victory() {
     cancelAnimationFrame(animRaf);
 }
 
+/**
+ * Shows the game over screen.
+ */
 function gameOver() {
     flash("#ff4554");
     $("screen-game").style.display = "none";
@@ -544,6 +658,9 @@ function gameOver() {
     cancelAnimationFrame(animRaf);
 }
 
+/**
+ * Applies level-specific UI visibility.
+ */
 function applyLevelUI() {
     const lv = LEVELS[level];
     $("lbl-level").textContent = level + 1;
@@ -559,6 +676,9 @@ function applyLevelUI() {
     $("btn-am").disabled = !lv.types.includes("am");
 }
 
+/**
+ * Starts the countdown timer.
+ */
 function startTimer() {
     clearInterval(timerInterval);
     timeLeft = LEVELS[level].time;
@@ -574,8 +694,7 @@ function startTimer() {
         el.className = `timer${timeLeft <= 8 ? " urgent" : ""}`;
 
         if (timeLeft <= 8) {
-            // Throttle
-            const now = Date.now();
+            const now = Date.now(); // Throttle
             if (now - _lastUrgentSfx > 500) { // play every 0.5s (tweak)
                 SFX.urgent();
                 _lastUrgentSfx = now;
@@ -589,22 +708,24 @@ function startTimer() {
     }, 1000);
 }
 
+/**
+ * Uses a hint to reveal one target parameter.
+ */
 function useHint() {
     if (won || revealed) return;
 
-    const cost = 5;
-    if (score < cost) return
+    if (score < CONFIG.COST_HINT) return
 
-    score = Math.max(0, score - cost);
+    score = Math.max(0, score - CONFIG.COST_HINT);
     $("score").textContent = score;
 
     const hints = [
         "type: " + targetSignal.type,
-        "freq: " + targetSignal.freqHz + " Hz",
-        "amp: " + (targetSignal.amp / 10).toFixed(1),
+        "freq: " + targetSignal.freq + " Hz",
+        "amp: " + (targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION),
         ...(LEVELS[level].phase ? ['phase: ' + targetSignal.phase + "°"] : []),
-        ...(LEVELS[level].dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(1)] : []),
-        ...(LEVELS[level].harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(1)] : []),
+        ...(LEVELS[level].dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
+        ...(LEVELS[level].harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
     ];
 
     const h = hints[rng(0, hints.length - 1)];
@@ -614,17 +735,22 @@ function useHint() {
     SFX.hint();
 }
 
+/**
+ * Skips the current round.
+ */
 function skipRound() {
-    const cost = 10;
-    if (score < cost) return;
+    if (score < CONFIG.COST_SKIP) return;
 
-    score = Math.max(0, score - cost);
+    score = Math.max(0, score - CONFIG.COST_SKIP);
     $("score").textContent = score;
 
     SFX.fail();
     nextRound();
 }
 
+/**
+ * Restarts the game from the beginning.
+ */
 function restartGame() {
     score = 0;
     levelStartScore = 0;
@@ -632,6 +758,9 @@ function restartGame() {
     startGame();
 }
 
+/**
+ * Starts the game.
+ */
 function startGame() {
     // level = 0; // FIXED: Level intentionally NOT reset here
     score = levelStartScore; // score = 0; // FIXED: score intentionally NOT reset here
