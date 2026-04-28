@@ -32,6 +32,7 @@ let targetSignal = {};
 let yoursSignal = { type: "sine", freqHz: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
 
 let score = 0,
+    levelStartScore = 0,
     level = 0,
     roundNo = 0,
     timeLeft = 0,
@@ -469,6 +470,7 @@ function nextRound() {
 
         level = nextLevel;
         roundNo = 1;
+        levelStartScore = score; // snapshot before showing level up screen
 
         showLevelUp();
         return;
@@ -623,12 +625,20 @@ function skipRound() {
     nextRound();
 }
 
-function startGame() {
+function restartGame() {
     score = 0;
+    levelStartScore = 0;
     level = 0;
+    startGame();
+}
+
+function startGame() {
+    // level = 0; // FIXED: Level intentionally NOT reset here
+    score = levelStartScore; // score = 0; // FIXED: score intentionally NOT reset here
     roundNo = 0;
 
-    $("score").textContent = 0;
+    $("score").textContent = score; // $("score").textContent = 0;
+
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $("screen-game").style.display = "block";
 
