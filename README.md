@@ -14,4 +14,7 @@ Thank you for playing and also for your feeedbacks, suggestions, and ideas:
 
 [Carrerino](https://ldjam.com/users/carrerino), [Eric Nguyen](https://ldjam.com/users/eric-nguyen), [Fractal](https://ldjam.com/users/fractal), [Grummelchen](https://ldjam.com/users/grummelchen), [Jo Bettaque](https://ldjam.com/users/jo-bettaque), Khushi Rathi, [Maksim Terskov](https://ldjam.com/users/maksim-terskov), [nathmate](https://ldjam.com/users/nathmate), Nikhil Lakhra, [oxnh](https://ldjam.com/users/oxnh), [Planetary](https://ldjam.com/users/planetary), [Ray Dino](https://ldjam.com/users/ray-dino), [Reed Molbak](https://ldjam.com/users/reed-molbak), [Sceef](https://ldjam.com/users/sceef), [VenomousMouse](https://ldjam.com/users/venomousmouse)
 
+
+Thank you [Asth_Matic Gaming](https://www.youtube.com/@jimbob15515) for the initial [idea](https://www.youtube.com/watch?v=jz6pY7ysNjA).
+
 And many more that I forgot to add here...
