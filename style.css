@@ -53,6 +53,8 @@ body {
         25px 25px 0px #000,
         inset 2px 2px 5px rgba(255, 255, 255, 0.05);
     border: 2px solid #3d4148;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* Power LED */
@@ -258,8 +260,13 @@ body {
 }
 
 @keyframes pulse {
-    from { opacity: 1 }
-    to { opacity: .5 }
+    from {
+        opacity: 1
+    }
+
+    to {
+        opacity: .5
+    }
 }
 
 /* --- METER --- */
@@ -630,6 +637,8 @@ input[type=range]::-moz-range-thumb {
     white-space: normal;
     width: 320px;
     max-width: 90vw;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .credits-wrap:hover .credits-popup {
