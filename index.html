@@ -87,38 +87,38 @@
             <!-- HARDWARE CONTROLS (outside LCD frame) -->
             <div class="hardware-grid">
                 <!-- WAVE SELECTOR -->
-                <div class="mode-selector">
-                    <button class="mode-btn type-btn active" data-t="sine" onclick="setType(this)">
+                <div class="type-btns" id="type-btns">
+                    <button class="type-btn active" data-t="sine" onclick="setType(this)">
                         <svg viewBox="0 0 24 12">
                             <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
                         </svg>
                         <span>SINE</span>
                     </button>
-                    <button class="mode-btn type-btn" data-t="square" onclick="setType(this)">
+                    <button class="type-btn" data-t="square" onclick="setType(this)">
                         <svg viewBox="0 0 24 12">
                             <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
                         </svg>
                         <span>SQR</span>
                     </button>
-                    <button class="mode-btn type-btn" data-t="sawtooth" onclick="setType(this)">
+                    <button class="type-btn" data-t="sawtooth" onclick="setType(this)">
                         <svg viewBox="0 0 24 12">
                             <path d="M0 10 L12 2 L12 10 L24 2" />
                         </svg>
                         <span>SAW</span>
                     </button>
-                    <button class="mode-btn type-btn" data-t="triangle" onclick="setType(this)">
+                    <button class="type-btn" data-t="triangle" onclick="setType(this)">
                         <svg viewBox="0 0 24 12">
                             <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
                         </svg>
                         <span>TRI</span>
                     </button>
-                    <button class="mode-btn type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" disabled>
+                    <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" disabled>
                         <svg viewBox="0 0 24 12">
                             <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
                         </svg>
                         <span>PWM</span>
                     </button>
-                    <button class="mode-btn type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>
+                    <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>
                         <svg viewBox="0 0 24 12">
                             <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
                         </svg>
@@ -128,7 +128,7 @@
 
                 <!-- SLIDERS WITH LABELS + GLYPHS -->
                 <div class="param-list">
-                    <div class="hw-slider-group" id="ctrl-freq">
+                    <div class="ctrl" id="ctrl-freq">
                         <div class="slider-meta">
                             <label for="sl-freq">Freq</label>
                             <span class="slider-val"><b id="lbl-freq">1 Hz</b></span>
@@ -137,7 +137,7 @@
                             <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" oninput="recompute()" />
                         </div>
                     </div>
-                    <div class="hw-slider-group" id="ctrl-amp">
+                    <div class="ctrl" id="ctrl-amp">
                         <div class="slider-meta">
                             <label for="sl-amp">Amp</label>
                             <span class="slider-val"><b id="lbl-amp">0.5</b></span>
@@ -146,7 +146,7 @@
                             <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" oninput="recompute()" />
                         </div>
                     </div>
-                    <div class="hw-slider-group" id="ctrl-phase">
+                    <div class="ctrl" id="ctrl-phase">
                         <div class="slider-meta">
                             <label for="sl-phase">Phase</label>
                             <span class="slider-val"><b id="lbl-phase">0&deg;</b></span>
@@ -155,7 +155,7 @@
                             <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" oninput="recompute()" />
                         </div>
                     </div>
-                    <div class="hw-slider-group" id="ctrl-dc">
+                    <div class="ctrl" id="ctrl-dc">
                         <div class="slider-meta">
                             <label for="sl-dc">DC Off</label>
                             <span class="slider-val"><b id="lbl-dc">0.0</b></span>
@@ -164,7 +164,7 @@
                             <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" oninput="recompute()" />
                         </div>
                     </div>
-                    <div class="hw-slider-group" id="ctrl-harm" style="display: none;">
+                    <div class="ctrl" id="ctrl-harm" style="display: none;">
                         <div class="slider-meta">
                             <label for="sl-harm">Harm</label>
                             <span class="slider-val"><b id="lbl-harm">0.0</b></span>
@@ -173,7 +173,7 @@
                             <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" oninput="recompute()" />
                         </div>
                     </div>
-                    <div class="hw-slider-group" id="ctrl-noise" style="display: none;">
+                    <div class="ctrl" id="ctrl-noise" style="display: none;">
                         <div class="slider-meta">
                             <label for="sl-noise">Noise</label>
                             <span class="slider-val"><b id="lbl-noise">0.0</b></span>
@@ -183,16 +183,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Hidden legacy .type-btns container for JS compatibility -->
-            <div id="type-btns" style="display:none;">
-                <button class="type-btn active" data-t="sine" onclick="setType(this)">sine</button>
-                <button class="type-btn" data-t="square" onclick="setType(this)">square</button>
-                <button class="type-btn" data-t="sawtooth" onclick="setType(this)">sawtooth</button>
-                <button class="type-btn" data-t="triangle" onclick="setType(this)">triangle</button>
-                <button class="type-btn" data-t="pwm" onclick="setType(this)" disabled>pwm</button>
-                <button class="type-btn" data-t="am" onclick="setType(this)" disabled>am</button>
             </div>
 
             <div class="action-row">
