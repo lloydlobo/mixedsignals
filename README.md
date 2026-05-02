@@ -8,6 +8,13 @@
   Licensed under Creative Commons: By Attribution 4.0 License
   http://creativecommons.org/licenses/by/4.0/
 
+## Built With
+
+This project was developed collaboratively with AI assistants:
+- **Claude** (Anthropic) — core game logic, architecture, and gameplay systems
+- **Gemini** (Google) — hardware/oscilloscope visual styling and aesthetic direction
+- **opencode** (open source CLI) — iterative refinement, bug fixes, and polish
+
 ## Credits
 
 Thank you for playing and also for your feeedbacks, suggestions, and ideas:
