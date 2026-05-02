@@ -59,8 +59,8 @@ const LEVELS = [
     { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
     { rounds: 5, time: 25, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false },
     { rounds: 5, time: 22, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false },
-    { rounds: 4, time: 18, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false },
-    { rounds: 4, time: 15, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true },
+    { rounds: 5, time: 20, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false },
+    { rounds: 4, time: 18, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true },
 ];
 
 /** @type {Signal} */
@@ -419,7 +419,7 @@ function loop(ts) {
     ctx.globalAlpha = 0.85;
     drawWave(ctx, targetSignal, "#38b4ff", W, H, scroll, true, 1.8);
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, false, 1.8);
+    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, true, 1.8);
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -625,6 +625,7 @@ function continueLevel() {
  * Shows the victory screen.
  */
 function victory() {
+    clearInterval(timerInterval);
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
@@ -643,6 +644,7 @@ function victory() {
  * Shows the game over screen.
  */
 function gameOver() {
+    clearInterval(timerInterval);
     flash("#ff4554");
     $("screen-game").style.display = "none";
 
@@ -701,7 +703,7 @@ function startTimer() {
             }
         }
 
-        if (timeLeft <= 0) {
+        if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
             gameOver();
         }
