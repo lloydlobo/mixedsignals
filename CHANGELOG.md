@@ -4,6 +4,11 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+### Fixes
+- Prevent text selection when dragging mouse over game UI
+- Prevent timer from triggering game over after player has already won a round
+- Enable noise rendering on player's waveform during visualization
+
 ## [0.3.0] - 2026-05-02
 
 ### UI
