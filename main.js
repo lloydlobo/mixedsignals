@@ -419,7 +419,7 @@ function loop(ts) {
     ctx.globalAlpha = 0.85;
     drawWave(ctx, targetSignal, "#38b4ff", W, H, scroll, true, 1.8);
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, false, 1.8);
+    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, true, 1.8);
 
     animRaf = requestAnimationFrame(loop);
 }
