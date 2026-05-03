@@ -693,7 +693,11 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
-    fadeBGM(1000, true); // smooth fade-out over 1s
+    if (false) { 
+        // FIXME: high-pass it instead or reduce volume a bit
+        // TODO: On retry return volume to "as-it-was"
+        fadeBGM(1000, true); // smooth fade-out over 1s
+    }
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
