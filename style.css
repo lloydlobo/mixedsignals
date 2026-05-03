@@ -57,6 +57,10 @@ body {
     -webkit-user-select: none;
 }
 
+#game-inner {
+    position: relative;
+}
+
 /* Power LED */
 #game::after {
     content: "";
@@ -260,13 +264,54 @@ body {
 }
 
 @keyframes pulse {
-    from {
-        opacity: 1
-    }
+    from { opacity: 1; }
+    to { opacity: 0.5; }
+}
 
-    to {
-        opacity: .5
-    }
+@keyframes shake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-5px, -3px); }
+    20% { transform: translate(5px, 3px); }
+    30% { transform: translate(-3px, 5px); }
+    40% { transform: translate(3px, -5px); }
+    50% { transform: translate(-5px, 3px); }
+    60% { transform: translate(5px, -3px); }
+    70% { transform: translate(-3px, -5px); }
+    80% { transform: translate(3px, 5px); }
+    90% { transform: translate(-5px, -3px); }
+}
+
+@keyframes shakeLight {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-2px, 1px); }
+    50% { transform: translate(2px, -1px); }
+    75% { transform: translate(-1px, 2px); }
+}
+
+#game-inner.shake {
+    animation: shake 0.5s ease-out;
+}
+
+#game-inner.shake-light {
+    animation: shakeLight 0.3s ease-out;
+}
+
+@keyframes scorePop {
+    0% { transform: translateY(0); opacity: 1; font-size: 1em; }
+    50% { transform: translateY(-20px); opacity: 0.8; font-size: 1.3em; }
+    100% { transform: translateY(-40px); opacity: 0; font-size: 1em; }
+}
+
+.score-pop {
+    position: absolute;
+    top: -10px;
+    right: 80px;
+    color: var(--green);
+    font-family: "Orbitron", sans-serif;
+    font-weight: bold;
+    pointer-events: none;
+    animation: scorePop 0.8s ease-out forwards;
+    z-index: 10;
 }
 
 /* --- METER --- */
@@ -587,7 +632,7 @@ input[type=range]::-moz-range-thumb {
     pointer-events: none;
     position: fixed;
     inset: 0;
-    z-index: 998;
+    z-index: 1011; /* Above credits-wrap (1010) and scanline (999) */
     opacity: 0;
     transition: opacity .05s;
 }
@@ -603,7 +648,7 @@ input[type=range]::-moz-range-thumb {
     position: fixed;
     bottom: 8px;
     right: 12px;
-    z-index: 100;
+    z-index: 1010; /* Above scanline overlay (z-index: 999) */
 }
 
 .credits-title {

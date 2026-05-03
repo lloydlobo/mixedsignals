@@ -91,6 +91,26 @@ function $(id) {
 }
 
 /**
+ * Shows a floating score popup animation.
+ * @param {number} points - Points to display (positive number).
+ */
+function showScorePop(points) {
+    const scoreEl = $("score");
+    if (!scoreEl) return;
+    const pop = document.createElement("div");
+    pop.className = "score-pop";
+    pop.textContent = "+" + points;
+    scoreEl.parentElement.style.position = "relative";
+    scoreEl.parentElement.appendChild(pop);
+    setTimeout(() => pop.remove(), 800);
+
+    // Light screen shake on score pop
+    const gameInner = $("game-inner");
+    gameInner.classList.add("shake-light");
+    setTimeout(() => gameInner.classList.remove("shake-light"), 300);
+}
+
+/**
  * Generates a random integer between lo and hi (inclusive).
  * @param {number} lo - Lower bound.
  * @param {number} hi - Upper bound.
@@ -112,7 +132,7 @@ function unimplemented(msg = "") {
 // ─── BGM ────────────────────────────────────────────────────────────────────
 
 let muted = localStorage.getItem("bgmMuted") === "true";
-let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.25"); // ideal: 0.4
+let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.4"); // ideal: 0.4
 
 // NOTE: apply initial UI + audio state
 (function initAudio() {
@@ -156,6 +176,28 @@ function startMusic() {
 function stopMusic() {
     const audio = $("bgm-audio");
     if (!audio.paused) audio.pause();
+}
+
+/**
+ * Fades BGM volume down over duration ms, then pauses if pauseAfter is true.
+ * @param {number} duration - Fade duration in ms.
+ * @param {boolean} pauseAfter - Whether to pause after fade.
+ */
+function fadeBGM(duration = 1000, pauseAfter = true) {
+    const audio = $("bgm-audio");
+    const startVol = audio.volume;
+    const steps = 20;
+    const stepTime = duration / steps;
+    let step = 0;
+    const interval = setInterval(() => {
+        step++;
+        audio.volume = Math.max(0, startVol * (1 - step / steps));
+        if (step >= steps) {
+            clearInterval(interval);
+            if (pauseAfter) audio.pause();
+            audio.volume = startVol; // restore for next play
+        }
+    }, stepTime);
 }
 
 function toggleMute() {
@@ -376,7 +418,7 @@ function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
     ctx.lineWidth = lineW || 1.8;
     ctx.beginPath();
     for (let px = 0; px <= W; px++) {
-        const t = (px / W + scroll) % 1;
+        const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
         const v = sample(sig, t, noisy);
         const y = H / 2 - v * (H / 2 - 10);
         px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
@@ -401,13 +443,15 @@ function loop(ts) {
 
     const sc = matchScore();
     if (sc > 0.5) {
+        // Overlay: both signals share one oscilloscope. A faint green trace
+        // blends in as you get closer, giving you a visual diff of where you're off.
         ctx.save();
-        ctx.globalAlpha = 0.08 * (sc - 0.5) * 2;
+        ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
         ctx.strokeStyle = "#00ffb4";
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 2.5 * (sc + 0.5);
         ctx.beginPath();
         for (let px = 0; px <= W; px++) {
-            const t = (px / W + scroll) % 1; // px / W
+            const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
             const v = (sample(targetSignal, t, false) + sample(yoursSignal, t, false)) / 2;
             const y = H / 2 - v * (H / 2 - 10);
             px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
@@ -417,9 +461,9 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#38b4ff", W, H, scroll, true, 1.8);
+    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4); // bright phosphor green
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, true, 1.8);
+    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4); // traditional scope color // --amber
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -459,12 +503,14 @@ function updateMeter() {
             const bonus = Math.ceil(timeLeft * .8);
             score += 100 + bonus;
             $("score").textContent = score;
+            showScorePop(100 + bonus);
 
             fb.textContent = "LOCKED IN +" + (100 + bonus) + " pts";
             fb.className = "feedback win";
 
             flash("#00ffb4");
             SFX.lock();
+            if (navigator.vibrate) navigator.vibrate(100);
 
             setTimeout(() => nextRound(), 1800);
         } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
@@ -523,6 +569,7 @@ function setType(btn) {
     yoursSignal.type = btn.dataset.t;
 
     SFX.tick();
+    if (navigator.vibrate) navigator.vibrate(50);
     updateMeter();
 }
 
@@ -646,6 +693,11 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
+    if (false) { 
+        // FIXME: high-pass it instead or reduce volume a bit
+        // TODO: On retry return volume to "as-it-was"
+        fadeBGM(1000, true); // smooth fade-out over 1s
+    }
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
@@ -656,6 +708,12 @@ function gameOver() {
 
     dead.classList.add("active");
     SFX.fail();
+
+    // Screen shake + haptic
+    const gameInner = $("game-inner");
+    gameInner.classList.add("shake");
+    setTimeout(() => gameInner.classList.remove("shake"), 500);
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
     cancelAnimationFrame(animRaf);
 }
