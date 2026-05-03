@@ -11,11 +11,12 @@
 
 <body>
     <div id="game">
-        <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
         <div class="flash-overlay" id="flash"></div>
-
-        <!-- START -->
-        <div class="screen active" id="screen-start">
+        <div id="game-inner">
+            <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
+        
+            <!-- START -->
+            <div class="screen active" id="screen-start">
             <h3 class="orb">MIXED SIGNALS</h3>
             <p>
                 Tune your waveform to mirror the target.<br>
@@ -196,26 +197,26 @@
                 <button class="sys-btn" style="color: #ff4554" onclick="skipRound()">SKIP</button>
             </div>
         </div>
+    </div>
 
-        <div class="credits-wrap">
-            <span class="credits-title">Credits</span>
-            <div class="credits-popup">
-                <div style="font-size: 9px; opacity: 0.6;">Thanks to (playtesters, feedback, ratings):</div>
-                <div style="font-size: 10px;">
-                    Carrerino, Eric Nguyen, Fractal, Grummelchen, Jo Bettaque, Khushi Rathi,
-                    Makim Terskov, Nikhil Lakhra, nathmate, oxnh, Planetary, Ray Dino,
-                    Reed Molbak, Sceef, VenomousMouse
-                </div>
-
-                <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
-                <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
-                <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
-
-                <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
-                <div style="font-size: 10px;">Claude (Anthropic), Gemini (Google), opencode (open source CLI)</div>
-
-                <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
+    <div class="credits-wrap">
+        <span class="credits-title">Credits</span>
+        <div class="credits-popup">
+            <div style="font-size: 9px; opacity: 0.6;">Thanks to (playtesters, feedback, ratings):</div>
+            <div style="font-size: 10px;">
+                Carrerino, Eric Nguyen, Fractal, Grummelchen, Jo Bettaque, Khushi Rathi,
+                Makim Terskov, Nikhil Lakhra, nathmate, oxnh, Planetary, Ray Dino,
+                Reed Molbak, Sceef, VenomousMouse
             </div>
+
+            <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
+            <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
+            <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
+
+            <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
+            <div style="font-size: 10px;">Claude (Anthropic), Gemini (Google), opencode (open source CLI)</div>
+
+            <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
         </div>
     </div>
 
