@@ -545,6 +545,7 @@ function setType(btn) {
     yoursSignal.type = btn.dataset.t;
 
     SFX.tick();
+    if (navigator.vibrate) navigator.vibrate(50);
     updateMeter();
 }
 
