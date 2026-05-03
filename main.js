@@ -91,6 +91,26 @@ function $(id) {
 }
 
 /**
+ * Shows a floating score popup animation.
+ * @param {number} points - Points to display (positive number).
+ */
+function showScorePop(points) {
+    const scoreEl = $("score");
+    if (!scoreEl) return;
+    const pop = document.createElement("div");
+    pop.className = "score-pop";
+    pop.textContent = "+" + points;
+    scoreEl.parentElement.style.position = "relative";
+    scoreEl.parentElement.appendChild(pop);
+    setTimeout(() => pop.remove(), 800);
+
+    // Light screen shake on score pop
+    const gameInner = $("game-inner");
+    gameInner.classList.add("shake-light");
+    setTimeout(() => gameInner.classList.remove("shake-light"), 300);
+}
+
+/**
  * Generates a random integer between lo and hi (inclusive).
  * @param {number} lo - Lower bound.
  * @param {number} hi - Upper bound.
@@ -459,12 +479,14 @@ function updateMeter() {
             const bonus = Math.ceil(timeLeft * .8);
             score += 100 + bonus;
             $("score").textContent = score;
+            showScorePop(100 + bonus);
 
             fb.textContent = "LOCKED IN +" + (100 + bonus) + " pts";
             fb.className = "feedback win";
 
             flash("#00ffb4");
             SFX.lock();
+            if (navigator.vibrate) navigator.vibrate(100);
 
             setTimeout(() => nextRound(), 1800);
         } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
