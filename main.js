@@ -1104,6 +1104,11 @@ function startGame() {
 
     initContAudio();
 
+    // Mobile-friendly: passive touchstart for snappier slider response
+    document.querySelectorAll('input[type="range"]').forEach((slider) => {
+        slider.addEventListener("touchstart", () => {}, { passive: true });
+    });
+
     if (animRaf) cancelAnimationFrame(animRaf);
     requestAnimationFrame(loop);
     nextRound();
