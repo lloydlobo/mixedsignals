@@ -657,6 +657,12 @@ function gameOver() {
     dead.classList.add("active");
     SFX.fail();
 
+    // Screen shake + haptic
+    const gameInner = $("game-inner");
+    gameInner.classList.add("shake");
+    setTimeout(() => gameInner.classList.remove("shake"), 500);
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
     cancelAnimationFrame(animRaf);
 }
 
