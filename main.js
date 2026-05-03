@@ -178,6 +178,28 @@ function stopMusic() {
     if (!audio.paused) audio.pause();
 }
 
+/**
+ * Fades BGM volume down over duration ms, then pauses if pauseAfter is true.
+ * @param {number} duration - Fade duration in ms.
+ * @param {boolean} pauseAfter - Whether to pause after fade.
+ */
+function fadeBGM(duration = 1000, pauseAfter = true) {
+    const audio = $("bgm-audio");
+    const startVol = audio.volume;
+    const steps = 20;
+    const stepTime = duration / steps;
+    let step = 0;
+    const interval = setInterval(() => {
+        step++;
+        audio.volume = Math.max(0, startVol * (1 - step / steps));
+        if (step >= steps) {
+            clearInterval(interval);
+            if (pauseAfter) audio.pause();
+            audio.volume = startVol; // restore for next play
+        }
+    }, stepTime);
+}
+
 function toggleMute() {
     muted = !muted;
 
@@ -669,6 +691,7 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
+    fadeBGM(1000, true); // smooth fade-out over 1s
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
