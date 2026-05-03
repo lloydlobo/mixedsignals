@@ -35,6 +35,10 @@
  * @property {boolean} noise    whether noise control is enabled
  */
 
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+
+const lerp = (a, b, t) => a + (b - a) * t;
+
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 
 /**
@@ -46,7 +50,7 @@ const CONFIG = {
     FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
     COST_HINT: 5,
     COST_SKIP: 10,
-    WIN_PERCENTAGE: 92, // was 95 when sliders used fixed steps
+    WIN_PERCENTAGE: 92, // was 95 when sliders used fixed steps, then 92
     CLOSE_PERCENTAGE: 75,
 }
 
@@ -80,6 +84,21 @@ let score = 0,
     animRaf = null,
     won = false,
     revealed = false;
+
+// ─── FEEDBACK STATE ────────────────────────────────────────────────────────────
+
+let urgency = 0,
+    interactionEnergy = 0,
+    screenFlash = 0,
+    freezeFrames = 0,
+    locked = false,
+    lockStreak = 0;
+
+const particles = [];
+
+// ─── CONTINUOUS AUDIO ─────────────────────────────────────────────────────────
+
+let contAudio = { ctx: null, osc: null, gain: null, filter: null };
 
 /**
  * Shorthand for document.getElementById.
@@ -118,6 +137,15 @@ function showScorePop(points) {
  */
 function rng(lo, hi) {
     return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+// quadratic ramp
+// calmer entry
+// chaotic edge near success
+function getInstability(sc) { // naive: `(sc > 0.85 && sc < 0.92) ? (sc - 0.85) / 0.07 : 0;`
+    if (sc <= 0.85 || sc >= 0.92) return 0;
+    const t = (sc - 0.85) / 0.07;
+    return t * t;
 }
 
 /**
@@ -243,6 +271,81 @@ let _lastUrgentSfx = 0;
 let _urgentBeepDone = false;
 let _wasCloseSfx = false;
 
+// ─── CONTINUOUS AUDIO ─────────────────────────────────────────────────────
+
+// Low Sub-Bass Drone
+function initContAudio() {
+    if (contAudio.ctx) return;
+    contAudio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    contAudio.osc = contAudio.ctx.createOscillator();
+    contAudio.gain = contAudio.ctx.createGain();
+    contAudio.filter = contAudio.ctx.createBiquadFilter();
+
+    contAudio.osc.type = "sine";
+    contAudio.osc.frequency.value = 50;
+    contAudio.filter.type = "lowpass";
+    contAudio.filter.frequency.value = 80;
+    contAudio.gain.gain.value = 0;
+
+    contAudio.osc.connect(contAudio.filter);
+    contAudio.filter.connect(contAudio.gain);
+    contAudio.gain.connect(contAudio.ctx.destination);
+    contAudio.osc.start();
+}
+
+function updateContAudio(matchQuality) {
+    if (!contAudio.ctx || muted) return;
+    if (contAudio.ctx.state === "suspended") contAudio.ctx.resume();
+
+    const e = matchQuality;
+    const u = urgency;
+    const ie = interactionEnergy;
+    const now = contAudio.ctx.currentTime;
+
+    const base = lerp(0.05, 0.15, e)
+    const urgencyDuck = (1 - u * 0.3);
+    const interactionBoost = ie * 0.2;
+
+    const instability = getInstability(e);
+
+    contAudio.osc.frequency.linearRampToValueAtTime(lerp(50, 80, e), now + 0.05);
+    contAudio.filter.frequency.linearRampToValueAtTime(lerp(80, 200, e), now + 0.05);
+    contAudio.gain.gain.linearRampToValueAtTime(base * urgencyDuck + interactionBoost, now + 0.05);
+    contAudio.osc.detune.value = instability * 30; // cents
+}
+
+// ─── PARTICLES ──────────────────────────────────────────────────────────────
+
+function spawnParticles(n, cx, cy) {
+    for (let i = 0; i < n; i++) {
+        particles.push({
+            x: cx,
+            y: cy,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            size: Math.random() < 0.3 ? 3 : 1,
+            life: 1,
+        });
+    }
+}
+
+function updateParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life *= 0.96;
+        if (p.life < 0.01) particles.splice(i, 1);
+    }
+}
+
+function drawParticles(ctx) {
+    particles.forEach(p => {
+        ctx.fillStyle = `rgba(255,200,100,${p.life})`;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    });
+}
+
 const SFX = {
     /**
      * Plays a short tick sound.
@@ -265,6 +368,17 @@ const SFX = {
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
         o.connect(g); g.connect(ac.destination);
         o.start(); o.stop(ac.currentTime + 0.05);
+
+        // Continuous audio nudge on slider move
+        if (contAudio.ctx && !muted) {
+            const now = contAudio.ctx.currentTime;
+            const delta = interactionEnergy * 30;
+            contAudio.osc.frequency.linearRampToValueAtTime(
+                // contAudio.osc.frequency.value + (Math.random() * 40 - 20), // fixme: too jumpy
+                contAudio.osc.frequency.value + delta,
+                now + 0.08
+            );
+        }
     },
     lock: () => { // In updateMeter(), inside the pct >= WIN_PCT branch
         if (muted) return;
@@ -360,7 +474,12 @@ function sample(sig, t, addNoise) {
             const u = (sig.freq * t + sig.phase / 360) % 1;
             v = u < .65 ? 1 : -1;
         }; break;
-        case "am": v = Math.sign(Math.sin(x)); break;
+        case "am": {
+            // v = Math.sign(Math.sin(x)); 
+            const carrier = Math.sin(x);
+            const mod = Math.sin(x * 0.25); // slower mod freq
+            v = carrier * (1 + h * mod); // reuse harmonics as modulation index
+        }; break;
         default: {
             const msg = `Exhausted all enumerated values for "Waveform". Got ${sig.type}`;
             throw new Error(msg);
@@ -376,15 +495,29 @@ function sample(sig, t, addNoise) {
  * @returns {number} Score from 0 (no match) to 1 (perfect match).
  */
 function matchScore() {
-    let d = 0;
+    let best = Infinity;
     const N = 300;
 
-    for (let i = 0; i <= N; i++) {
-        const t = i / N;
-        d += Math.abs(sample(targetSignal, t, false) - sample(yoursSignal, t, false));
+    // Phase-invariant comparison pass
+    // - feels fairer
+    // - reduces “I’m clearly matching but score says no”
+    // - especially important once phase control is unlocked
+    for (let offset = 0; offset < 20; offset++) { // Try small phase offsets (cheap alignment) 
+        let d = 0;
+        const shift = offset / 20;
+
+        for (let i = 0; i <= N; i++) {
+            const t = i / N;
+            d += Math.abs(
+                sample(targetSignal, t, false) -
+                sample(yoursSignal, t, false)
+            );
+        }
+
+        best = Math.min(best, d);
     }
 
-    return Math.max(0, 1 - d / (2 * N));
+    return Math.max(0, 1 - best / (2 * N));
 }
 
 /**
@@ -398,7 +531,7 @@ function drawGrid(ctx, W, H) {
     const cols = 8, rows = 4;
     for (let i = 1; i < cols; i++) { const x = W / cols * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let i = 1; i < rows; i++) { const y = H / rows * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(0,255,180,0.15"; ctx.lineWidth = .5;
+    ctx.strokeStyle = "rgba(0,255,180,0.15)"; ctx.lineWidth = .5;
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
 }
 
@@ -431,6 +564,12 @@ function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
  * @param {number} ts - Timestamp from requestAnimationFrame.
  */
 function loop(ts) {
+    if (freezeFrames > 0) {
+        freezeFrames--;
+        animRaf = requestAnimationFrame(loop);
+        return;
+    }
+
     const scroll = (ts / 4200) % 1;
     const c = $("c-overlay");
     if (!c) { animRaf = requestAnimationFrame(loop); return; }
@@ -438,22 +577,63 @@ function loop(ts) {
     c.height = 120;
     const ctx = c.getContext("2d");
     const W = c.width, H = c.height;
-    ctx.clearRect(0, 0, W, H);
+
+    // Trail effect (signal persistence)
+    ctx.fillStyle = "rgba(10,12,15,0.15)";
+    ctx.fillRect(0, 0, W, H);
     drawGrid(ctx, W, H);
 
+    // Update state
     const sc = matchScore();
+    // urgency = 1 - (timeLeft / LEVELS[level].time); // ramps too early and feels flat
+    urgency = Math.pow(1 - (timeLeft / LEVELS[level].time), 2); // use a curve: calm early game • sharp tension late game
+    interactionEnergy *= 0.9;
+
+    // Near-miss instability
+    const instability = getInstability(sc);
+
+    // Update continuous audio
+    updateContAudio(sc);
+
+    // Draw waveforms with enhanced rendering
+    const e = sc;
+    ctx.lineWidth = lerp(1, 3, e * e);
+    ctx.shadowBlur = lerp(2, 18, e);
+    ctx.shadowColor = "rgba(255,180,80,0.8)";
+    ctx.globalAlpha = lerp(0.7, 1, e);
+
+    const ie = interactionEnergy;
+    ctx.shadowBlur += ie * 10;
+    ctx.globalAlpha += ie * 0.1;
+
+
     if (sc > 0.5) {
-        // Overlay: both signals share one oscilloscope. A faint green trace
-        // blends in as you get closer, giving you a visual diff of where you're off.
+        // overlay: wave merging
+        const mix = sc;
+        const r = lerp(255, 0, mix);
+        const g = lerp(184, 255, mix);
+        const b = lerp(48, 180, mix);
         ctx.save();
-        ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
-        ctx.strokeStyle = "#00ffb4";
+        ctx.globalAlpha = 0.3 * (sc - 0.5) * 2;
+
+        // low match → amber-ish
+        // high match → green/white
+        ctx.strokeStyle = `rgba(${r},${g},${b},${0.3 + mix * 0.4})`;
+        // ctx.strokeStyle = "#00ffb4";
+
         ctx.lineWidth = 2.5 * (sc + 0.5);
         ctx.beginPath();
         for (let px = 0; px <= W; px++) {
-            const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
+            const t = (px / W - scroll + 1) % 1;
             const v = (sample(targetSignal, t, false) + sample(yoursSignal, t, false)) / 2;
-            const y = H / 2 - v * (H / 2 - 10);
+            const jitter = instability * 2;
+            let y = H / 2 - v * (H / 2 - 10) + (Math.random() - 0.5) * jitter;
+
+            const wobble = Math.sin(ts * 0.05 + px * 0.02) * jitter;
+            const phaseWobble = instability * 0.2 + Math.sin(ts * 0.01); // better than random phase drift
+
+            y += lerp(wobble, phaseWobble, e);
+
             px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
         }
         ctx.stroke();
@@ -461,9 +641,74 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4); // bright phosphor green
+    ctx.shadowColor = "rgba(0,255,136,0.6)";
+    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4);
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4); // traditional scope color // --amber
+    ctx.shadowColor = "rgba(255,184,48,0.6)";
+    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4);
+
+    // Reset shadow
+    ctx.shadowBlur = 0;
+
+    // Screen flash (lock-in effect)
+    if (screenFlash > 0) {
+        ctx.fillStyle = `rgba(255,220,150,${screenFlash})`;
+        ctx.fillRect(0, 0, W, H);
+        screenFlash *= 0.85;
+    }
+
+    // Urgency vignette overlay
+    const u = urgency;
+    if (u > 0) {
+        const vignetteAlpha = lerp(0, 0.5, u);
+        ctx.fillStyle = `rgba(0,0,0,${vignetteAlpha})`;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Update and draw particles
+    updateParticles();
+    drawParticles(ctx);
+
+    // Lock-in trigger
+    //
+    // - lockStreak counts consecutive frames above threshold
+    // - > 4 ≈ ~80ms at 60fps → feels intentional, not accidental
+    // - any dip below 0.92 resets it → prevents spike-trigger
+    //
+    // If it feels too strict / too easy
+    // if (lockStreak > 4)
+    //   - > 2 → easier, more responsive
+    //   - > 6 → stricter, more deliberate
+    if (sc > CONFIG.WIN_PERCENTAGE) {
+        lockStreak++;
+
+        if (lockStreak > 4 && !locked) { // triggerLock() // lock FX
+            locked = true;
+
+            screenFlash = 1;
+            freezeFrames = 6;
+
+            // NOTE: Moved in triggerWin to avoid multiple spawns
+            // spawnParticles(40, W / 2, H / 2);
+
+            // quick dip: Right before triggering the lock. Then let existing SFX.lock() hit.
+            if (contAudio.gain) { // That contrast makes it feel like a resolution, not just a reward.
+                contAudio.gain.gain.value *= 0.2;
+            }
+
+            // Optional: pre-win feedback (feels great)
+            if (!won) {
+                $("feedback").textContent = "LOCKING…";
+                $("feedback").className = "feedback close";
+            }
+        }
+    } else {
+        lockStreak = 0;
+    }
+
+    // Hysteresis unlock
+    if (sc < 0.88) locked = false; // NOTE: Replaced with this
+    // if (sc <= 0.92) locked = false; // NOTE: [Removed] Can retrigger lock multiple times if player hovers around threshold.
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -477,6 +722,36 @@ function flash(color) {
     el.style.background = color;
     el.classList.add("go");
     setTimeout(() => el.classList.remove("go"), 80);
+}
+
+// Triggered ONLY by updateMeter()
+function triggerWin() {
+    if (won) return; // hard guard (idempotent)
+
+    won = true;
+    clearInterval(timerInterval);
+
+    const bonus = Math.ceil(timeLeft * .8);
+    const pts = 100 + bonus;
+
+    score += pts;
+    $("score").textContent = score;
+    showScorePop(pts);
+
+    const c = $("c-overlay");
+    const W = c.width, H = c.height;
+    spawnParticles(40, W / 2, H / 2);
+    spawnParticles(40, 0, 0);
+    spawnParticles(40, W / 1, H / 1);
+
+    $("feedback").textContent = `LOCKED IN +${pts} pts`;
+    $("feedback").className = "feedback win";
+
+    flash("#00ffb4");
+    SFX.lock();
+    if (navigator.vibrate) navigator.vibrate(100);
+
+    setTimeout(() => nextRound(), 1800);
 }
 
 /**
@@ -493,39 +768,22 @@ function updateMeter() {
     fill.style.background = pct > 80 ? "#00ffb4" : (pct > 50 ? "#ffb830" : "#ff4554");
 
     const fb = $("feedback");
+
     if (!won && !revealed) {
         if (pct >= CONFIG.WIN_PERCENTAGE) {
-            won = true;
             _wasCloseSfx = false; // reset state
-
-            clearInterval(timerInterval);
-
-            const bonus = Math.ceil(timeLeft * .8);
-            score += 100 + bonus;
-            $("score").textContent = score;
-            showScorePop(100 + bonus);
-
-            fb.textContent = "LOCKED IN +" + (100 + bonus) + " pts";
-            fb.className = "feedback win";
-
-            flash("#00ffb4");
-            SFX.lock();
-            if (navigator.vibrate) navigator.vibrate(100);
-
-            setTimeout(() => nextRound(), 1800);
+            triggerWin();
         } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
             fb.textContent = "Getting close…";
             fb.className = "feedback close";
 
-            // Make the “close” state edge-triggered, not continuous
-            if (!_wasCloseSfx) {
+            if (!_wasCloseSfx) { // Make the “close” state edge-triggered, not continuous
                 SFX.close();
                 _wasCloseSfx = true;
             }
         } else {
-            fb.textContent = "Match the target signal.";
+            fb.textContent = "Match the target signal."; // TODO: Maybe leave this empty
             fb.className = "feedback";
-
             _wasCloseSfx = false; // must be state-based (not per-frame)
         }
     }
@@ -554,6 +812,9 @@ function recompute() {
     if (now - _lastSliderSfx > 80) {
         SFX.slider();
         _lastSliderSfx = now;
+        // Boost interaction energy on slider move
+        interactionEnergy += 0.2;
+        interactionEnergy = Math.min(interactionEnergy, 1);
     }
 
     updateMeter();
@@ -611,6 +872,8 @@ function nextRound() {
     won = false;
     revealed = false;
     roundNo++;
+    lockStreak = 0;
+    locked = false;
 
     const lv = LEVELS[level];
     if (roundNo > lv.rounds) {
@@ -693,7 +956,7 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
-    if (false) { 
+    if (false) {
         // FIXME: high-pass it instead or reduce volume a bit
         // TODO: On retry return volume to "as-it-was"
         fadeBGM(1000, true); // smooth fade-out over 1s
@@ -830,6 +1093,16 @@ function startGame() {
 
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $("screen-game").style.display = "block";
+
+    // Reset feedback state
+    urgency = 0;
+    interactionEnergy = 0;
+    screenFlash = 0;
+    freezeFrames = 0;
+    locked = false;
+    particles.length = 0;
+
+    initContAudio();
 
     if (animRaf) cancelAnimationFrame(animRaf);
     requestAnimationFrame(loop);
