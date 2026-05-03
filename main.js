@@ -417,9 +417,9 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#38b4ff", W, H, scroll, true, 1.8);
+    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 1.8); // bright phosphor green
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ff7043", W, H, scroll, true, 1.8);
+    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 1.8); // traditional scope color // --amber
 
     animRaf = requestAnimationFrame(loop);
 }
