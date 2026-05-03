@@ -132,7 +132,7 @@ function unimplemented(msg = "") {
 // ─── BGM ────────────────────────────────────────────────────────────────────
 
 let muted = localStorage.getItem("bgmMuted") === "true";
-let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.25"); // ideal: 0.4
+let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.4"); // ideal: 0.4
 
 // NOTE: apply initial UI + audio state
 (function initAudio() {
