@@ -376,7 +376,7 @@ function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
     ctx.lineWidth = lineW || 1.8;
     ctx.beginPath();
     for (let px = 0; px <= W; px++) {
-        const t = (px / W + scroll) % 1;
+        const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
         const v = sample(sig, t, noisy);
         const y = H / 2 - v * (H / 2 - 10);
         px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
@@ -407,7 +407,7 @@ function loop(ts) {
         ctx.lineWidth = 6;
         ctx.beginPath();
         for (let px = 0; px <= W; px++) {
-            const t = (px / W + scroll) % 1; // px / W
+            const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
             const v = (sample(targetSignal, t, false) + sample(yoursSignal, t, false)) / 2;
             const y = H / 2 - v * (H / 2 - 10);
             px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
