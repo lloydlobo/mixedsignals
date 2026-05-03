@@ -443,10 +443,12 @@ function loop(ts) {
 
     const sc = matchScore();
     if (sc > 0.5) {
+        // Overlay: both signals share one oscilloscope. A faint green trace
+        // blends in as you get closer, giving you a visual diff of where you're off.
         ctx.save();
-        ctx.globalAlpha = 0.08 * (sc - 0.5) * 2;
+        ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
         ctx.strokeStyle = "#00ffb4";
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 2.5 * (sc + 0.5);
         ctx.beginPath();
         for (let px = 0; px <= W; px++) {
             const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
@@ -459,9 +461,9 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 1.8); // bright phosphor green
+    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4); // bright phosphor green
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 1.8); // traditional scope color // --amber
+    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4); // traditional scope color // --amber
 
     animRaf = requestAnimationFrame(loop);
 }
