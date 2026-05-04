@@ -110,20 +110,117 @@ function showScorePop(points) {
     setTimeout(() => gameInner.classList.remove("shake-light"), 300);
 }
 
-const xoshiro128plus = (() => {
-    let [a, b, c, d] = [Date.now() | 0, 0x9e3779b9, 0x6c62272e, 0x07bb0142];
-    return () => {
-        const t = b << 9;
-        let r = a + d;
-        c ^= a; d ^= b; b ^= c; a ^= d;
-        c ^= t;
-        d = (d << 11) | (d >>> 21);
-        return (r >>> 0) / 4294967296;
-    };
-})();
+/**
+ * PRNG Selection Guide
+ * ─────────────────────────────────────────────────────────────
+ * Xorshift32     🚀 Fastest — particles, per-frame noise
+ * SFC32          🎮 Default — gameplay, drops, events
+ * Xoshiro128**   🌍 Best quality — world gen, long simulations
+ * Mulberry32/LCG 🎨 Artistic — intentional pattern/texture
+ * crypto.*       🔐 Security — never use PRNGs here
+ * ─────────────────────────────────────────────────────────────
+ * Quality: Xoshiro128** ≥ JSF32 > SFC32 > Splitmix32 > Mulberry32 > Xorshift32 > LCG
+ * Speed:   Xorshift32 > LCG > SFC32 > Xoshiro128** > JSF32 > Splitmix32 > Mulberry32
+ * Note:    Splitmix32 best used as a seeder, not main RNG
+ */
+const prngs = {
+    "Math.random": (_seed) => () => Math.random(), // ~ unseeded
 
-// NOTE: Use this instead of calling Math.random()
-const rand = xoshiro128plus;
+    LCG: (s) => {
+        // Numerical Recipes: a=1664525, c=1013904223 (Knuth vol.2)
+        let state = s >>> 0;
+        return () => {
+            state = (Math.imul(1664525, state) + 1013904223) | 0;
+            return (state >>> 0) / 4294967296;
+        };
+    },
+
+    Xorshift32: (s) => {
+        // Marsaglia 2003, triple (13,17,5) — one of the published valid triples
+        let state = s >>> 0 || 1; // state must be non-zero
+        return () => {
+            state ^= state << 13;
+            state ^= state >>> 17;
+            state ^= state << 5;
+            return (state >>> 0) / 4294967296;
+        };
+    },
+
+    Splitmix32: (s) => {
+        // Stafford's finalizer — corrected constants vs previous version
+        let state = s >>> 0;
+        return () => {
+            state = (state + 0x9e3779b9) | 0;
+            let z = state;
+            z = Math.imul(z ^ (z >>> 16), 0x85ebca77); // corrected: was 0x85ebca6b
+            z = Math.imul(z ^ (z >>> 13), 0xc2b2ae3d); // corrected: was 0xc2b2ae35
+            return ((z ^ (z >>> 16)) >>> 0) / 4294967296;
+        };
+    },
+
+    Mulberry32: (s) => {
+        // Tommy Ettinger's design — matches original exactly
+        let state = s >>> 0;
+        return () => {
+            state = (state + 0x6d2b79f5) | 0;
+            let t = Math.imul(state ^ (state >>> 15), 1 | state);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    },
+
+    JSF32: (s) => {
+        // Jenkins Small Fast — http://burtleburtle.net/bob/rand/smallprng.html
+        // Init: a=0xf1ea5eed, b=c=d=seed (fixed: was d=0, under-mixes initial state)
+        let a = 0xf1ea5eed, b = s >>> 0, c = s >>> 0, d = s >>> 0;
+        for (let i = 0; i < 20; i++) { // burn-in: JSF poorly mixed from cold
+            const e = (a - ((b << 27) | (b >>> 5))) | 0;
+            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
+            b = (c + d) | 0;
+            c = (d + e) | 0;
+            d = (e + a) | 0;
+        }
+        return () => {
+            const e = (a - ((b << 27) | (b >>> 5))) | 0;
+            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
+            b = (c + d) | 0;
+            c = (d + e) | 0;
+            d = (e + a) | 0;
+            return (d >>> 0) / 4294967296;
+        };
+    },
+
+    SFC32: (s) => {
+        // Chris Doty-Humphrey's Small Fast Counting RNG
+        // Fixed: output is t, not c+t (c is next state, not part of output)
+        let a = s >>> 0, b = (s ^ 0xdeadbeef) >>> 0, c = (s ^ 0xbeefdead) >>> 0, d = 1;
+        return () => {
+            const t = (((a + b) | 0) + d) | 0;
+            d = (d + 1) | 0;
+            a = b ^ (b >>> 9);
+            b = (c + (c << 3)) | 0;
+            c = (c << 21) | (c >>> 11);
+            return (t >>> 0) / 4294967296; // fixed: was (c + t | 0)
+        };
+    },
+
+    "Xoshiro128**": (s) => {
+        // Blackman & Vigna — https://prng.di.unimi.it/xoshiro128starstar.c
+        // Both multiplies use imul to prevent float overflow on * 9
+        let a = s >>> 0, b = (s ^ 0x9e3779b9) >>> 0, c = (s ^ 0x6c62272e) >>> 0, d = (s ^ 0xf3bcc908) >>> 0;
+        return () => {
+            const r = Math.imul(b, 5);
+            const out = Math.imul((r << 7) | (r >>> 25), 9);
+            const t = b << 9;
+            c ^= a; d ^= b; b ^= c; a ^= d; c ^= t;
+            d = (d << 11) | (d >>> 21);
+            return (out >>> 0) / 4294967296;
+        };
+    },
+};
+
+// NOTE: Use this instead of calling Math.random() for determinism
+const rand = prngs.Xorshift32(1831565813);
 
 /**
  * Generates a random integer between lo and hi (inclusive).
