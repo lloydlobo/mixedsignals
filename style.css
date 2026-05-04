@@ -576,12 +576,53 @@ canvas.scope {
     font-weight: 400;
 }
 
-.glyph {
-    width: 12px;
-    height: 12px;
-    stroke: var(--text-dim);
+/* BASE GLYPH */
+.param-glyph {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+
+    stroke: var(--green-dim);
     fill: none;
-    stroke-width: 2;
+
+    /* 1.125 | 1.25 | 1.5 */
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    vertical-align: middle;
+
+    /* IMPORTANT: remove global opacity */
+    /* opacity: 0.7; */
+
+    transition: stroke .15s, stroke-opacity .15s;
+}
+
+/* DEFAULT STROKE VISIBILITY */
+.param-glyph path,
+.param-glyph line {
+    stroke-opacity: 0.75;
+}
+
+/* SECONDARY (REFERENCE) LINES */
+/* .param-glyph .faint {
+    stroke-opacity: 0.35;
+} */
+
+/* GUIDES (AXES / PHASE MARKERS) */
+/* .param-glyph .guide {
+    stroke-opacity: 0.3;
+    stroke-dasharray: 1.5 1.5;
+} */
+
+/* HOVER STATE */
+label:hover .param-glyph {
+    stroke: var(--green);
+}
+
+label:hover .param-glyph path,
+label:hover .param-glyph line {
+    stroke-opacity: 1;
 }
 
 .slider-row {
@@ -754,6 +795,10 @@ input[type=range]::-moz-range-thumb {
     -webkit-user-select: text;
 }
 
+.credits-wrap:hover .credits-popup {
+    display: block;
+}
+
 /* --- TUTORIAL GLOW --- */
 
 .tutorial-glow {
@@ -761,6 +806,7 @@ input[type=range]::-moz-range-thumb {
     box-shadow: 0 0 20px rgba(0, 255, 180, 0.4) !important;
     border-radius: 4px;
     animation: tutorial-pulse 1.5s ease-in-out infinite;
+    filter: blur(0.25);
 }
 
 @keyframes tutorial-pulse {
@@ -773,8 +819,4 @@ input[type=range]::-moz-range-thumb {
     50% {
         box-shadow: 0 0 30px rgba(0, 255, 180, 0.8);
     }
-}
-
-.credits-wrap:hover .credits-popup {
-    display: block;
 }
