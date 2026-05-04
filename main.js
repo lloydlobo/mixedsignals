@@ -35,6 +35,8 @@
  * @property {boolean} noise    whether noise control is enabled
  */
 
+const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
+
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 
 /**
@@ -46,7 +48,7 @@ const CONFIG = {
     FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
     COST_HINT: 5,
     COST_SKIP: 10,
-    WIN_PERCENTAGE: 92, // was 95 when sliders used fixed steps
+    WIN_PERCENTAGE: 95,
     CLOSE_PERCENTAGE: 75,
 }
 
@@ -111,13 +113,126 @@ function showScorePop(points) {
 }
 
 /**
+ * PRNG Selection Guide
+ * ─────────────────────────────────────────────────────────────
+ * Xorshift32     🚀 Fastest — particles, per-frame noise
+ * SFC32          🎮 Default — gameplay, drops, events
+ * Xoshiro128**   🌍 Best quality — world gen, long simulations
+ * Mulberry32/LCG 🎨 Artistic — intentional pattern/texture
+ * crypto.*       🔐 Security — never use PRNGs here
+ * ─────────────────────────────────────────────────────────────
+ * Quality: Xoshiro128** ≥ JSF32 > SFC32 > Splitmix32 > Mulberry32 > Xorshift32 > LCG
+ * Speed:   Xorshift32 > LCG > SFC32 > Xoshiro128** > JSF32 > Splitmix32 > Mulberry32
+ * Note:    Splitmix32 best used as a seeder, not main RNG
+ */
+const prngs = {
+    "Math.random": (_seed) => () => Math.random(), // ~ unseeded
+
+    LCG: (s) => {
+        // Numerical Recipes: a=1664525, c=1013904223 (Knuth vol.2)
+        let state = s >>> 0;
+        return () => {
+            state = (Math.imul(1664525, state) + 1013904223) | 0;
+            return (state >>> 0) / 4294967296;
+        };
+    },
+
+    Xorshift32: (s) => {
+        // Marsaglia 2003, triple (13,17,5) — one of the published valid triples
+        let state = s >>> 0 || 1; // state must be non-zero
+        return () => {
+            state ^= state << 13;
+            state ^= state >>> 17;
+            state ^= state << 5;
+            return (state >>> 0) / 4294967296;
+        };
+    },
+
+    Splitmix32: (s) => {
+        // Stafford's finalizer — corrected constants vs previous version
+        let state = s >>> 0;
+        return () => {
+            state = (state + 0x9e3779b9) | 0;
+            let z = state;
+            z = Math.imul(z ^ (z >>> 16), 0x85ebca77); // corrected: was 0x85ebca6b
+            z = Math.imul(z ^ (z >>> 13), 0xc2b2ae3d); // corrected: was 0xc2b2ae35
+            return ((z ^ (z >>> 16)) >>> 0) / 4294967296;
+        };
+    },
+
+    Mulberry32: (s) => {
+        // Tommy Ettinger's design — matches original exactly
+        let state = s >>> 0;
+        return () => {
+            state = (state + 0x6d2b79f5) | 0;
+            let t = Math.imul(state ^ (state >>> 15), 1 | state);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    },
+
+    JSF32: (s) => {
+        // Jenkins Small Fast — http://burtleburtle.net/bob/rand/smallprng.html
+        // Init: a=0xf1ea5eed, b=c=d=seed (fixed: was d=0, under-mixes initial state)
+        let a = 0xf1ea5eed, b = s >>> 0, c = s >>> 0, d = s >>> 0;
+        for (let i = 0; i < 20; i++) { // burn-in: JSF poorly mixed from cold
+            const e = (a - ((b << 27) | (b >>> 5))) | 0;
+            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
+            b = (c + d) | 0;
+            c = (d + e) | 0;
+            d = (e + a) | 0;
+        }
+        return () => {
+            const e = (a - ((b << 27) | (b >>> 5))) | 0;
+            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
+            b = (c + d) | 0;
+            c = (d + e) | 0;
+            d = (e + a) | 0;
+            return (d >>> 0) / 4294967296;
+        };
+    },
+
+    SFC32: (s) => {
+        // Chris Doty-Humphrey's Small Fast Counting RNG
+        // Fixed: output is t, not c+t (c is next state, not part of output)
+        let a = s >>> 0, b = (s ^ 0xdeadbeef) >>> 0, c = (s ^ 0xbeefdead) >>> 0, d = 1;
+        return () => {
+            const t = (((a + b) | 0) + d) | 0;
+            d = (d + 1) | 0;
+            a = b ^ (b >>> 9);
+            b = (c + (c << 3)) | 0;
+            c = (c << 21) | (c >>> 11);
+            return (t >>> 0) / 4294967296; // fixed: was (c + t | 0)
+        };
+    },
+
+    "Xoshiro128**": (s) => {
+        // Blackman & Vigna — https://prng.di.unimi.it/xoshiro128starstar.c
+        // Both multiplies use imul to prevent float overflow on * 9
+        let a = s >>> 0, b = (s ^ 0x9e3779b9) >>> 0, c = (s ^ 0x6c62272e) >>> 0, d = (s ^ 0xf3bcc908) >>> 0;
+        return () => {
+            const r = Math.imul(b, 5);
+            const out = Math.imul((r << 7) | (r >>> 25), 9);
+            const t = b << 9;
+            c ^= a; d ^= b; b ^= c; a ^= d; c ^= t;
+            d = (d << 11) | (d >>> 21);
+            return (out >>> 0) / 4294967296;
+        };
+    },
+};
+
+// NOTE: Use this instead of calling Math.random() for determinism
+const rand = prngs.Xorshift32(1831565813);
+
+/**
  * Generates a random integer between lo and hi (inclusive).
  * @param {number} lo - Lower bound.
  * @param {number} hi - Upper bound.
  * @returns {number} Random integer.
  */
 function rng(lo, hi) {
-    return lo + Math.floor(Math.random() * (hi - lo + 1));
+    if (lo > hi) { const temp = lo; lo = hi, hi = temp; }
+    return lo + (rand() * (hi - lo + 1)) | 0; // same as lo + Math.floor(rand() * (hi - lo + 1));
 }
 
 /**
@@ -335,6 +450,31 @@ const SFX = {
     },
 }
 
+const LUT_SIZE = 8192; // Must be power of 2 for bitwise & MASK
+const MASK = LUT_SIZE - 1;
+const SCALE = LUT_SIZE / (Math.PI * 2);
+
+// +1 length allows for branchless linear interpolation (index + 1 is always valid)
+const SIN_LUT = new Float32Array(LUT_SIZE + 1); // Usage: Math.sin(x) => SIN_LUT[(x * SCALE) & MASK]
+for (let i = 0; i <= LUT_SIZE; i++) {
+    SIN_LUT[i] = Math.sin((i / LUT_SIZE) * Math.PI * 2);
+}
+
+/**
+ * Fast Sine replacement using Linear Interpolation.
+ * Provides high fidelity with extreme speed.
+ * @param {number} x A numeric expression that contains an angle measured in radians.
+ * @returns {number}
+ */
+function fastSin(x) {
+    const pos = (x * SCALE) & MASK;
+    const idx = pos | 0;
+    const fraction = pos - idx;
+    const a = SIN_LUT[idx];
+    const b = SIN_LUT[idx + 1];
+    return a + (b - a) * fraction; // lerp
+}
+
 /**
  * Samples the signal value at a given time.
  * @param {Signal} sig - The signal to sample.
@@ -343,48 +483,75 @@ const SFX = {
  * @returns {number} The sampled value.
  */
 function sample(sig, t, addNoise) {
-    const a = sig.amp / 10;
-    const p = (sig.phase / 180) * Math.PI;
-    const x = 2 * Math.PI * sig.freq * t + p;
-    const h = (sig.harm || 0) / 10, n = (sig.noise || 0) / 10;
+    const { type, freq, phase, amp, harm, noise, dc } = sig;
+
+    // Normalized phase (0.0 to 1.0)
+    const u = (freq * t + (phase / 360)) % 1;
+    const x = u * 6.283185307179586; // Pre-calculated PI * 2
+
     let v;
-    switch (sig.type) {
-        case "sine": v = Math.sin(x); break;
-        case "square": v = Math.sign(Math.sin(x)); break;
-        case "sawtooth": v = 2 * ((sig.freq * t + sig.phase / 360) % 1) - 1; break;
-        case "triangle": {
-            const u = (sig.freq * t + sig.phase / 360) % 1;
-            v = u < .5 ? 4 * u - 1 : 3 - 4 * u;
-        }; break;
-        case "pwm": {
-            const u = (sig.freq * t + sig.phase / 360) % 1;
-            v = u < .65 ? 1 : -1;
-        }; break;
-        case "am": v = Math.sign(Math.sin(x)); break;
-        default: {
-            const msg = `Exhausted all enumerated values for "Waveform". Got ${sig.type}`;
-            throw new Error(msg);
-        }
+    switch (type) {
+        case "sine": v = fastSin(x); break;
+        case "square": v = fastSin(x) >= 0 ? 1 : -1; break;
+        case "pwm": v = u < 0.65 ? 1 : -1; break;
+        case "sawtooth": v = 2 * u - 1; break;
+        case "triangle": v = u < 0.5 ? 4 * u - 1 : 3 - 4 * u; break;
+        case "am": {
+            const modFreqMult = 0.25; // Or make this a property of the signal
+            const modIndex = harm || 0.5; // Use harm to control intensity
+            const carrier = fastSin(x);
+            const mod = fastSin(x * modFreqMult);
+            v = carrier * (1 + modIndex * mod); // Standard AM formula: Carrier * (1 + Depth * Modulator)
+            v *= 0.5; // We multiply by 0.5 at the end to keep the signal within -1 to 1 range
+        } break;
+        default: throw new Error(`Unhandled waveform: "${type}"`);
     }
-    v += h * Math.sin(3 * x);
-    if (addNoise && n > 0) v += n * (Math.random() - .5) * .8;
-    return a * v + (sig.dc || 0) / 10;
+
+    // Add Harmonic (3rd) - using mul instead of div
+    if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3);
+
+    // Add Bipolar Noise
+    if (addNoise && noise) v += (noise * 0.1) * (rand() * 0.8 - 0.4);
+
+    // Final Gain and DC Offset
+    return (amp * 0.1) * v + (dc ?? 0) * 0.1;
+}
+
+// ─── SIGNAL BUFFERS ──────────────────────────────────────────────────────────
+
+const SAMPLE_BUFFER_SIZE = 640; // Length of pre-computed signal sample buffers
+const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
+const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
+const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manually in loop();
+
+/**
+ * Fills a signal buffer by sampling sig across [0, 1).
+ * @param {Float32Array} buf Buffer to fill
+ * @param {Signal} sig Signal to sample
+ * @param {boolean} addNoise Whether to bake noise in
+ */
+function fillBuf(buf, sig, addNoise) {
+    const INV_SZ = 1 / SAMPLE_BUFFER_SIZE;
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 4) { // NOTE: size is divisible by 4
+        const t0 = i * INV_SZ, t1 = (i + 1) * INV_SZ, t2 = (i + 2) * INV_SZ, t3 = (i + 3) * INV_SZ;
+        buf[i] = sample(sig, t0, addNoise);
+        buf[i + 1] = sample(sig, t1, addNoise);
+        buf[i + 2] = sample(sig, t2, addNoise);
+        buf[i + 3] = sample(sig, t3, addNoise);
+    }
 }
 
 /**
  * Calculates the similarity score between target and player signals.
+ * Reads pre-computed buffers; no sample calls.
  * @returns {number} Score from 0 (no match) to 1 (perfect match).
  */
 function matchScore() {
     let d = 0;
-    const N = 300;
-
-    for (let i = 0; i <= N; i++) {
-        const t = i / N;
-        d += Math.abs(sample(targetSignal, t, false) - sample(yoursSignal, t, false));
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+        d += Math.abs(targetBuf[i] - yoursBuf[i]);
     }
-
-    return Math.max(0, 1 - d / (2 * N));
+    return Math.max(0, 1 - d / (2 * SAMPLE_BUFFER_SIZE));
 }
 
 /**
@@ -403,26 +570,36 @@ function drawGrid(ctx, W, H) {
 }
 
 /**
- * Draws a waveform on the canvas.
+ * Draws a waveform on the canvas from a pre-computed buffer.
  * @param {CanvasRenderingContext2D} ctx - Canvas context.
- * @param {Signal} sig - The signal to draw.
+ * @param {Float32Array} buf - Pre-computed signal buffer.
  * @param {string} color - Stroke color.
  * @param {number} W - Canvas width.
  * @param {number} H - Canvas height.
  * @param {number} scroll - Scroll offset (0-1).
- * @param {boolean} noisy - Whether to add noise.
  * @param {number} [lineW=1.8] - Line width.
  */
-function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
+function drawWave(ctx, buf, color, W, H, scroll, lineW) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineW || 1.8;
     ctx.beginPath();
-    for (let px = 0; px <= W; px++) {
-        const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
-        const v = sample(sig, t, noisy);
-        const y = H / 2 - v * (H / 2 - 10);
-        px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+
+    const invW = 1 / W;
+    const halfH = H * 0.5;
+    const yOffset = halfH - 10;
+
+    // First point: (`px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y)`)
+    let i = ((0 * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // `x|0` === Math.floor(x)
+    let y = halfH - buf[i] * yOffset;
+    ctx.moveTo(0, y);
+
+    // Rest of the path
+    for (let px = 2; px <= W; px += 2) { // skip every other pixel
+        i = ((px * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // assert `i >= 0 && i < SAMPLE_BUFFER_SIZE`
+        y = halfH - buf[i] * yOffset;
+        ctx.lineTo(px, y);
     }
+
     ctx.stroke();
 }
 
@@ -442,28 +619,29 @@ function loop(ts) {
     drawGrid(ctx, W, H);
 
     const sc = matchScore();
+
+    // Update overlay: fill blendBuf after buffers are current
+    // NOTE: TargetBuf and yoursBuf must already be written for the current
+    //       frame before this runs. Wherever you fill those two buffers in your loop,
+    //       this comes immediately after.
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 1) { // NOTE: step by > 1 for fun FX
+        blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
+    }
+
+    // Draw overlay: both signals share one oscilloscope. A faint green trace
+    // blends in as you get closer, giving you a visual diff of where you're off.
     if (sc > 0.5) {
-        // Overlay: both signals share one oscilloscope. A faint green trace
-        // blends in as you get closer, giving you a visual diff of where you're off.
         ctx.save();
         ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
-        ctx.strokeStyle = "#00ffb4";
-        ctx.lineWidth = 2.5 * (sc + 0.5);
-        ctx.beginPath();
-        for (let px = 0; px <= W; px++) {
-            const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
-            const v = (sample(targetSignal, t, false) + sample(yoursSignal, t, false)) / 2;
-            const y = H / 2 - v * (H / 2 - 10);
-            px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
-        }
-        ctx.stroke();
+        drawWave(ctx, blendBuf, "#00ffb4", W, H, scroll, 2.5 * (sc + 0.5));
         ctx.restore();
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4); // bright phosphor green
+    drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // bright phosphor green
+
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4); // traditional scope color // --amber
+    drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color // --amber
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -517,7 +695,7 @@ function updateMeter() {
             fb.textContent = "Getting close…";
             fb.className = "feedback close";
 
-            // Make the “close” state edge-triggered, not continuous
+            // Make the 'close' state edge-triggered, not continuous
             if (!_wasCloseSfx) {
                 SFX.close();
                 _wasCloseSfx = true;
@@ -532,7 +710,7 @@ function updateMeter() {
 }
 
 /**
- * Reads slider values and updates player signal.
+ * Reads slider values and updates player signal, rebuilds yours buffer.
  */
 function recompute() {
     yoursSignal.freq = +$("sl-freq").value;
@@ -548,6 +726,8 @@ function recompute() {
     $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
     $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
     $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+
+    fillBuf(yoursBuf, yoursSignal, true);
 
     // Subtle slider sfx - throttled
     const now = Date.now();
@@ -568,6 +748,8 @@ function setType(btn) {
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
 
+    fillBuf(yoursBuf, yoursSignal, true);
+
     SFX.tick();
     if (navigator.vibrate) navigator.vibrate(50);
     updateMeter();
@@ -575,20 +757,22 @@ function setType(btn) {
 
 /**
  * Builds a random target signal based on current level.
+ * Fills targetBuf immediately.
  * @returns {Signal} The generated target signal.
  */
 function buildTarget() {
     const lv = LEVELS[level];
     /** @type {Signal} */
-    const t = {};
-    t.type = lv.types[rng(0, lv.types.length - 1)];
-    t.freq = rng(1, 6);
-    t.amp = rng(3, 10);
-    t.phase = lv.phase ? rng(0, 7) * 45 : 0;
-    t.dc = lv.dc ? rng(-3, 3) : 0;
-    t.harm = lv.harm ? rng(0, 5) : 0;
-    t.noise = lv.noise ? rng(2, 6) : 0;
-    return t;
+    const sig = {};
+    sig.type = lv.types[rng(0, lv.types.length - 1)];
+    sig.freq = rng(1, 6);
+    sig.amp = rng(3, 10);
+    sig.phase = lv.phase ? rng(0, 7) * 45 : 0;
+    sig.dc = lv.dc ? rng(-3, 3) : 0;
+    sig.harm = lv.harm ? rng(0, 5) : 0;
+    sig.noise = lv.noise ? rng(2, 6) : 0;
+    fillBuf(targetBuf, sig, true);
+    return sig;
 }
 
 /**
@@ -693,7 +877,7 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
-    if (false) { 
+    if (false) {
         // FIXME: high-pass it instead or reduce volume a bit
         // TODO: On retry return volume to "as-it-was"
         fadeBGM(1000, true); // smooth fade-out over 1s
