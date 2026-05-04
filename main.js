@@ -97,12 +97,12 @@ const TUTORIAL_TASKS = [
         check: () => yoursSignal.freq === 4,
     },
     {
-        text: "TUTORIAL: Set amplitude to 6",
-        check: () => Math.abs(yoursSignal.amp - 6) < 0.05,
+        text: "TUTORIAL: Set amplitude around 0.60",
+        check: () => Math.abs(yoursSignal.amp - 6) < 0.5, // ±0.5° tolerance
     },
     {
-        text: "TUTORIAL: Set phase to 180",
-        check: () => yoursSignal.phase === 180,
+        text: "TUTORIAL: Set phase around 90°",
+        check: () => Math.abs(yoursSignal.phase - 90) <= 5, // ±15° tolerance
     },
     {
         text: "TUTORIAL: Now match the target signal (95%+)",
