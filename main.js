@@ -110,6 +110,21 @@ function showScorePop(points) {
     setTimeout(() => gameInner.classList.remove("shake-light"), 300);
 }
 
+const xoshiro128plus = (() => {
+    let [a, b, c, d] = [Date.now() | 0, 0x9e3779b9, 0x6c62272e, 0x07bb0142];
+    return () => {
+        const t = b << 9;
+        let r = a + d;
+        c ^= a; d ^= b; b ^= c; a ^= d;
+        c ^= t;
+        d = (d << 11) | (d >>> 21);
+        return (r >>> 0) / 4294967296;
+    };
+})();
+
+// NOTE: Use this instead of calling Math.random()
+const rand = xoshiro128plus;
+
 /**
  * Generates a random integer between lo and hi (inclusive).
  * @param {number} lo - Lower bound.
@@ -117,7 +132,8 @@ function showScorePop(points) {
  * @returns {number} Random integer.
  */
 function rng(lo, hi) {
-    return lo + Math.floor(Math.random() * (hi - lo + 1));
+    if (lo > hi) { const temp = lo; lo = hi, hi = temp; }
+    return lo + (rand() * (hi - lo + 1)) | 0; // same as lo + Math.floor(rand() * (hi - lo + 1));
 }
 
 /**
