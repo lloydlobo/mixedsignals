@@ -4,6 +4,8 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-04
+
 ### Performance
 - Implement fast sine approximation to speed up signal sampling
 - Replace `Math.random` with xoshiro128+ PRNG; add support for multiple PRNG options (Xorshift32, SFC32, etc.)
@@ -11,6 +13,11 @@ All notable changes to Mixed Signals.
 - Switch to pre-computed sample buffers to eliminate redundant per-sample calls
 - Refactor signal drawing logic for better rendering performance and code clarity
 - Add PRNG selection guide to compare speed/quality tradeoffs during pre-release testing
+
+### Performance Impact (Guesstimated, Pre-Benchmark)
+- ~5-10x faster per-frame rendering by replacing per-pixel `sample()` calls with pre-computed buffer lookups
+- ~3-5x faster signal rebuilds (slider adjustments, level init) via fast sine approximation and Xorshift32 PRNG
+- More consistent frame timing by moving sampling work off the critical render path
 
 ## [0.3.0] - 2026-05-03
 
