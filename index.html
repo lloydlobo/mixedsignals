@@ -14,211 +14,213 @@
         <div class="flash-overlay" id="flash"></div>
         <div id="game-inner">
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
-        
+
             <!-- START -->
             <div class="screen active" id="screen-start">
-            <h3 class="orb">MIXED SIGNALS</h3>
-            <p>
-                Tune your waveform to mirror the target.<br>
-                5 levels &middot; harder parameters &middot; tighter clocks.<br>Hints cost pts. Speed bonuses reward
-                fast locks.
-            </p>
-            <button class="crt-btn" onclick="startGame()">INITIALIZE</button>
-        </div>
+                <h3 class="orb">MIXED SIGNALS</h3>
+                <p>
+                    Tune your waveform to mirror the target.<br>
+                    5 levels &middot; harder parameters &middot; tighter clocks.<br>Hints cost pts. Speed bonuses reward
+                    fast locks.
+                </p>
+                <button class="crt-btn" onclick="startGame()">INITIALIZE</button>
+            </div>
 
-        <!-- DEAD -->
-        <div class="screen" id="screen-dead">
-            <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
-            <p id="dead-msg"></p>
-            <button class="crt-btn" onclick="startGame()">RETRY LEVEL</button>
-            <button class="crt-btn sm danger" onclick="restartGame()">START OVER</button>
-        </div>
+            <!-- DEAD -->
+            <div class="screen" id="screen-dead">
+                <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
+                <p id="dead-msg"></p>
+                <button class="crt-btn" onclick="startGame()">RETRY LEVEL</button>
+                <button class="crt-btn sm danger" onclick="restartGame()">START OVER</button>
+            </div>
 
-        <!-- LEVEL UP -->
-        <div class="screen" id="screen-levelup">
-            <h3 class="orb" id="lu-title">LEVEL 2</h3>
-            <p id="lu-msg"></p>
-            <button class="crt-btn" onclick="continueLevel()">CONTINUE</button>
-        </div>
+            <!-- LEVEL UP -->
+            <div class="screen" id="screen-levelup">
+                <h3 class="orb" id="lu-title">LEVEL 2</h3>
+                <p id="lu-msg"></p>
+                <button class="crt-btn" onclick="continueLevel()">CONTINUE</button>
+            </div>
 
-        <!-- GAME -->
-        <div id="screen-game">
-            <div class="screen-frame">
-                <div id="game-lcd">
-                    <!-- TOPBAR -->
-                    <div class="topbar">
-                        <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
-                        <div class="chip">score <b id="score">0</b></div>
-                        <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
-                        <div class="topbar-end-wrap">
-                            <div class="chip" style="padding: 0;">
-                                <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop
-                                    preload="none"></audio>
-                                <button class="crt-btn mute" id="mute-btn" onclick="toggleMute()"
-                                    title="Toggle audio">♪</button>
+            <!-- GAME -->
+            <div id="screen-game">
+                <div class="screen-frame">
+                    <div id="game-lcd">
+                        <!-- TOPBAR -->
+                        <div class="topbar">
+                            <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
+                            <div class="chip">score <b id="score">0</b></div>
+                            <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
+                            <div class="topbar-end-wrap">
+                                <div class="chip" style="padding: 0;">
+                                    <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop
+                                        preload="none"></audio>
+                                    <button class="crt-btn mute" id="mute-btn" onclick="toggleMute()"
+                                        title="Toggle audio">♪</button>
+                                </div>
+                                <div class="chip" style="padding: 0;">
+                                    <div class="timer" id="timer">30</div>
+                                </div>
                             </div>
-                            <div class="chip" style="padding: 0;">
-                                <div class="timer" id="timer">30</div>
+                        </div>
+
+                        <div class="meter-row">
+                            <div class="meter-track">
+                                <div class="meter-fill" id="fill" style="width: 0%;"></div>
+                            </div>
+                            <div class="meter-pct" id="pct">0%</div>
+                        </div>
+
+                        <div class="scope-wrap">
+                            <div class="scope-label">
+                                <span>overlay scope</span>
+                                <span>
+                                    <span class="pip" style="background: #00ff88;"></span>target
+                                    &nbsp;
+                                    <span class="pip" style="background: #ffb830;"></span>yours
+                                </span>
+                            </div>
+                            <canvas class="scope" id="c-overlay" height="120"></canvas>
+                        </div>
+
+                        <div class="feedback" id="feedback">Match the target signal.</div>
+                    </div>
+                </div>
+
+                <!-- HARDWARE CONTROLS (outside LCD frame) -->
+                <div class="hardware-grid">
+                    <!-- WAVE SELECTOR -->
+                    <div class="type-btns" id="type-btns">
+                        <button class="type-btn active" data-t="sine" onclick="setType(this)">
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
+                            </svg>
+                            <span>SINE</span>
+                        </button>
+                        <button class="type-btn" data-t="square" onclick="setType(this)">
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
+                            </svg>
+                            <span>SQR</span>
+                        </button>
+                        <button class="type-btn" data-t="sawtooth" onclick="setType(this)">
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 10 L12 2 L12 10 L24 2" />
+                            </svg>
+                            <span>SAW</span>
+                        </button>
+                        <button class="type-btn" data-t="triangle" onclick="setType(this)">
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
+                            </svg>
+                            <span>TRI</span>
+                        </button>
+                        <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" disabled>
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
+                            </svg>
+                            <span>PWM</span>
+                        </button>
+                        <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>
+                            <svg viewBox="0 0 24 12">
+                                <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
+                            </svg>
+                            <span>AM</span>
+                        </button>
+                    </div>
+
+                    <!-- SLIDERS WITH LABELS + GLYPHS -->
+                    <div class="param-list">
+                        <div class="ctrl" id="ctrl-freq">
+                            <div class="slider-meta">
+                                <label for="sl-freq">Freq</label>
+                                <span class="slider-val"><b id="lbl-freq">1 Hz</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1"
+                                    oninput="recompute()" />
+                            </div>
+                        </div>
+                        <div class="ctrl" id="ctrl-amp">
+                            <div class="slider-meta">
+                                <label for="sl-amp">Amp</label>
+                                <span class="slider-val"><b id="lbl-amp">0.5</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5"
+                                    oninput="recompute()" />
+                            </div>
+                        </div>
+                        <div class="ctrl" id="ctrl-phase">
+                            <div class="slider-meta">
+                                <label for="sl-phase">Phase</label>
+                                <span class="slider-val"><b id="lbl-phase">0&deg;</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0"
+                                    oninput="recompute()" />
+                            </div>
+                        </div>
+                        <div class="ctrl" id="ctrl-dc">
+                            <div class="slider-meta">
+                                <label for="sl-dc">DC Off</label>
+                                <span class="slider-val"><b id="lbl-dc">0.0</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0"
+                                    oninput="recompute()" />
+                            </div>
+                        </div>
+                        <div class="ctrl" id="ctrl-harm" style="display: none;">
+                            <div class="slider-meta">
+                                <label for="sl-harm">Harm</label>
+                                <span class="slider-val"><b id="lbl-harm">0.0</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0"
+                                    oninput="recompute()" />
+                            </div>
+                        </div>
+                        <div class="ctrl" id="ctrl-noise" style="display: none;">
+                            <div class="slider-meta">
+                                <label for="sl-noise">Noise</label>
+                                <span class="slider-val"><b id="lbl-noise">0.0</b></span>
+                            </div>
+                            <div class="slider-row">
+                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0"
+                                    oninput="recompute()" />
                             </div>
                         </div>
                     </div>
-
-                    <div class="meter-row">
-                        <div class="meter-track">
-                            <div class="meter-fill" id="fill" style="width: 0%;"></div>
-                        </div>
-                        <div class="meter-pct" id="pct">0%</div>
-                    </div>
-
-                    <div class="scope-wrap">
-                        <div class="scope-label">
-                            <span>overlay scope</span>
-                            <span>
-                                <span class="pip" style="background: #00ff88;"></span>target
-                                &nbsp;
-                                <span class="pip" style="background: #ffb830;"></span>yours
-                            </span>
-                        </div>
-                        <canvas class="scope" id="c-overlay" height="120"></canvas>
-                    </div>
-
-                    <div class="feedback" id="feedback">Match the target signal.</div>
-                </div>
-            </div>
-
-            <!-- HARDWARE CONTROLS (outside LCD frame) -->
-            <div class="hardware-grid">
-                <!-- WAVE SELECTOR -->
-                <div class="type-btns" id="type-btns">
-                    <button class="type-btn active" data-t="sine" onclick="setType(this)">
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
-                        </svg>
-                        <span>SINE</span>
-                    </button>
-                    <button class="type-btn" data-t="square" onclick="setType(this)">
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
-                        </svg>
-                        <span>SQR</span>
-                    </button>
-                    <button class="type-btn" data-t="sawtooth" onclick="setType(this)">
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 10 L12 2 L12 10 L24 2" />
-                        </svg>
-                        <span>SAW</span>
-                    </button>
-                    <button class="type-btn" data-t="triangle" onclick="setType(this)">
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
-                        </svg>
-                        <span>TRI</span>
-                    </button>
-                    <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" disabled>
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
-                        </svg>
-                        <span>PWM</span>
-                    </button>
-                    <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>
-                        <svg viewBox="0 0 24 12">
-                            <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
-                        </svg>
-                        <span>AM</span>
-                    </button>
                 </div>
 
-                <!-- SLIDERS WITH LABELS + GLYPHS -->
-                <div class="param-list">
-                    <div class="ctrl" id="ctrl-freq">
-                        <div class="slider-meta">
-                            <label for="sl-freq">Freq</label>
-                            <span class="slider-val"><b id="lbl-freq">1 Hz</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" oninput="recompute()" />
-                        </div>
-                    </div>
-                    <div class="ctrl" id="ctrl-amp">
-                        <div class="slider-meta">
-                            <label for="sl-amp">Amp</label>
-                            <span class="slider-val"><b id="lbl-amp">0.5</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5"
-                                oninput="recompute()" />
-                        </div>
-                    </div>
-                    <div class="ctrl" id="ctrl-phase">
-                        <div class="slider-meta">
-                            <label for="sl-phase">Phase</label>
-                            <span class="slider-val"><b id="lbl-phase">0&deg;</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-phase" min="0" max="360" step="1" value="0"
-                                oninput="recompute()" />
-                        </div>
-                    </div>
-                    <div class="ctrl" id="ctrl-dc">
-                        <div class="slider-meta">
-                            <label for="sl-dc">DC Off</label>
-                            <span class="slider-val"><b id="lbl-dc">0.0</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0"
-                                oninput="recompute()" />
-                        </div>
-                    </div>
-                    <div class="ctrl" id="ctrl-harm" style="display: none;">
-                        <div class="slider-meta">
-                            <label for="sl-harm">Harm</label>
-                            <span class="slider-val"><b id="lbl-harm">0.0</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0"
-                                oninput="recompute()" />
-                        </div>
-                    </div>
-                    <div class="ctrl" id="ctrl-noise" style="display: none;">
-                        <div class="slider-meta">
-                            <label for="sl-noise">Noise</label>
-                            <span class="slider-val"><b id="lbl-noise">0.0</b></span>
-                        </div>
-                        <div class="slider-row">
-                            <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0"
-                                oninput="recompute()" />
-                        </div>
-                    </div>
+                <div class="action-row">
+                    <button class="sys-btn" style="color: #ffb830" onclick="useHint()">HINT</button>
+                    <button class="sys-btn" style="color: #ff4554" onclick="skipRound()">SKIP</button>
                 </div>
-            </div>
-
-            <div class="action-row">
-                <button class="sys-btn" style="color: #ffb830" onclick="useHint()">HINT</button>
-                <button class="sys-btn" style="color: #ff4554" onclick="skipRound()">SKIP</button>
             </div>
         </div>
-    </div>
 
-    <div class="credits-wrap">
-        <span class="credits-title">Credits</span>
-        <div class="credits-popup">
-            <div style="font-size: 9px; opacity: 0.6;">Thanks to (playtesters, feedback, ratings):</div>
-            <div style="font-size: 10px;">
-                Carrerino, Eric Nguyen, Fractal, Grummelchen, Jo Bettaque, Khushi Rathi,
-                Makim Terskov, Nikhil Lakhra, nathmate, oxnh, Planetary, Ray Dino,
-                Reed Molbak, Sceef, VenomousMouse
+        <div class="credits-wrap">
+            <span class="credits-title">Credits</span>
+            <div class="credits-popup">
+                <div style="font-size: 9px; opacity: 0.6;">Thanks to (playtesters, feedback, ratings):</div>
+                <div style="font-size: 10px;">
+                    Ausstein, Carrerino, Eric Nguyen, Fractal, Grummelchen, igorekkedziorek,
+                    Jhonny111, Jo Bettaque, Khushi Rathi, letmebeme, Makim Terskov,
+                    nathmate, Nikhil Lakhra, oxnh, Planetary, Ray Dino,
+                    Reed Molbak, Sceef, Twaerd, VenomousMouse, Zettelkasten
+                </div>
+
+                <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
+                <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
+                <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
+
+                <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
+                <div style="font-size: 10px;">ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google), opencode (open source CLI)</div>
+
+                <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
             </div>
-
-            <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
-            <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
-            <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
-
-            <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
-            <div style="font-size: 10px;">Claude (Anthropic), Gemini (Google), opencode (open source CLI)</div>
-
-            <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
         </div>
-    </div>
 
 </body>
 
