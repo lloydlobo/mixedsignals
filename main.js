@@ -69,7 +69,7 @@ const LEVELS = [
 let targetSignal = {};
 
 /** @type {Signal} */
-let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+let yoursSignal = { type: "sawtooth", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
 
 // ─── GAME STATE VARIABLES ────────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,33 @@ let score = 0,
     animRaf = null,
     won = false,
     revealed = false;
+
+let tutorialStep = 0;
+let tutorialActive = false;
+let tutorialTarget = null;
+
+const TUTORIAL_TASKS = [
+    {
+        text: "TUTORIAL: Select SAW waveform",
+        check: () => yoursSignal.type === "sawtooth",
+    },
+    {
+        text: "TUTORIAL: Set frequency to 4 Hz",
+        check: () => yoursSignal.freq === 4,
+    },
+    {
+        text: "TUTORIAL: Set amplitude to 6",
+        check: () => Math.abs(yoursSignal.amp - 6) < 0.05,
+    },
+    {
+        text: "TUTORIAL: Set phase to 180",
+        check: () => yoursSignal.phase === 180,
+    },
+    {
+        text: "TUTORIAL: Now match the target signal (95%+)",
+        check: () => matchScore() >= 0.95,
+    }
+];
 
 /**
  * Shorthand for document.getElementById.
@@ -676,6 +703,11 @@ function updateMeter() {
             won = true;
             _wasCloseSfx = false; // reset state
 
+            if (tutorialActive) {
+                checkTutorial();
+                return;
+            }
+
             clearInterval(timerInterval);
 
             const bonus = Math.ceil(timeLeft * .8);
@@ -737,6 +769,7 @@ function recompute() {
     }
 
     updateMeter();
+    if (tutorialActive) checkTutorial();
 }
 
 /**
@@ -753,6 +786,7 @@ function setType(btn) {
     SFX.tick();
     if (navigator.vibrate) navigator.vibrate(50);
     updateMeter();
+    if (tutorialActive) checkTutorial();
 }
 
 /**
@@ -1010,6 +1044,11 @@ function startGame() {
     score = levelStartScore; // score = 0; // FIXED: score intentionally NOT reset here
     roundNo = 0;
 
+    if (!localStorage.getItem("tutorialSeen") && !tutorialActive) {
+        startTutorial();
+        return;
+    }
+
     $("score").textContent = score; // $("score").textContent = 0;
 
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -1018,4 +1057,100 @@ function startGame() {
     if (animRaf) cancelAnimationFrame(animRaf);
     requestAnimationFrame(loop);
     nextRound();
+}
+
+function startTutorial() {
+    tutorialActive = true;
+    tutorialStep = 0;
+    score = 0;
+
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    $("screen-game").style.display = "block";
+
+    if (animRaf) cancelAnimationFrame(animRaf);
+    requestAnimationFrame(loop);
+
+    tutorialTarget = { type: "sawtooth", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
+    targetSignal = tutorialTarget;
+    roundNo = 1;
+    $("round-no").textContent = roundNo;
+    $("round-total").textContent = 1;
+
+    // Enable all basic controls for tutorial
+    $("ctrl-phase").style.opacity = "1";
+    $("ctrl-dc").style.opacity = "1";
+    $("ctrl-harm").style.display = "none";
+    $("ctrl-noise").style.display = "none";
+    $("btn-pwm").disabled = false;
+    $("btn-am").disabled = false;
+
+    // Show skip tutorial button
+    $("skip-tut").style.display = "inline-block";
+
+    resetYours();
+    fillBuf(targetBuf, targetSignal, false);
+    recompute();
+
+    showTutorialTask();
+}
+
+function showTutorialTask() {
+    if (tutorialStep >= TUTORIAL_TASKS.length) {
+        endTutorial();
+        return;
+    }
+    const task = TUTORIAL_TASKS[tutorialStep];
+    $("feedback").textContent = task.text;
+    $("feedback").className = "feedback";
+    highlightControl();
+}
+
+function checkTutorial() {
+    if (!tutorialActive || tutorialStep >= TUTORIAL_TASKS.length) return;
+    const task = TUTORIAL_TASKS[tutorialStep];
+    if (task.check()) {
+        tutorialStep++;
+        showTutorialTask();
+    }
+}
+
+function highlightControl() {
+    // Remove glow from all elements
+    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+
+    let el = null;
+    if (tutorialStep === 0) el = $("type-btns");
+    else if (tutorialStep === 1) el = $("ctrl-freq");
+    else if (tutorialStep === 2) el = $("ctrl-amp");
+    else if (tutorialStep === 3) el = $("ctrl-phase");
+    else if (tutorialStep === 4) el = $("meter-row");
+
+    if (el) el.classList.add("tutorial-glow");
+}
+
+function skipTutorial() {
+    tutorialActive = false;
+    localStorage.setItem("tutorialSeen", "true");
+    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    $("skip-tut").style.display = "none";
+    $("screen-game").style.display = "none";
+    $("screen-start").classList.add("active");
+    $("feedback").textContent = "Tutorial skipped. Click INITIALIZE to start playing.";
+}
+
+function endTutorial() {
+    tutorialActive = false;
+    localStorage.setItem("tutorialSeen", "true");
+    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    $("skip-tut").style.display = "none";
+
+    flash("#00ffb4");
+    SFX.lock();
+    $("feedback").textContent = "TUTORIAL COMPLETE!";
+    $("feedback").className = "feedback win";
+
+    setTimeout(() => {
+        $("screen-game").style.display = "none";
+        $("screen-start").classList.add("active");
+    }, 1800);
 }

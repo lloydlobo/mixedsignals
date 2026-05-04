@@ -65,7 +65,9 @@ body {
 #game::after {
     content: "";
     position: absolute;
-    left: 25px;
+    /* left: 25px; */
+    /* top: 60px; */
+    left: 24px;
     top: 60px;
     width: 8px;
     height: 8px;
@@ -684,6 +686,20 @@ input[type=range]::-moz-range-thumb {
     max-width: 90vw;
     user-select: text;
     -webkit-user-select: text;
+}
+
+/* --- TUTORIAL GLOW --- */
+
+.tutorial-glow {
+    border: 2px solid var(--green) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 180, 0.4) !important;
+    border-radius: 4px;
+    animation: tutorial-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tutorial-pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 180, 0.4); }
+    50% { box-shadow: 0 0 30px rgba(0, 255, 180, 0.8); }
 }
 
 .credits-wrap:hover .credits-popup {
