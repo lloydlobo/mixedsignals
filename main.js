@@ -6,8 +6,6 @@
  * @version 1.0.0
  */
 
-const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
-
 /**
  * @typedef {"sine" | "square" | "sawtooth" | "triangle"} Waveform
  * @description Available oscillator waveform types.
@@ -36,6 +34,8 @@ const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "developm
  * @property {boolean} harm     whether harmonic control is enabled
  * @property {boolean} noise    whether noise control is enabled
  */
+
+const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -489,16 +489,22 @@ function sample(sig, t, addNoise) {
     const u = (freq * t + (phase / 360)) % 1;
     const x = u * 6.283185307179586; // Pre-calculated PI * 2
 
-    let v; // let v = 0;
+    let v;
     switch (type) {
         case "sine": v = fastSin(x); break;
-        case "square": v = fastSin(x) >= 0 ? 1 : -1; break; // does not consider phase: v = u < 0.5 ? 1 : -1; break;
+        case "square": v = fastSin(x) >= 0 ? 1 : -1; break;
         case "pwm": v = u < 0.65 ? 1 : -1; break;
         case "sawtooth": v = 2 * u - 1; break;
         case "triangle": v = u < 0.5 ? 4 * u - 1 : 3 - 4 * u; break;
-        case "am": v = (fastSin(x)) * (0.5 * (1 + fastSin(x * (harm || 0.05)))); break; // carrier * modulator (LFO-style volume swell)
-        default: throw new Error(`Unhandled waveform: "${type}"`); // default: v = 0;
-
+        case "am": {
+            const modFreqMult = 0.25; // Or make this a property of the signal
+            const modIndex = harm || 0.5; // Use harm to control intensity
+            const carrier = fastSin(x);
+            const mod = fastSin(x * modFreqMult);
+            v = carrier * (1 + modIndex * mod); // Standard AM formula: Carrier * (1 + Depth * Modulator)
+            v *= 0.5; // We multiply by 0.5 at the end to keep the signal within -1 to 1 range
+        } break;
+        default: throw new Error(`Unhandled waveform: "${type}"`);
     }
 
     // Add Harmonic (3rd) - using mul instead of div
@@ -516,6 +522,7 @@ function sample(sig, t, addNoise) {
 const SAMPLE_BUFFER_SIZE = 640; // Length of pre-computed signal sample buffers
 const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
 const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
+const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manually in loop();
 
 /**
  * Fills a signal buffer by sampling sig across [0, 1).
@@ -576,17 +583,23 @@ function drawWave(ctx, buf, color, W, H, scroll, lineW) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineW || 1.8;
     ctx.beginPath();
+
     const invW = 1 / W;
-    for (let px = 0; px <= W; px++) { // TODO: use px+=2?
-        // TODO: Avoid %
-        const i = (((px * invW - scroll + 1) % 1) * SAMPLE_BUFFER_SIZE) | 0;  // `| 0` same as Math.floor()
-        if (typeof DEV !== "undefined" && DEV) {
-            console.assert(i >= 0 && i < SAMPLE_BUFFER_SIZE, `Buffer index ${i} out of bounds (SAMPLE_BUFFER_SIZE=${SAMPLE_BUFFER_SIZE})`);
-        }
-        const v = buf[i];
-        const y = H * 0.5 - v * (H * 0.5 - 10);
-        px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+    const halfH = H * 0.5;
+    const yOffset = halfH - 10;
+
+    // First point: (`px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y)`)
+    let i = ((0 * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // `x|0` === Math.floor(x)
+    let y = halfH - buf[i] * yOffset;
+    ctx.moveTo(0, y);
+
+    // Rest of the path
+    for (let px = 2; px <= W; px += 2) { // skip every other pixel
+        i = ((px * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // assert `i >= 0 && i < SAMPLE_BUFFER_SIZE`
+        y = halfH - buf[i] * yOffset;
+        ctx.lineTo(px, y);
     }
+
     ctx.stroke();
 }
 
@@ -606,30 +619,27 @@ function loop(ts) {
     drawGrid(ctx, W, H);
 
     const sc = matchScore();
+
+    // Update overlay: fill blendBuf after buffers are current
+    // NOTE: TargetBuf and yoursBuf must already be written for the current
+    //       frame before this runs. Wherever you fill those two buffers in your loop,
+    //       this comes immediately after.
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 1) { // NOTE: step by > 1 for fun FX
+        blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
+    }
+
+    // Draw overlay: both signals share one oscilloscope. A faint green trace
+    // blends in as you get closer, giving you a visual diff of where you're off.
     if (sc > 0.5) {
-        // Overlay: both signals share one oscilloscope. A faint green trace
-        // blends in as you get closer, giving you a visual diff of where you're off.
         ctx.save();
         ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
-        ctx.strokeStyle = "#00ffb4";
-        ctx.lineWidth = 2.5 * (sc + 0.5);
-        ctx.beginPath();
-        const invW = 1 / W;
-        for (let px = 0; px <= W; px++) {
-            const i = (((px * invW - scroll + 1) % 1) * SAMPLE_BUFFER_SIZE) | 0;  // `| 0` same as Math.floor()
-            if (typeof DEV !== "undefined" && DEV) {
-                console.assert(i >= 0 && i < SAMPLE_BUFFER_SIZE, `Buffer index ${i} out of bounds (SAMPLE_BUFFER_SIZE=${SAMPLE_BUFFER_SIZE})`);
-            }
-            const v = (targetBuf[i] + yoursBuf[i]) * 0.5;
-            const y = H * 0.5 - v * (H * 0.5 - 10);
-            px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
-        }
-        ctx.stroke();
+        drawWave(ctx, blendBuf, "#00ffb4", W, H, scroll, 2.5 * (sc + 0.5));
         ctx.restore();
     }
 
     ctx.globalAlpha = 0.85;
     drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // bright phosphor green
+
     ctx.globalAlpha = 1;
     drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color // --amber
 
