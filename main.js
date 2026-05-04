@@ -89,8 +89,8 @@ let tutorialTarget = null;
 
 const TUTORIAL_TASKS = [
     {
-        text: "TUTORIAL: Select SAW waveform",
-        check: () => yoursSignal.type === "sawtooth",
+        text: "TUTORIAL: Select TRI waveform",
+        check: () => yoursSignal.type === "triangle",
     },
     {
         text: "TUTORIAL: Set frequency to 4 Hz",
@@ -1070,7 +1070,7 @@ function startTutorial() {
     if (animRaf) cancelAnimationFrame(animRaf);
     requestAnimationFrame(loop);
 
-    tutorialTarget = { type: "sawtooth", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
+    tutorialTarget = { type: "triangle", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
     targetSignal = tutorialTarget;
     roundNo = 1;
     $("round-no").textContent = roundNo;
@@ -1142,7 +1142,6 @@ function endTutorial() {
     tutorialActive = false;
     localStorage.setItem("tutorialSeen", "true");
     document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
-    $("skip-tut").style.display = "none";
 
     flash("#00ffb4");
     SFX.lock();
@@ -1152,5 +1151,6 @@ function endTutorial() {
     setTimeout(() => {
         $("screen-game").style.display = "none";
         $("screen-start").classList.add("active");
+        $("skip-tut").style.display = "none";
     }, 1800);
 }
