@@ -24,6 +24,7 @@
                     fast locks.
                 </p>
                 <button class="crt-btn" onclick="startGame()">INITIALIZE</button>
+                <button class="crt-btn sm" onclick="startTutorial()">TUTORIAL</button>
             </div>
 
             <!-- DEAD -->
@@ -196,6 +197,8 @@
                 <div class="action-row">
                     <button class="sys-btn" style="color: #ffb830" onclick="useHint()">HINT</button>
                     <button class="sys-btn" style="color: #ff4554" onclick="skipRound()">SKIP</button>
+                    <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
+                        id="skip-tut">SKIP TUT</button>
                 </div>
             </div>
         </div>
@@ -216,12 +219,14 @@
                 <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
 
                 <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
-                <div style="font-size: 10px;">ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google), opencode (open source CLI)</div>
+                <div style="font-size: 10px;">ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google), opencode (open
+                    source CLI)</div>
 
                 <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
             </div>
         </div>
 
+    </div>
 </body>
 
 </html>
