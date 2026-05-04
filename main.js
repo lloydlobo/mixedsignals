@@ -6,6 +6,8 @@
  * @version 1.0.0
  */
 
+const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
+
 /**
  * @typedef {"sine" | "square" | "sawtooth" | "triangle"} Waveform
  * @description Available oscillator waveform types.
@@ -46,7 +48,7 @@ const CONFIG = {
     FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
     COST_HINT: 5,
     COST_SKIP: 10,
-    WIN_PERCENTAGE: 92, // was 95 when sliders used fixed steps
+    WIN_PERCENTAGE: 95,
     CLOSE_PERCENTAGE: 75,
 }
 
@@ -509,20 +511,40 @@ function sample(sig, t, addNoise) {
     return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
+// ─── SIGNAL BUFFERS ──────────────────────────────────────────────────────────
+
+const SAMPLE_BUFFER_SIZE = 640; // Length of pre-computed signal sample buffers
+const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
+const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
+
+/**
+ * Fills a signal buffer by sampling sig across [0, 1).
+ * @param {Float32Array} buf Buffer to fill
+ * @param {Signal} sig Signal to sample
+ * @param {boolean} addNoise Whether to bake noise in
+ */
+function fillBuf(buf, sig, addNoise) {
+    const INV_SZ = 1 / SAMPLE_BUFFER_SIZE;
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 4) { // NOTE: size is divisible by 4
+        const t0 = i * INV_SZ, t1 = (i + 1) * INV_SZ, t2 = (i + 2) * INV_SZ, t3 = (i + 3) * INV_SZ;
+        buf[i] = sample(sig, t0, addNoise);
+        buf[i + 1] = sample(sig, t1, addNoise);
+        buf[i + 2] = sample(sig, t2, addNoise);
+        buf[i + 3] = sample(sig, t3, addNoise);
+    }
+}
+
 /**
  * Calculates the similarity score between target and player signals.
+ * Reads pre-computed buffers; no sample calls.
  * @returns {number} Score from 0 (no match) to 1 (perfect match).
  */
 function matchScore() {
     let d = 0;
-    const N = 300;
-
-    for (let i = 0; i <= N; i++) {
-        const t = i / N;
-        d += Math.abs(sample(targetSignal, t, false) - sample(yoursSignal, t, false));
+    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
+        d += Math.abs(targetBuf[i] - yoursBuf[i]);
     }
-
-    return Math.max(0, 1 - d / (2 * N));
+    return Math.max(0, 1 - d / (2 * SAMPLE_BUFFER_SIZE));
 }
 
 /**
@@ -541,24 +563,28 @@ function drawGrid(ctx, W, H) {
 }
 
 /**
- * Draws a waveform on the canvas.
+ * Draws a waveform on the canvas from a pre-computed buffer.
  * @param {CanvasRenderingContext2D} ctx - Canvas context.
- * @param {Signal} sig - The signal to draw.
+ * @param {Float32Array} buf - Pre-computed signal buffer.
  * @param {string} color - Stroke color.
  * @param {number} W - Canvas width.
  * @param {number} H - Canvas height.
  * @param {number} scroll - Scroll offset (0-1).
- * @param {boolean} noisy - Whether to add noise.
  * @param {number} [lineW=1.8] - Line width.
  */
-function drawWave(ctx, sig, color, W, H, scroll, noisy, lineW) {
+function drawWave(ctx, buf, color, W, H, scroll, lineW) {
     ctx.strokeStyle = color;
     ctx.lineWidth = lineW || 1.8;
     ctx.beginPath();
-    for (let px = 0; px <= W; px++) {
-        const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
-        const v = sample(sig, t, noisy);
-        const y = H / 2 - v * (H / 2 - 10);
+    const invW = 1 / W;
+    for (let px = 0; px <= W; px++) { // TODO: use px+=2?
+        // TODO: Avoid %
+        const i = (((px * invW - scroll + 1) % 1) * SAMPLE_BUFFER_SIZE) | 0;  // `| 0` same as Math.floor()
+        if (typeof DEV !== "undefined" && DEV) {
+            console.assert(i >= 0 && i < SAMPLE_BUFFER_SIZE, `Buffer index ${i} out of bounds (SAMPLE_BUFFER_SIZE=${SAMPLE_BUFFER_SIZE})`);
+        }
+        const v = buf[i];
+        const y = H * 0.5 - v * (H * 0.5 - 10);
         px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
     }
     ctx.stroke();
@@ -588,10 +614,14 @@ function loop(ts) {
         ctx.strokeStyle = "#00ffb4";
         ctx.lineWidth = 2.5 * (sc + 0.5);
         ctx.beginPath();
+        const invW = 1 / W;
         for (let px = 0; px <= W; px++) {
-            const t = (px / W - scroll + 1) % 1; // px / W (left: px/W + scroll) (right: px/W - scroll + 1)
-            const v = (sample(targetSignal, t, false) + sample(yoursSignal, t, false)) / 2;
-            const y = H / 2 - v * (H / 2 - 10);
+            const i = (((px * invW - scroll + 1) % 1) * SAMPLE_BUFFER_SIZE) | 0;  // `| 0` same as Math.floor()
+            if (typeof DEV !== "undefined" && DEV) {
+                console.assert(i >= 0 && i < SAMPLE_BUFFER_SIZE, `Buffer index ${i} out of bounds (SAMPLE_BUFFER_SIZE=${SAMPLE_BUFFER_SIZE})`);
+            }
+            const v = (targetBuf[i] + yoursBuf[i]) * 0.5;
+            const y = H * 0.5 - v * (H * 0.5 - 10);
             px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
         }
         ctx.stroke();
@@ -599,9 +629,9 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, true, 4); // bright phosphor green
+    drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // bright phosphor green
     ctx.globalAlpha = 1;
-    drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, true, 4); // traditional scope color // --amber
+    drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color // --amber
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -655,7 +685,7 @@ function updateMeter() {
             fb.textContent = "Getting close…";
             fb.className = "feedback close";
 
-            // Make the “close” state edge-triggered, not continuous
+            // Make the 'close' state edge-triggered, not continuous
             if (!_wasCloseSfx) {
                 SFX.close();
                 _wasCloseSfx = true;
@@ -670,7 +700,7 @@ function updateMeter() {
 }
 
 /**
- * Reads slider values and updates player signal.
+ * Reads slider values and updates player signal, rebuilds yours buffer.
  */
 function recompute() {
     yoursSignal.freq = +$("sl-freq").value;
@@ -686,6 +716,8 @@ function recompute() {
     $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
     $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
     $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+
+    fillBuf(yoursBuf, yoursSignal, true);
 
     // Subtle slider sfx - throttled
     const now = Date.now();
@@ -706,6 +738,8 @@ function setType(btn) {
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
 
+    fillBuf(yoursBuf, yoursSignal, true);
+
     SFX.tick();
     if (navigator.vibrate) navigator.vibrate(50);
     updateMeter();
@@ -713,20 +747,22 @@ function setType(btn) {
 
 /**
  * Builds a random target signal based on current level.
+ * Fills targetBuf immediately.
  * @returns {Signal} The generated target signal.
  */
 function buildTarget() {
     const lv = LEVELS[level];
     /** @type {Signal} */
-    const t = {};
-    t.type = lv.types[rng(0, lv.types.length - 1)];
-    t.freq = rng(1, 6);
-    t.amp = rng(3, 10);
-    t.phase = lv.phase ? rng(0, 7) * 45 : 0;
-    t.dc = lv.dc ? rng(-3, 3) : 0;
-    t.harm = lv.harm ? rng(0, 5) : 0;
-    t.noise = lv.noise ? rng(2, 6) : 0;
-    return t;
+    const sig = {};
+    sig.type = lv.types[rng(0, lv.types.length - 1)];
+    sig.freq = rng(1, 6);
+    sig.amp = rng(3, 10);
+    sig.phase = lv.phase ? rng(0, 7) * 45 : 0;
+    sig.dc = lv.dc ? rng(-3, 3) : 0;
+    sig.harm = lv.harm ? rng(0, 5) : 0;
+    sig.noise = lv.noise ? rng(2, 6) : 0;
+    fillBuf(targetBuf, sig, true);
+    return sig;
 }
 
 /**
