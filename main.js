@@ -384,32 +384,32 @@ function fastSin(x) {
  * @returns {number} The sampled value.
  */
 function sample(sig, t, addNoise) {
-    const a = sig.amp / 10;
-    const p = (sig.phase / 180) * Math.PI;
-    const x = 2 * Math.PI * sig.freq * t + p;
-    const h = (sig.harm || 0) / 10, n = (sig.noise || 0) / 10;
-    let v;
-    switch (sig.type) {
+    const { type, freq, phase, amp, harm, noise, dc } = sig;
+
+    // Normalized phase (0.0 to 1.0)
+    const u = (freq * t + (phase / 360)) % 1;
+    const x = u * 6.283185307179586; // Pre-calculated PI * 2
+
+    let v; // let v = 0;
+    switch (type) {
         case "sine": v = fastSin(x); break;
-        case "square": v = Math.sign(fastSin(x)); break;
-        case "sawtooth": v = 2 * ((sig.freq * t + sig.phase / 360) % 1) - 1; break;
-        case "triangle": {
-            const u = (sig.freq * t + sig.phase / 360) % 1;
-            v = u < .5 ? 4 * u - 1 : 3 - 4 * u;
-        }; break;
-        case "pwm": {
-            const u = (sig.freq * t + sig.phase / 360) % 1;
-            v = u < .65 ? 1 : -1;
-        }; break;
-        case "am": v = Math.sign(fastSin(x)); break;
-        default: {
-            const msg = `Exhausted all enumerated values for "Waveform". Got ${sig.type}`;
-            throw new Error(msg);
-        }
+        case "square": v = fastSin(x) >= 0 ? 1 : -1; break; // does not consider phase: v = u < 0.5 ? 1 : -1; break;
+        case "pwm": v = u < 0.65 ? 1 : -1; break;
+        case "sawtooth": v = 2 * u - 1; break;
+        case "triangle": v = u < 0.5 ? 4 * u - 1 : 3 - 4 * u; break;
+        case "am": v = (fastSin(x)) * (0.5 * (1 + fastSin(x * (harm || 0.05)))); break; // carrier * modulator (LFO-style volume swell)
+        default: throw new Error(`Unhandled waveform: "${type}"`); // default: v = 0;
+
     }
-    v += h * fastSin(3 * x);
-    if (addNoise && n > 0) v += n * (Math.random() - .5) * .8;
-    return a * v + (sig.dc || 0) / 10;
+
+    // Add Harmonic (3rd) - using mul instead of div
+    if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3);
+
+    // Add Bipolar Noise
+    if (addNoise && noise) v += (noise * 0.1) * (rand() * 0.8 - 0.4);
+
+    // Final Gain and DC Offset
+    return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
 /**
