@@ -4,6 +4,14 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+### Performance
+- Implement fast sine approximation to speed up signal sampling
+- Replace `Math.random` with xoshiro128+ PRNG; add support for multiple PRNG options (Xorshift32, SFC32, etc.)
+- Optimize core signal sampling function for improved accuracy and speed
+- Switch to pre-computed sample buffers to eliminate redundant per-sample calls
+- Refactor signal drawing logic for better rendering performance and code clarity
+- Add PRNG selection guide to compare speed/quality tradeoffs during pre-release testing
+
 ## [0.3.0] - 2026-05-03
 
 ### Game Juice (Feedback & Polish)
