@@ -335,6 +335,31 @@ const SFX = {
     },
 }
 
+const LUT_SIZE = 8192; // Must be power of 2 for bitwise & MASK
+const MASK = LUT_SIZE - 1;
+const SCALE = LUT_SIZE / (Math.PI * 2);
+
+// +1 length allows for branchless linear interpolation (index + 1 is always valid)
+const SIN_LUT = new Float32Array(LUT_SIZE + 1); // Usage: Math.sin(x) => SIN_LUT[(x * SCALE) & MASK]
+for (let i = 0; i <= LUT_SIZE; i++) {
+    SIN_LUT[i] = Math.sin((i / LUT_SIZE) * Math.PI * 2);
+}
+
+/**
+ * Fast Sine replacement using Linear Interpolation.
+ * Provides high fidelity with extreme speed.
+ * @param {number} x A numeric expression that contains an angle measured in radians.
+ * @returns {number}
+ */
+function fastSin(x) {
+    const pos = (x * SCALE) & MASK;
+    const idx = pos | 0;
+    const fraction = pos - idx;
+    const a = SIN_LUT[idx];
+    const b = SIN_LUT[idx + 1];
+    return a + (b - a) * fraction; // lerp
+}
+
 /**
  * Samples the signal value at a given time.
  * @param {Signal} sig - The signal to sample.
@@ -349,8 +374,8 @@ function sample(sig, t, addNoise) {
     const h = (sig.harm || 0) / 10, n = (sig.noise || 0) / 10;
     let v;
     switch (sig.type) {
-        case "sine": v = Math.sin(x); break;
-        case "square": v = Math.sign(Math.sin(x)); break;
+        case "sine": v = fastSin(x); break;
+        case "square": v = Math.sign(fastSin(x)); break;
         case "sawtooth": v = 2 * ((sig.freq * t + sig.phase / 360) % 1) - 1; break;
         case "triangle": {
             const u = (sig.freq * t + sig.phase / 360) % 1;
@@ -360,13 +385,13 @@ function sample(sig, t, addNoise) {
             const u = (sig.freq * t + sig.phase / 360) % 1;
             v = u < .65 ? 1 : -1;
         }; break;
-        case "am": v = Math.sign(Math.sin(x)); break;
+        case "am": v = Math.sign(fastSin(x)); break;
         default: {
             const msg = `Exhausted all enumerated values for "Waveform". Got ${sig.type}`;
             throw new Error(msg);
         }
     }
-    v += h * Math.sin(3 * x);
+    v += h * fastSin(3 * x);
     if (addNoise && n > 0) v += n * (Math.random() - .5) * .8;
     return a * v + (sig.dc || 0) / 10;
 }
@@ -693,7 +718,7 @@ function victory() {
 function gameOver() {
     clearInterval(timerInterval);
     flash("#ff4554");
-    if (false) { 
+    if (false) {
         // FIXME: high-pass it instead or reduce volume a bit
         // TODO: On retry return volume to "as-it-was"
         fadeBGM(1000, true); // smooth fade-out over 1s
