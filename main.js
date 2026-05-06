@@ -642,7 +642,7 @@ const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manu
  * @param {Signal} sig Signal to sample
  * @param {boolean} addNoise Whether to bake noise in
  */
-function fillBuf(buf, sig, addNoise) {
+function updateBufWithSample(buf, sig, addNoise) {
     const INV_SZ = 1 / SAMPLE_BUFFER_SIZE;
     for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 4) { // NOTE: size is divisible by 4
         const t0 = i * INV_SZ, t1 = (i + 1) * INV_SZ, t2 = (i + 2) * INV_SZ, t3 = (i + 3) * INV_SZ;
@@ -850,6 +850,11 @@ function updateMeter() {
     }
 }
 
+// --- THROTTLERS Scheduler State ---
+
+let _recomputeScheduled = false;
+let _setTypeScheduled = false;
+
 /**
  * Reads slider values and updates player signal, rebuilds yours buffer.
  */
@@ -861,24 +866,30 @@ function recompute() {
     yoursSignal.harm = +$("sl-harm").value;
     yoursSignal.noise = +$("sl-noise").value;
 
-    $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
-    $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-    $("lbl-phase").textContent = `${yoursSignal.phase}°`;
-    $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-    $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-    $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+    // Batches all slider inputs into one computation per frame instead of per-event.
+    // Synced to the display refresh rate and feels smoother.
+    if (!_recomputeScheduled) {
+        _recomputeScheduled = true;
 
-    fillBuf(yoursBuf, yoursSignal, true);
+        requestAnimationFrame(() => {
+            updateBufWithSample(yoursBuf, yoursSignal, true);
+            updateMeter();
 
-    // Subtle slider sfx - throttled
-    const now = Date.now();
-    if (now - _lastSliderSfx > 80) {
-        SFX.slider();
-        _lastSliderSfx = now;
+            $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
+            $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+            $("lbl-phase").textContent = `${yoursSignal.phase}°`;
+            $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+            $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+            $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+
+            const now = Date.now(); // Subtle slider sfx - throttled
+            if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
+
+            if (tutorialActive) checkTutorial();
+
+            _recomputeScheduled = false;
+        });
     }
-
-    updateMeter();
-    if (tutorialActive) checkTutorial();
 }
 
 /**
@@ -890,12 +901,22 @@ function setType(btn) {
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
 
-    fillBuf(yoursBuf, yoursSignal, true);
+    // Batches all button inputs into one computation per frame instead of per-event.
+    // Synced to the display refresh rate and feels smoother.
+    if (!_setTypeScheduled) {
+        _setTypeScheduled = true;
+        requestAnimationFrame(() => {
+            updateBufWithSample(yoursBuf, yoursSignal, true);
+            updateMeter();
 
-    SFX.tick();
-    if (navigator.vibrate) navigator.vibrate(50);
-    updateMeter();
-    if (tutorialActive) checkTutorial();
+            SFX.tick();
+            if (navigator.vibrate) navigator.vibrate(50);
+
+            if (tutorialActive) checkTutorial();
+
+            _setTypeScheduled = false;
+        });
+    }
 }
 
 /**
@@ -914,7 +935,7 @@ function buildTarget() {
     sig.dc = lv.dc ? rng(-3, 3) : 0;
     sig.harm = lv.harm ? rng(0, 5) : 0;
     sig.noise = lv.noise ? rng(2, 6) : 0;
-    fillBuf(targetBuf, sig, true);
+    updateBufWithSample(targetBuf, sig, true);
     return sig;
 }
 
@@ -1197,7 +1218,7 @@ function startTutorial() {
     $("skip-tut").style.display = "inline-block";
 
     resetYours();
-    fillBuf(targetBuf, targetSignal, false);
+    updateBufWithSample(targetBuf, targetSignal, false);
     recompute();
 
     showTutorialTask();
