@@ -39,15 +39,20 @@ const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "developm
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
 
+const _baseReward = 100;
+
 /**
  * Game configuration constants.
  * @readonly
- * @enum {number}
  */
 const CONFIG = {
     FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
-    COST_HINT: 5,
-    COST_SKIP: 10,
+
+    TIME_BONUS_RATE: 0.8, // points per second of remaining time
+    BASE_REWARD: _baseReward,
+    COST_HINT: Math.round(_baseReward * 0.25), // ~25
+    COST_SKIP: Math.round(_baseReward * 1.3), // ~130
+
     WIN_PERCENTAGE: 95,
     CLOSE_PERCENTAGE: 75,
 }
@@ -775,6 +780,19 @@ function flash(color) {
     setTimeout(() => el.classList.remove("go"), 80);
 }
 
+
+/**
+ * BASE: 100
+ * TIME BONUS: 0.8 * timeLeft (dynamic, depends on completion speed)
+ * Typical observed range: ~100–125
+ * @param {number} timeLeft 
+ * @returns {number}
+ */
+function computeScoreGainFromTimeLeft(timeLeft) {
+    const bonus = Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE); // bonus = Math.pow(timeLeft, 1.1) * k;
+    return CONFIG.BASE_REWARD + bonus;
+}
+
 /**
  * Updates the match percentage meter and checks win condition.
  */
@@ -801,12 +819,12 @@ function updateMeter() {
 
             clearInterval(timerInterval);
 
-            const bonus = Math.ceil(timeLeft * .8);
-            score += 100 + bonus;
+            const scoreGain = computeScoreGainFromTimeLeft(timeLeft);
+            score += scoreGain;
             $("score").textContent = score;
-            showScorePop(100 + bonus);
+            showScorePop(scoreGain);
 
-            fb.textContent = "LOCKED IN +" + (100 + bonus) + " pts";
+            fb.textContent = `LOCKED IN +${scoreGain} pts`;
             fb.className = "feedback win";
 
             flash("#00ffb4");
