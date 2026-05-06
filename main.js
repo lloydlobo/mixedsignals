@@ -601,7 +601,18 @@ function sample(sig, t, addNoise) {
 
 // ─── SIGNAL BUFFERS ──────────────────────────────────────────────────────────
 
+// | Size | Verdict                      |
+// | ---- | ---------------------------- |
+// | 640  | overkill but safe            |
+// | 512  | ideal                        |
+// | 256  | good (with lerp = excellent) |
+// | 128  | risky (needs interpolation)  |
+// | 64   | arcade mode only             |
+// NOTE: Don’t go below 256 unless you add interpolation
+// NOTE: We used 640 due to defaulting to 320px width of canvas overlay: `const newW = c.offsetWidth || 320;`
 const SAMPLE_BUFFER_SIZE = 640; // Length of pre-computed signal sample buffers
+const SAMPLE_BUFFER_SIZE = [640, 512, 256, 128, 64][2] ?? 256; // Length of pre-computed signal sample buffers
+
 const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
 const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
 const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manually in loop();
