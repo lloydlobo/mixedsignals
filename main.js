@@ -677,7 +677,7 @@ function drawGrid(ctx, W, H) {
     const cols = 8, rows = 4;
     for (let i = 1; i < cols; i++) { const x = W / cols * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let i = 1; i < rows; i++) { const y = H / rows * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(0,255,180,0.15"; ctx.lineWidth = .5;
+    ctx.strokeStyle = "rgba(0,255,180,0.15)"; ctx.lineWidth = .5;
     ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
 }
 
