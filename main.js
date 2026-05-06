@@ -57,6 +57,20 @@ const CONFIG = {
     CLOSE_PERCENTAGE: 75,
 }
 
+const isEnableOverlayBlendWave = false;
+
+const _creamColor = "#f5efe0"; // var(--cream)
+const _creamFadedColor = "rgba(200,190,170,0.35)";
+const _defaultBlendColor = "#6dc87a"; // var(--green);
+
+// Predefined palette, instead of dynamic mixing.
+const WAVE_COLORS = {
+    target: "rgba(200,190,170,0.35)", // faded cream OR "rgba(232,224,204,0.35)"
+    yours: "#f5efe0",                 // pure cream
+    accent: "#d6cbb3",                // slightly darker cream
+    blendColor: `color-mix(in srgb, ${_defaultBlendColor} 40%, ${_creamFadedColor})`,
+};
+
 /**
  * Level configurations from easy to hard.
  * @readonly 
@@ -497,6 +511,10 @@ const SFX = {
     },
 }
 
+function lerp(a, b, t) { return a + (b - a) * t };
+function lerptau(a, b) { return a + (b - a) * 0.12 };
+function smoothstep(x) { return x * x * (3 - 2 * x); }
+
 /**
  * HIGH-PERFORMANCE SINE LOOK-UP TABLE
  * Best for: Audio synthesis, heavy physics, or particle systems.
@@ -632,6 +650,7 @@ function sample(sig, t, addNoise) {
 // NOTE: We used 640 due to defaulting to 320px width of canvas overlay: `const newW = c.offsetWidth || 320;`
 const SAMPLE_BUFFER_SIZE = [640, 512, 256, 128, 64][2] ?? 256; // Length of pre-computed signal sample buffers
 
+
 const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
 const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
 const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manually in loop();
@@ -692,22 +711,25 @@ function drawGrid(ctx, W, H) {
  * @param {number} [lineW=1.8] - Line width.
  */
 function drawWave(ctx, buf, color, W, H, scroll, lineW) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineW || 1.8;
-    ctx.beginPath();
-
     const invW = 1 / W;
     const halfH = H * 0.5;
     const yOffset = halfH - 10;
+    const stride = 2; // Exaggerate sampled (hardware) look "reduce horizontal resolution"
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineW || 1.8;
+
+    ctx.beginPath();
 
     // First point: (`px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y)`)
-    let i = ((0 * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // `x|0` === Math.floor(x)
+    // Expect: assert `i >= 0 && i < SAMPLE_BUFFER_SIZE`
+    let i = Math.floor((0 * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE);
     let y = halfH - buf[i] * yOffset;
     ctx.moveTo(0, y);
 
     // Rest of the path
-    for (let px = 2; px <= W; px += 2) { // skip every other pixel
-        i = ((px * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE) | 0; // assert `i >= 0 && i < SAMPLE_BUFFER_SIZE`
+    for (let px = 2; px <= W; px += stride) {
+        i = Math.floor((px * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE);
         y = halfH - buf[i] * yOffset;
         ctx.lineTo(px, y);
     }
@@ -739,33 +761,52 @@ function loop(ts) {
 
     const W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
+
+    // www.teenage.engineering theme
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#e8e0cc"; // cream, not neon
+    ctx.lineJoin = "miter";
+    ctx.lineCap = "butt";
+    ctx.imageSmoothingEnabled = false;
+
     drawGrid(ctx, W, H);
 
     const sc = matchScore();
+    const t = smoothstep(sc);
 
-    // Update overlay: fill blendBuf after buffers are current
-    // NOTE: TargetBuf and yoursBuf must already be written for the current
-    //       frame before this runs. Wherever you fill those two buffers in your loop,
-    //       this comes immediately after.
-    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 1) { // NOTE: step by > 1 for fun FX
-        blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
+    if (isEnableOverlayBlendWave) {
+        // Update overlay: fill blendBuf after buffers are current
+        // NOTE: TargetBuf and yoursBuf must already be written for the current
+        //       frame before this runs. Wherever you fill those two buffers in your loop,
+        //       this comes immediately after.
+        for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 1) { // NOTE: step by > 1 for fun FX
+            blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
+        }
     }
 
     // Draw overlay: both signals share one oscilloscope. A faint green trace
     // blends in as you get closer, giving you a visual diff of where you're off.
-    if (sc > 0.5) {
+    if (isEnableOverlayBlendWave && sc > 0.5) {
         const prevAlpha = ctx.globalAlpha;
-        ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
-        drawWave(ctx, blendBuf, "#00ffb4", W, H, scroll, 2.5 * (sc + 0.5));
+        ctx.globalAlpha = (0.15 + 0.6 * t) * 0.618; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
+        drawWave(ctx, blendBuf, WAVE_COLORS.blendColor, W, H, scroll, 2.5 * (sc + 0.5));
         ctx.globalAlpha = prevAlpha;
     }
 
-    ctx.globalAlpha = 0.85;
-    drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // bright phosphor green
+    // Dual waveform layering (target vs yours) - Make it feel like a comparison instrument.
+    // Target → dim, thin | Yours → bright, thicker
+    // --- target ---
+    ctx.globalAlpha = 0.85; // original
+    ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
+    // drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
+    drawWave(ctx, targetBuf, WAVE_COLORS.target, W, H, scroll, 3);
+    // --- yours ---
+    ctx.globalAlpha = 0.9; // yours
+    // drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color: --amber
+    // drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
+    drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
 
-    ctx.globalAlpha = 1;
-    drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color // --amber
-
+    ctx.globalAlpha = 1; // reset
     animRaf = requestAnimationFrame(loop);
 }
 
@@ -804,7 +845,8 @@ function updateMeter() {
 
     const fill = $("fill");
     fill.style.width = `${pct}%`;
-    fill.style.background = pct > 80 ? "#00ffb4" : (pct > 50 ? "#ffb830" : "#ff4554");
+    // fill.style.background = pct > 80 ? "#00ffb4" : (pct > 50 ? "#ffb830" : "#ff4554");
+    fill.style.background = pct > 80 ? "var(--green)" : (pct > 50 ? "var(--amber)" : "var(--red)");
 
     const fb = $("feedback");
     if (!won && !revealed) {
@@ -827,7 +869,7 @@ function updateMeter() {
             fb.textContent = `LOCKED IN +${scoreGain} pts`;
             fb.className = "feedback win";
 
-            flash("#00ffb4");
+            flash("var(--green)");
             SFX.lock();
             if (navigator.vibrate) navigator.vibrate(100);
 
@@ -1273,7 +1315,7 @@ function endTutorial() {
     localStorage.setItem("tutorialSeen", "true");
     document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
 
-    flash("#00ffb4");
+    flash("var(--green)");
     SFX.lock();
     $("feedback").textContent = "TUTORIAL COMPLETE!";
     $("feedback").className = "feedback win";
@@ -1284,3 +1326,9 @@ function endTutorial() {
         $("skip-tut").style.display = "none";
     }, 1800);
 }
+
+// Optional: hide address bar aggressively
+// This helps on some Android browsers:
+window.addEventListener('load', () => {
+    setTimeout(() => window.scrollTo(0, 1), 0);
+});
