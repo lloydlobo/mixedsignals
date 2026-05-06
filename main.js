@@ -58,11 +58,26 @@ const CONFIG = {
  * @type {Level[]}
  */
 const LEVELS = [
-    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
-    { rounds: 5, time: 25, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false },
-    { rounds: 5, time: 22, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false },
-    { rounds: 5, time: 20, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false },
-    { rounds: 4, time: 18, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true },
+    // Learn shapes
+    { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false },
+
+    // Add more shapes
+    { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
+
+    // Introduce phase (new mental model)
+    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false },
+
+    // Add DC offset (visual shift recognition)
+    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false },
+
+    // Expand waveform vocabulary (pwm, am)
+    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false },
+
+    // Introduce harmonics (pattern complexity)
+    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false },
+
+    // Final: noise (uncertainty), but DON'T punish time
+    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true },
 ];
 
 /** @type {Signal} */
@@ -610,7 +625,6 @@ function sample(sig, t, addNoise) {
 // | 64   | arcade mode only             |
 // NOTE: Don’t go below 256 unless you add interpolation
 // NOTE: We used 640 due to defaulting to 320px width of canvas overlay: `const newW = c.offsetWidth || 320;`
-const SAMPLE_BUFFER_SIZE = 640; // Length of pre-computed signal sample buffers
 const SAMPLE_BUFFER_SIZE = [640, 512, 256, 128, 64][2] ?? 256; // Length of pre-computed signal sample buffers
 
 const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
