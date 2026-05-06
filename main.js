@@ -636,11 +636,22 @@ function drawWave(ctx, buf, color, W, H, scroll, lineW) {
  */
 function loop(ts) {
     const scroll = (ts / 4200) % 1;
+
+    /** @type {HTMLCanvasElement|null} */
     const c = $("c-overlay");
     if (!c) { animRaf = requestAnimationFrame(loop); return; }
-    c.width = c.offsetWidth || 320;
-    c.height = 120;
+
+    // PERF: Avoid canvas resize every frame.
+    const newW = c.offsetWidth || 320;
+    const newH = 120; // NOTE: Fixed in <canvas/>
+    if (c.width !== newW || c.height !== newH) {
+        c.width = newW;
+        c.height = newH;
+    }
+
+    /** @type {CanvasRenderingContext2D|null} */
     const ctx = c.getContext("2d");
+
     const W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
     drawGrid(ctx, W, H);
