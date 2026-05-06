@@ -669,10 +669,10 @@ function loop(ts) {
     // Draw overlay: both signals share one oscilloscope. A faint green trace
     // blends in as you get closer, giving you a visual diff of where you're off.
     if (sc > 0.5) {
-        ctx.save();
+        const prevAlpha = ctx.globalAlpha;
         ctx.globalAlpha = 0.3 * (sc - 0.5) * 2; // multiplier 0.08 or 0.3 <---fainter---
         drawWave(ctx, blendBuf, "#00ffb4", W, H, scroll, 2.5 * (sc + 0.5));
-        ctx.restore();
+        ctx.globalAlpha = prevAlpha;
     }
 
     ctx.globalAlpha = 0.85;
