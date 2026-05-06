@@ -44,6 +44,8 @@ body {
     justify-content: center;
     min-height: 100vh;
     font-family: var(--font-ui);
+    background: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.01) 2px, rgba(255,255,255,0.01) 4px), var(--bg);
+
 }
 
 /* ============================================================
@@ -64,6 +66,7 @@ body {
     box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
     user-select: none;
     -webkit-user-select: none;
+    transform: rotate(-0.5deg);
 }
 
 /* No power LED — Threes is clean */
