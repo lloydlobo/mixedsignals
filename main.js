@@ -633,8 +633,7 @@ const SCALE = LUT_SIZE / (Math.PI * 2);
 // Length +1 allows branchless lerp: SIN_LUT[idx + 1] at idx=8191 is valid. (index + 1 is always valid)
 const SIN_LUT = new Float32Array(LUT_SIZE + 1); // Usage: Math.sin(x) => SIN_LUT[(x * SCALE) & MASK]
 
-for (let i = 0; i <= LUT_SIZE; i++) {
-    // Fill with high-precision native sine values
+for (let i = 0; i <= LUT_SIZE; i++) { // Fill with high-precision native sine values
     SIN_LUT[i] = Math.sin((i / LUT_SIZE) * Math.PI * 2);
 }
 
@@ -701,17 +700,16 @@ function fastSin(x) {
 function sample(sig, t, addNoise) {
     const { type, freq, phase, amp, harm, noise, dc } = sig;
 
-    // Normalized phase (0.0 to 1.0)
-    const u = (freq * t + (phase / 360)) % 1;
+    const u = (freq * t + (phase / 360)) % 1; // Normalized phase (0.0 to 1.0)
     const x = u * 6.283185307179586; // Pre-calculated PI * 2
 
     let v;
     switch (type) {
         case "sine": v = fastSin(x); break;
         case "square": v = fastSin(x) >= 0 ? 1 : -1; break;
-        case "pwm": v = u < 0.65 ? 1 : -1; break;
         case "sawtooth": v = 2 * u - 1; break;
         case "triangle": v = u < 0.5 ? 4 * u - 1 : 3 - 4 * u; break;
+        case "pwm": v = u < 0.65 ? 1 : -1; break;
         case "am": {
             const modFreqMult = 0.25; // Or make this a property of the signal
             const modIndex = harm || 0.5; // Use harm to control intensity
@@ -723,14 +721,9 @@ function sample(sig, t, addNoise) {
         default: throw new Error(`Unhandled waveform: "${type}"`);
     }
 
-    // Add Harmonic (3rd) - using mul instead of div
-    if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3);
-
-    // Add Bipolar Noise
-    if (addNoise && noise) v += (noise * 0.1) * (rand() * 0.8 - 0.4);
-
-    // Final Gain and DC Offset
-    return (amp * 0.1) * v + (dc ?? 0) * 0.1;
+    if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3); // Add Harmonic (3rd) - using mul instead of div
+    if (addNoise && noise) v += (noise * 0.1) * (rand() * 0.8 - 0.4); // Add Bipolar Noise
+    return (amp * 0.1) * v + (dc ?? 0) * 0.1; // Final Gain and DC Offset
 }
 
 
@@ -902,7 +895,8 @@ function loop(ts) {
     const sc = matchScore();
     const t = smoothstep(sc);
 
-    // Dual waveform layering (target vs yours) - Make it feel like a comparison instrument.
+    // Dual waveform layering 
+    // (target vs yours) - Make it feel like a comparison instrument.
     // Target → dim, thin | Yours → bright, thicker
     // --- target ---
     if (roundNo === 1) { // original alpha: 0.85
@@ -1208,12 +1202,8 @@ function victory() {
  */
 function gameOver() {
     clearInterval(timerInterval);
-    flash("#ff4554");
-    if (false) {
-        // FIXME: high-pass it instead or reduce volume a bit
-        // TODO: On retry return volume to "as-it-was"
-        fadeBGM(1000, true); // smooth fade-out over 1s
-    }
+    flash("var(--red)"); // alternatively use "#ff4554"
+
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
@@ -1270,7 +1260,7 @@ function startTimer() {
     // Snap reset without transition
     ring.style.transition = "none";
     ring.style.strokeDashoffset = "0";
-    ring.style.stroke = "#f0690a";
+    ring.style.stroke = "#f0690a"; // var(--te-orange)
     ring.getBoundingClientRect(); // force reflow
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
 
@@ -1284,9 +1274,8 @@ function startTimer() {
 
         const urgent = timeLeft <= 8;
         el.textContent = timeLeft;
-        // el.className = urgent ? "urgent" : "";
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
-        ring.style.stroke = urgent ? "#e85a4a" : "#f0690a";
+        ring.style.stroke = urgent ? "#e85a4a" : "#f0690a"; // ? var(--red) : var(--te-orange)
 
         if (urgent) {
             const now = Date.now();
