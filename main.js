@@ -1205,7 +1205,7 @@ function victory() {
     dead.querySelector("h3").textContent = "MIXED SIGNALS MASTERED";
     dead.querySelector("h3").style.color = "var(--green)";
 
-    $("dead-msg").textContent = "All 5 levels cleared with " + score + " pts. Legendary.";
+    $("dead-msg").textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
 
     dead.classList.add("active");
     SFX.levelUp();
