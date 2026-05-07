@@ -71,6 +71,7 @@ body {
     user-select: none;
     -webkit-user-select: none;
     transform: rotate(-0.5deg);
+    will-change: transform;
     box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
 }
 
@@ -659,6 +660,7 @@ input[type=range]::-moz-range-thumb {
     gap: 24px;
     /* transform: rotate(-2deg); */
     transform: rotate(-0.8deg);
+    will-change: transform;
 }
 
 .sys-btn {
