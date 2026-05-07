@@ -27,8 +27,8 @@
  * @typedef {Object} Level
  * @description Game level configuration.
  * @property {number} rounds    number of rounds in the level
- * @property {number} time      number of rounds in the level
- * @property {Waveform[]} types number of rounds in the level
+ * @property {number} time      total available time for each level
+ * @property {Waveform[]} types available waveform types for each level
  * @property {boolean} phase    whether phase control is enabled
  * @property {boolean} dc       whether DC offset control is enabled
  * @property {boolean} harm     whether harmonic control is enabled
@@ -132,11 +132,15 @@ const TUTORIAL_TASKS = [
     },
     {
         text: "TUTORIAL: Set amplitude around 0.60",
-        check: () => Math.abs(yoursSignal.amp - 6) < 0.5, // ±0.5° tolerance
+        check: () => Math.abs(yoursSignal.amp - 6) < 0.5, // ±0.5 tolerance
     },
     {
         text: "TUTORIAL: Set phase around 90°",
-        check: () => Math.abs(yoursSignal.phase - 90) <= 5, // ±15° tolerance
+        check: () => Math.abs(yoursSignal.phase - 90) <= 15, // ±15° tolerance
+    },
+    {
+        text: "TUTORIAL: Set dc offset around 0.5",
+        check: () => Math.abs(yoursSignal.dc - 5) <= 0.5, // 
     },
     {
         text: "TUTORIAL: Now match the target signal (95%+)",
@@ -482,7 +486,7 @@ const SFX = {
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) => {
             const o = ac.createOscillator(), g = ac.createGain();
-            o.type = "triangle";; o.frequency.value = f;
+            o.type = "triangle"; o.frequency.value = f;
             g.gain.setValueAtTime(0.13, ac.currentTime + t);
             g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
             o.connect(g); g.connect(ac.destination);
@@ -514,6 +518,7 @@ const SFX = {
 function lerp(a, b, t) { return a + (b - a) * t };
 function lerptau(a, b) { return a + (b - a) * 0.12 };
 function smoothstep(x) { return x * x * (3 - 2 * x); }
+function sigmoid(x) { return 1 / (1 + Math.exp(-8 * (x - 0.5))); }
 
 /**
  * HIGH-PERFORMANCE SINE LOOK-UP TABLE
@@ -692,7 +697,14 @@ function matchScore() {
  * @param {number} H - Canvas height.
  */
 function drawGrid(ctx, W, H) {
-    ctx.strokeStyle = "rgba(0,255,180,0.07)"; ctx.lineWidth = .5;
+    ctx.strokeStyle = "rgba(0,255,180,0.07)";
+    ctx.lineWidth = .5;
+
+    // www.teenage.engineering theme
+    ctx.lineJoin = "miter";
+    ctx.lineCap = "butt";
+    ctx.imageSmoothingEnabled = false;
+
     const cols = 8, rows = 4;
     for (let i = 1; i < cols; i++) { const x = W / cols * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let i = 1; i < rows; i++) { const y = H / rows * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
@@ -762,17 +774,12 @@ function loop(ts) {
     const W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
 
-    // www.teenage.engineering theme
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#e8e0cc"; // cream, not neon
-    ctx.lineJoin = "miter";
-    ctx.lineCap = "butt";
-    ctx.imageSmoothingEnabled = false;
-
-    drawGrid(ctx, W, H);
+    const _isEnableGrid = false; // NOTE: CSS handles this now
+    if (_isEnableGrid) {
+        drawGrid(ctx, W, H);
+    }
 
     const sc = matchScore();
-    const t = smoothstep(sc);
 
     if (isEnableOverlayBlendWave) {
         // Update overlay: fill blendBuf after buffers are current
@@ -783,6 +790,8 @@ function loop(ts) {
             blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
         }
     }
+
+    const t = smoothstep(sc);
 
     // Draw overlay: both signals share one oscilloscope. A faint green trace
     // blends in as you get closer, giving you a visual diff of where you're off.
@@ -795,16 +804,30 @@ function loop(ts) {
 
     // Dual waveform layering (target vs yours) - Make it feel like a comparison instrument.
     // Target → dim, thin | Yours → bright, thicker
+
     // --- target ---
-    ctx.globalAlpha = 0.85; // original
-    ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
-    // drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
-    drawWave(ctx, targetBuf, WAVE_COLORS.target, W, H, scroll, 3);
+    if (roundNo === 1) { // original alpha: 0.85
+        ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); // logistic ('designed' feel)
+        drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
+    } else if (roundNo % 2 === 0) {
+        ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); // perceptual ('natural' feel)
+        drawWave(ctx, targetBuf, "#5b8dd9", W, H, scroll, 4); // var(--blue)
+    } else {
+        ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
+        drawWave(ctx, targetBuf, WAVE_COLORS.target, W, H, scroll, 3 + sc);
+    }
+
     // --- yours ---
-    ctx.globalAlpha = 0.9; // yours
-    // drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color: --amber
-    // drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
-    drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
+    if (roundNo === 1) { // original alpha: 0.85
+        ctx.globalAlpha = 0.9; // yours
+        drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color: yellow/amber
+    } else if (roundNo % 2 === 0) {
+        ctx.globalAlpha = 0.9; // yours
+        drawWave(ctx, yoursBuf, "#e8604a", W, H, scroll, 4); // var(--coral)
+    } else {
+        ctx.globalAlpha = 0.9; // yours
+        drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
+    }
 
     ctx.globalAlpha = 1; // reset
     animRaf = requestAnimationFrame(loop);
@@ -1295,7 +1318,8 @@ function highlightControl() {
     else if (tutorialStep === 1) el = $("ctrl-freq");
     else if (tutorialStep === 2) el = $("ctrl-amp");
     else if (tutorialStep === 3) el = $("ctrl-phase");
-    else if (tutorialStep === 4) el = $("meter-row");
+    else if (tutorialStep === 4) el = $("ctrl-dc");
+    else if (tutorialStep === 5) el = $("meter-row");
 
     if (el) el.classList.add("tutorial-glow");
 }

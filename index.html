@@ -74,14 +74,12 @@
                         <div class="scope-wrap">
                             <div class="scope-label">
                                 <span>overlay scope</span>
-                                <span>
-                                        <!-- <span class="pip" style="background: #00ff88;"></span>target -->
+                                    <!-- NOTE: Disabled for now due to alternating color theme during each round -->
+                                    <!-- <span>
                                         <span class="pip" style="background: rgba(200,190,170,0.35);"></span>target
-
                                     &nbsp;
-                                        <!-- <span class="pip" style="background: #ffb830;"></span>yours -->
-                                        <span class="pip" style="background: #f5efe0;"></span>yours
-                                </span>
+                                        <span class="pip" style="background: var(--cream);"></span>yours
+                                    </span> -->
                             </div>
                             <canvas class="scope" id="c-overlay" height="120"></canvas>
                         </div>
@@ -241,8 +239,8 @@
                 </div>
 
                 <div class="action-row">
-                    <button class="sys-btn" style="color: #ffb830" onclick="useHint()">HINT</button>
-                    <button class="sys-btn" style="color: #ff4554" onclick="skipRound()">SKIP</button>
+                        <button class="sys-btn" style="color: var(--amber)" onclick="useHint()">HINT</button>
+                        <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
                     <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
                         id="skip-tut">SKIP TUT</button>
                 </div>
