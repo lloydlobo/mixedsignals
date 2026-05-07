@@ -1157,18 +1157,34 @@ function startTimer() {
     timeLeft = LEVELS[level].time;
 
     const el = $("timer");
+    const ring = $("timer-ring-fill");
+    const total = LEVELS[level].time;
+    const C = 125.6; // 2π × r=20
+
+    // Snap reset without transition
+    ring.style.transition = "none";
+    ring.style.strokeDashoffset = "0";
+    ring.style.stroke = "#f0690a";
+    ring.getBoundingClientRect(); // force reflow
+    ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
+
     el.textContent = timeLeft;
-    el.className = "timer";
+    el.className = "";
 
     timerInterval = setInterval(() => {
         timeLeft--;
 
-        el.textContent = timeLeft;
-        el.className = `timer${timeLeft <= 8 ? " urgent" : ""}`;
+        ring.style.strokeDashoffset = C * (1 - timeLeft / total);
 
-        if (timeLeft <= 8) {
-            const now = Date.now(); // Throttle
-            if (now - _lastUrgentSfx > 500) { // play every 0.5s (tweak)
+        const urgent = timeLeft <= 8;
+        el.textContent = timeLeft;
+        // el.className = urgent ? "urgent" : "";
+        el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
+        ring.style.stroke = urgent ? "#e85a4a" : "#f0690a";
+
+        if (urgent) {
+            const now = Date.now();
+            if (now - _lastUrgentSfx > 500) {
                 SFX.urgent();
                 _lastUrgentSfx = now;
             }

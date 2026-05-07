@@ -249,26 +249,6 @@ body {
     gap: 6px;
 }
 
-.timer {
-    font-family: var(--font-ui);
-    font-weight: 900;
-    font-size: clamp(16px, 4vw, 22px);
-    color: var(--cream);
-    min-width: 2ch;
-    text-align: right;
-    padding: 2px 8px;
-    background: var(--surface);
-    border-radius: var(--radius-sm);
-    transition: color .3s, background .3s;
-}
-
-.timer.urgent {
-    color: #fff;
-    background: var(--coral);
-    background: var(--te-orange);
-    animation: pulse .6s infinite alternate;
-}
-
 /* ============================================================
    ANIMATIONS
    ============================================================ */
@@ -798,7 +778,6 @@ input[type=range]::-moz-range-thumb {
 /* Switch one element to precision mono */
 /* This contrast = instrument credibility */
 /* Do this ONLY for: timer score percentage readout */
-.timer,
 .meter-pct,
 .topbar,
 b {
