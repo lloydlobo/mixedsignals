@@ -57,18 +57,15 @@ const CONFIG = {
     CLOSE_PERCENTAGE: 75,
 }
 
-const isEnableOverlayBlendWave = false;
 
 const _creamColor = "#f5efe0"; // var(--cream)
 const _creamFadedColor = "rgba(200,190,170,0.35)";
-const _defaultBlendColor = "#6dc87a"; // var(--green);
 
 // Predefined palette, instead of dynamic mixing.
 const WAVE_COLORS = {
     target: "rgba(200,190,170,0.35)", // faded cream OR "rgba(232,224,204,0.35)"
     yours: "#f5efe0",                 // pure cream
     accent: "#d6cbb3",                // slightly darker cream
-    blendColor: `color-mix(in srgb, ${_defaultBlendColor} 40%, ${_creamFadedColor})`,
 };
 
 /**
@@ -676,52 +673,46 @@ function sample(sig, t, addNoise) {
     return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
-// ─── SIGNAL BUFFERS ──────────────────────────────────────────────────────────
-
-// | Size | Verdict                      |
-// | ---- | ---------------------------- |
-// | 640  | overkill but safe            |
-// | 512  | ideal                        |
-// | 256  | good (with lerp = excellent) |
-// | 128  | risky (needs interpolation)  |
-// | 64   | arcade mode only             |
-// NOTE: Don’t go below 256 unless you add interpolation
-// NOTE: We used 640 due to defaulting to 320px width of canvas overlay: `const newW = c.offsetWidth || 320;`
-const SAMPLE_BUFFER_SIZE = [640, 512, 256, 128, 64][2] ?? 256; // Length of pre-computed signal sample buffers
-
-
-const targetBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
-const yoursBuf = new Float32Array(SAMPLE_BUFFER_SIZE);
-const blendBuf = new Float32Array(SAMPLE_BUFFER_SIZE); // NOTE: buf updated manually in loop();
+// 64 = faster but noisier scoring
+// 96 = ideal
+// 128 = diminishing returns
+const SCORE_SAMPLES = 96;
+const INV_SCORE_SAMPLES = 1 / SCORE_SAMPLES;
+const SCORE_SCALE = 1 / (2 * SCORE_SAMPLES);
 
 /**
- * Fills a signal buffer by sampling sig across [0, 1).
- * @param {Float32Array} buf Buffer to fill
- * @param {Signal} sig Signal to sample
- * @param {boolean} addNoise Whether to bake noise in
- */
-function updateBufWithSample(buf, sig, addNoise) {
-    const INV_SZ = 1 / SAMPLE_BUFFER_SIZE;
-    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 4) { // NOTE: size is divisible by 4
-        const t0 = i * INV_SZ, t1 = (i + 1) * INV_SZ, t2 = (i + 2) * INV_SZ, t3 = (i + 3) * INV_SZ;
-        buf[i] = sample(sig, t0, addNoise);
-        buf[i + 1] = sample(sig, t1, addNoise);
-        buf[i + 2] = sample(sig, t2, addNoise);
-        buf[i + 3] = sample(sig, t3, addNoise);
-    }
-}
-
-/**
- * Calculates the similarity score between target and player signals.
- * Reads pre-computed buffers; no sample calls.
+ * Calculates similarity score between target and player signals.
+ * Pure procedural sampling. No buffers.
  * @returns {number} Score from 0 (no match) to 1 (perfect match).
  */
 function matchScore() {
-    let d = 0;
-    for (let i = 0; i < SAMPLE_BUFFER_SIZE; i++) {
-        d += Math.abs(targetBuf[i] - yoursBuf[i]);
+    let d0 = 0, d1 = 0, d2 = 0, d3 = 0;
+
+    for (let i = 0; i < SCORE_SAMPLES; i += 4) {
+        const t0 = i * INV_SCORE_SAMPLES;
+        const t1 = (i + 1) * INV_SCORE_SAMPLES;
+        const t2 = (i + 2) * INV_SCORE_SAMPLES;
+        const t3 = (i + 3) * INV_SCORE_SAMPLES;
+
+        // Avoid using noise during scoring, and so we pass `false`
+        const s0 = sample(targetSignal, t0, false) - sample(yoursSignal, t0, false);
+        const s1 = sample(targetSignal, t1, false) - sample(yoursSignal, t1, false);
+        const s2 = sample(targetSignal, t2, false) - sample(yoursSignal, t2, false);
+        const s3 = sample(targetSignal, t3, false) - sample(yoursSignal, t3, false);
+
+        d0 += s0 < 0 ? -s0 : s0;
+        d1 += s1 < 0 ? -s1 : s1;
+        d2 += s2 < 0 ? -s2 : s2;
+        d3 += s3 < 0 ? -s3 : s3;
     }
-    return Math.max(0, 1 - d / (2 * SAMPLE_BUFFER_SIZE));
+
+    const d = d0 + d1 + d2 + d3;
+
+    const score = 1 - d * SCORE_SCALE;
+
+    return score < 0
+        ? 0
+        : (score > 1 ? 1 : score);
 }
 
 /**
@@ -749,35 +740,32 @@ function drawGrid(ctx, W, H) {
 /**
  * Draws a waveform on the canvas from a pre-computed buffer.
  * @param {CanvasRenderingContext2D} ctx - Canvas context.
- * @param {Float32Array} buf - Pre-computed signal buffer.
+ * @param {Signal} sig - Signal.
  * @param {string} color - Stroke color.
  * @param {number} W - Canvas width.
  * @param {number} H - Canvas height.
  * @param {number} scroll - Scroll offset (0-1).
  * @param {number} [lineW=1.8] - Line width.
  */
-function drawWave(ctx, buf, color, W, H, scroll, lineW) {
-    const invW = 1 / W;
+function drawWave(ctx, sig, color, W, H, scroll, lineW) {
     const halfH = H * 0.5;
     const yOffset = halfH - 10;
-    const stride = 2; // Exaggerate sampled (hardware) look "reduce horizontal resolution"
 
     ctx.strokeStyle = color;
     ctx.lineWidth = lineW || 1.8;
 
     ctx.beginPath();
 
-    // First point: (`px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y)`)
-    // Expect: assert `i >= 0 && i < SAMPLE_BUFFER_SIZE`
-    let i = Math.floor((0 * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE);
-    let y = halfH - buf[i] * yOffset;
-    ctx.moveTo(0, y);
+    const invW = 1 / W;
+    const stride = 2; // Exaggerate sampled (hardware) look "reduce horizontal resolution"
 
-    // Rest of the path
-    for (let px = 2; px <= W; px += stride) {
-        i = Math.floor((px * invW - scroll + 1) % 1 * SAMPLE_BUFFER_SIZE);
-        y = halfH - buf[i] * yOffset;
-        ctx.lineTo(px, y);
+    for (let px = 0; px <= W; px += stride) {
+        const t = (px * invW - scroll + 1) % 1;
+        const y =
+            halfH -
+            sample(sig, t, true) * yOffset;
+        if (px === 0) ctx.moveTo(px, y)
+        else ctx.lineTo(px, y);
     }
 
     ctx.stroke();
@@ -814,53 +802,31 @@ function loop(ts) {
     }
 
     const sc = matchScore();
-
-    if (isEnableOverlayBlendWave) {
-        // Update overlay: fill blendBuf after buffers are current
-        // NOTE: TargetBuf and yoursBuf must already be written for the current
-        //       frame before this runs. Wherever you fill those two buffers in your loop,
-        //       this comes immediately after.
-        for (let i = 0; i < SAMPLE_BUFFER_SIZE; i += 1) { // NOTE: step by > 1 for fun FX
-            blendBuf[i] = (targetBuf[i] + yoursBuf[i]) * 0.5;
-        }
-    }
-
     const t = smoothstep(sc);
-
-    // Draw overlay: both signals share one oscilloscope. A faint green trace
-    // blends in as you get closer, giving you a visual diff of where you're off.
-    if (isEnableOverlayBlendWave && sc > 0.5) {
-        const prevAlpha = ctx.globalAlpha;
-        ctx.globalAlpha = (0.15 + 0.6 * t) * 0.618; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
-        drawWave(ctx, blendBuf, WAVE_COLORS.blendColor, W, H, scroll, 2.5 * (sc + 0.5));
-        ctx.globalAlpha = prevAlpha;
-    }
 
     // Dual waveform layering (target vs yours) - Make it feel like a comparison instrument.
     // Target → dim, thin | Yours → bright, thicker
-
     // --- target ---
     if (roundNo === 1) { // original alpha: 0.85
         ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); // logistic ('designed' feel)
-        drawWave(ctx, targetBuf, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
+        drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
     } else if (roundNo % 2 === 0) {
         ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); // perceptual ('natural' feel)
-        drawWave(ctx, targetBuf, "#5b8dd9", W, H, scroll, 4); // var(--blue)
+        drawWave(ctx, targetSignal, "#5b8dd9", W, H, scroll, 4); // var(--blue)
     } else {
         ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
-        drawWave(ctx, targetBuf, WAVE_COLORS.target, W, H, scroll, 3 + sc);
+        drawWave(ctx, targetSignal, WAVE_COLORS.target, W, H, scroll, 3 + sc);
     }
-
     // --- yours ---
     if (roundNo === 1) { // original alpha: 0.85
         ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursBuf, "#ffb830", W, H, scroll, 4); // traditional scope color: yellow/amber
+        drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, 4); // traditional scope color: yellow/amber
     } else if (roundNo % 2 === 0) {
         ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursBuf, "#e8604a", W, H, scroll, 4); // var(--coral)
+        drawWave(ctx, yoursSignal, "#e8604a", W, H, scroll, 4); // var(--coral)
     } else {
         ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursBuf, WAVE_COLORS.yours, W, H, scroll, 4);
+        drawWave(ctx, yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4);
     }
 
     ctx.globalAlpha = 1; // reset
@@ -971,7 +937,7 @@ function recompute() {
         _recomputeScheduled = true;
 
         requestAnimationFrame(() => {
-            updateBufWithSample(yoursBuf, yoursSignal, true);
+            // updateBufWithSample(yoursBuf, yoursSignal, true);
             updateMeter();
 
             $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
@@ -1005,7 +971,7 @@ function setType(btn) {
     if (!_setTypeScheduled) {
         _setTypeScheduled = true;
         requestAnimationFrame(() => {
-            updateBufWithSample(yoursBuf, yoursSignal, true);
+            // updateBufWithSample(yoursBuf, yoursSignal, true);
             updateMeter();
 
             SFX.tick();
@@ -1034,7 +1000,7 @@ function buildTarget() {
     sig.dc = lv.dc ? rng(-3, 3) : 0;
     sig.harm = lv.harm ? rng(0, 5) : 0;
     sig.noise = lv.noise ? rng(2, 6) : 0;
-    updateBufWithSample(targetBuf, sig, true);
+    // updateBufWithSample(targetBuf, sig, true);
     return sig;
 }
 
@@ -1317,7 +1283,7 @@ function startTutorial() {
     $("skip-tut").style.display = "inline-block";
 
     resetYours();
-    updateBufWithSample(targetBuf, targetSignal, false);
+    // updateBufWithSample(targetBuf, targetSignal, false);
     recompute();
 
     showTutorialTask();
