@@ -649,14 +649,12 @@ function fastSin(x) {
     const idx = Math.floor(pos); // Math.floor is essential for correct behavior with negative numbers
     const iA = idx & MASK; // Wrap the index to the table size using bitwise AND
     const frac = pos - idx;
-
     const a = SIN_LUT[iA];
     return a + (SIN_LUT[iA + 1] - a) * frac; // Linear interpolation between the current index and the next
 }
 
 /**
  * BEFORE (Slower due to stack overhead):
- * 
  *     for (let i = 0; i < len; i++) {
  *         buffer[i] = fastSin(angle); 
  *         angle += step;
@@ -835,9 +833,7 @@ function drawWave(ctx, sig, color, W, H, scroll, lineW) {
 
     for (let px = 0; px <= W; px += stride) {
         const t = (px * invW - scroll + 1) % 1;
-        const y =
-            halfH -
-            sample(sig, t, true) * yOffset;
+        const y = halfH - sample(sig, t, true) * yOffset;
         if (px === 0) ctx.moveTo(px, y)
         else ctx.lineTo(px, y);
     }
@@ -947,7 +943,6 @@ function flash(color) {
     setTimeout(() => el.classList.remove("go"), 80);
 }
 
-
 /**
  * BASE: 100
  * TIME BONUS: 0.8 * timeLeft (dynamic, depends on completion speed)
@@ -971,7 +966,6 @@ function updateMeter() {
 
     const fill = $("fill"); // resolved from DOM cache
     fill.style.width = `${pct}%`;
-    // fill.style.background = pct > 80 ? "#00ffb4" : (pct > 50 ? "#ffb830" : "#ff4554");
     fill.style.background = pct > 80 ? "var(--green)" : (pct > 50 ? "var(--amber)" : "var(--red)");
 
     const fb = $("feedback"); // resolved from DOM cache
@@ -1042,21 +1036,16 @@ function recompute() {
         _recomputeScheduled = true;
 
         requestAnimationFrame(() => {
-            // updateBufWithSample(yoursBuf, yoursSignal, true);
             updateMeter();
-
             $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
             $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
             $("lbl-phase").textContent = `${yoursSignal.phase}°`;
             $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
             $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
             $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-
             const now = Date.now(); // Subtle slider sfx - throttled
             if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
-
             if (tutorialActive) checkTutorial();
-
             _recomputeScheduled = false;
         });
     }
@@ -1078,14 +1067,10 @@ function setType(btn) {
     if (!_setTypeScheduled) {
         _setTypeScheduled = true;
         requestAnimationFrame(() => {
-            // updateBufWithSample(yoursBuf, yoursSignal, true);
             updateMeter();
-
             SFX.tick();
             if (navigator.vibrate) navigator.vibrate(50);
-
             if (tutorialActive) checkTutorial();
-
             _setTypeScheduled = false;
         });
     }
@@ -1121,6 +1106,8 @@ function resetYours() {
         if (el) el.value = yoursSignal[k];
     });
 
+    document.querySelectorAll(".type-btn")
+        .forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
 
     invalidateMatchScore(); // mark cache stale on signal change
     recompute();
@@ -1321,7 +1308,6 @@ function startTimer() {
  */
 function useHint() {
     if (won || revealed) return;
-
     if (score < CONFIG.COST_HINT) return
 
     score = Math.max(0, score - CONFIG.COST_HINT);
@@ -1351,8 +1337,8 @@ function skipRound() {
 
     score = Math.max(0, score - CONFIG.COST_SKIP);
     $("score").textContent = score;
-
     SFX.fail();
+
     nextRound();
 }
 
@@ -1429,7 +1415,6 @@ function startTutorial() {
     $("skip-tut").style.display = "inline-block";
 
     resetYours();
-    // updateBufWithSample(targetBuf, targetSignal, false);
     recompute();
 
     showTutorialTask();
@@ -1440,6 +1425,7 @@ function showTutorialTask() {
         endTutorial();
         return;
     }
+
     const task = TUTORIAL_TASKS[tutorialStep];
     $("feedback").textContent = task.text;
     $("feedback").className = "feedback";
@@ -1447,7 +1433,10 @@ function showTutorialTask() {
 }
 
 function checkTutorial() {
-    if (!tutorialActive || tutorialStep >= TUTORIAL_TASKS.length) return;
+    if (!tutorialActive || tutorialStep >= TUTORIAL_TASKS.length) {
+        return;
+    }
+
     const task = TUTORIAL_TASKS[tutorialStep];
     if (task.check()) {
         tutorialStep++;
@@ -1457,7 +1446,8 @@ function checkTutorial() {
 
 function highlightControl() {
     // Remove glow from all elements
-    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    document.querySelectorAll(".tutorial-glow")
+        .forEach(el => el.classList.remove("tutorial-glow"));
 
     let el = null;
     if (tutorialStep === 0) el = $("type-btns");
@@ -1474,6 +1464,9 @@ function skipTutorial() {
     tutorialActive = false;
     lsSet("tutorialSeen", "true"); // NOTE: "true" for local storage (safe write)
 
+    document.querySelectorAll(".tutorial-glow")
+        .forEach(el => el.classList.remove("tutorial-glow"));
+
     $("skip-tut").style.display = "none";
     $("screen-game").style.display = "none";
     $("screen-start").classList.add("active");
@@ -1484,9 +1477,12 @@ function endTutorial() {
     tutorialActive = false;
     lsSet("tutorialSeen", "true"); // NOTE: "true" for local storage (safe write)
 
+    document.querySelectorAll(".tutorial-glow")
+        .forEach(el => el.classList.remove("tutorial-glow"));
 
     flash("var(--green)");
     SFX.lock();
+
     $("feedback").textContent = "TUTORIAL COMPLETE!";
     $("feedback").className = "feedback win";
 
