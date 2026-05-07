@@ -151,7 +151,36 @@ const TUTORIAL_TASKS = [
  * @returns {HTMLElement|null} The element or null.
  */
 function $(id) {
-    return document.getElementById(id);
+
+
+// ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
+
+// Wrap localStorage in try/catch — Safari Private throws SecurityError.
+
+/**
+ * @param {string} key
+ * @param {string|null} fallback
+ * @returns {string|null}
+ */
+function lsGet(key, fallback = null) {
+    try {
+        return localStorage.getItem(key) ?? fallback;
+    } catch (err) {
+        console.error(err);
+        return fallback;
+    }
+}
+
+/**
+ * @param {string} key
+ * @param {string} value
+ */
+function lsSet(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 /**
@@ -329,8 +358,8 @@ function pickNextTrack() {
     return BGM_TRACKS[next];
 }
 
-let muted = localStorage.getItem("bgmMuted") === "true";
-let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.4"); // ideal: 0.4
+let muted = lsGet("bgmMuted") === "true";
+let volume = parseFloat(lsGet("bgmVolume", 0.4) ?? "0.4"); // ideal: 0.4
 
 // NOTE: apply initial UI + audio state
 (function initAudio() {
@@ -362,7 +391,7 @@ function setVolume(v) { // future proofing
     volume = Math.max(0, Math.min(1, v));
     const audio = $("bgm-audio");
     audio.volume = volume;
-    localStorage.setItem("bgmVolume", volume);
+    lsSet("bgmVolume", volume);
 }
 
 function startMusic() {
@@ -411,7 +440,7 @@ function toggleMute() {
     const btn = $("mute-btn");
 
     audio.muted = muted; // critical sync
-    localStorage.setItem("bgmMuted", muted);
+    lsSet("bgmMuted", muted);
 
     btn.textContent = muted ? "🔇" : "🎵";
     btn.style.color = muted ? "var(--text-dim)" : "";
@@ -1262,7 +1291,7 @@ function startGame() {
     score = levelStartScore; // score = 0; // FIXED: score intentionally NOT reset here
     roundNo = 0;
 
-    if (!localStorage.getItem("tutorialSeen") && !tutorialActive) {
+    if (!lsGet("tutorialSeen") && !tutorialActive) {
         startTutorial();
         return;
     }
@@ -1358,8 +1387,8 @@ function highlightControl() {
 
 function skipTutorial() {
     tutorialActive = false;
-    localStorage.setItem("tutorialSeen", "true");
-    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    lsSet("tutorialSeen", "true"); // NOTE: "true" for local storage (safe write)
+
     $("skip-tut").style.display = "none";
     $("screen-game").style.display = "none";
     $("screen-start").classList.add("active");
@@ -1368,8 +1397,8 @@ function skipTutorial() {
 
 function endTutorial() {
     tutorialActive = false;
-    localStorage.setItem("tutorialSeen", "true");
-    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    lsSet("tutorialSeen", "true"); // NOTE: "true" for local storage (safe write)
+
 
     flash("var(--green)");
     SFX.lock();
