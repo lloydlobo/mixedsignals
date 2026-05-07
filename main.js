@@ -735,19 +735,31 @@ function sample(sig, t, addNoise) {
     return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
-// 64 = faster but noisier scoring
-// 96 = ideal
-// 128 = diminishing returns
-const SCORE_SAMPLES = 96;
+
+const SCORE_SAMPLES = 96; // 64 = faster but noisier scoring | 96 = ideal | 128 = diminishing returns
 const INV_SCORE_SAMPLES = 1 / SCORE_SAMPLES;
 const SCORE_SCALE = 1 / (2 * SCORE_SAMPLES);
+
+// ─── MATCH SCORE CACHE ────────────────────────────────────────────────────────
+
+// Cache matchScore() result. Invalidated on any slider/type change.
+// Prevents running 96-sample scoring at rAF rate (up to 120×/s).
+
+let _cachedMatchScore = 0;
+let _matchScoreDirty = true;
+
+/** Mark cache stale — call whenever yoursSignal changes. */
+function invalidateMatchScore() { _matchScoreDirty = true; }
 
 /**
  * Calculates similarity score between target and player signals.
  * Pure procedural sampling. No buffers.
+ * Returns cached result unless invalidated.
  * @returns {number} Score from 0 (no match) to 1 (perfect match).
  */
 function matchScore() {
+    if (!_matchScoreDirty) return _cachedMatchScore;
+
     let d0 = 0, d1 = 0, d2 = 0, d3 = 0;
 
     for (let i = 0; i < SCORE_SAMPLES; i += 4) {
@@ -769,12 +781,12 @@ function matchScore() {
     }
 
     const d = d0 + d1 + d2 + d3;
+    const raw = 1 - d * SCORE_SCALE;
 
-    const score = 1 - d * SCORE_SCALE;
+    _cachedMatchScore = raw < 0 ? 0 : (raw > 1 ? 1 : raw);
+    _matchScoreDirty = false;
 
-    return score < 0
-        ? 0
-        : (score > 1 ? 1 : score);
+    return _cachedMatchScore;
 }
 
 /**
@@ -863,6 +875,7 @@ function loop(ts) {
         drawGrid(ctx, W, H);
     }
 
+    // Use cached matchScore — already computed by updateMeter() this frame
     const sc = matchScore();
     const t = smoothstep(sc);
 
@@ -924,7 +937,7 @@ function computeScoreGainFromTimeLeft(timeLeft) {
  * Updates the match percentage meter and checks win condition.
  */
 function updateMeter() {
-    const sc = matchScore();
+    const sc = matchScore(); // reads from cache if not dirty
 
     const pct = Math.round(sc * 100);
     $("pct").textContent = `${pct}%`;
@@ -994,6 +1007,8 @@ function recompute() {
     yoursSignal.harm = +$("sl-harm").value;
     yoursSignal.noise = +$("sl-noise").value;
 
+    invalidateMatchScore(); // mark cache stale on signal change
+
     // Batches all slider inputs into one computation per frame instead of per-event.
     // Synced to the display refresh rate and feels smoother.
     if (!_recomputeScheduled) {
@@ -1028,6 +1043,8 @@ function setType(btn) {
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
+
+    invalidateMatchScore(); // mark cache stale on signal change
 
     // Batches all button inputs into one computation per frame instead of per-event.
     // Synced to the display refresh rate and feels smoother.
@@ -1076,7 +1093,9 @@ function resetYours() {
         const el = $(`sl-${k}`);
         if (el) el.value = yoursSignal[k];
     });
-    document.querySelectorAll(".type-btn").forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
+
+
+    invalidateMatchScore(); // mark cache stale on signal change
     recompute();
 }
 
@@ -1104,6 +1123,8 @@ function nextRound() {
     $("round-no").textContent = roundNo;
 
     targetSignal = buildTarget();
+    invalidateMatchScore(); // new target = dirty cache
+
     applyLevelUI();
     resetYours();
 
@@ -1135,6 +1156,8 @@ function continueLevel() {
     $("round-no").textContent = roundNo;
 
     targetSignal = buildTarget();
+    invalidateMatchScore(); // new target = dirty cache
+
     applyLevelUI();
     resetYours();
 
@@ -1361,6 +1384,8 @@ function startTutorial() {
 
     tutorialTarget = { type: "triangle", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
     targetSignal = tutorialTarget;
+    invalidateMatchScore(); // new target = dirty cache
+
     roundNo = 1;
     $("round-no").textContent = roundNo;
     $("round-total").textContent = 1;
