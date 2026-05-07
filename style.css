@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap');
+/* @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap'); */
 
 :root {
     /* Threes dark mode — warm charcoal, not cold black */
@@ -31,10 +32,12 @@
 
     --radius-tile: 8px;
     --radius-sm:   5px;
+    --radius-xs:   2px;
     --radius:      6px;
 
     --font-ui:    'Nunito', sans-serif;
     --font-mono:  'Share Tech Mono', monospace;
+    /* --font-mono: 'Courier Prime', monospace; */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -61,19 +64,20 @@ body {
     line-height: 1.4;
     width: 480px;
     max-width: 95vw;
-    padding: 24px 16px 32px;
+    /* padding: 24px 16px 32px; */
+    padding: 24px 16px;
     border-radius: 20px;
     position: relative;
-    box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
     user-select: none;
     -webkit-user-select: none;
     transform: rotate(-0.5deg);
+    box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
 }
 
 /* No power LED — Threes is clean */
 #game::before, #game::after { display: none; }
 
-/* TE: matte finish */
+/* TE: matte finish (z-index: -1 (applies only to outer shell) */
 #game::after {
     display: block;
     content: "";
@@ -81,6 +85,8 @@ body {
     inset: 0;
     pointer-events: none;
     opacity: 0.06;
+    isolation: isolate;
+    z-index: -1;
     background-image: radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1px);
     background-size: 3px 3px;
 }
@@ -219,7 +225,9 @@ body {
 
 .chip {
     background: var(--surface);
-    border-radius: 5px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18);
+    border-radius: var(--radius-sm);
+    /* border-radius: var(--radius-xs); */
     padding: 3px 8px;
     font-size: 10px;
     font-weight: 700;
@@ -230,8 +238,9 @@ body {
 
 .chip b { color: var(--cream); font-weight: 800; }
 
-.chip.level-chip { background: var(--amber); color: #fff; }
-.chip.level-chip b { color: #fff; }
+/* .chip.level-chip { background: var(--amber); color: #fff; } */
+/* .chip.level-chip b { color: #fff; } */
+.chip.level-chip b { color: var(--amber); }
 
 .topbar-end-wrap {
     margin-left: auto;
@@ -300,9 +309,11 @@ body {
 
 .score-pop {
     position: absolute;
-    top: -10px;
-    right: 80px;
-    color: var(--amber);
+    /* top: -10px; */
+    /* right: 80px; */
+    top: 40px;
+    right: 10px;
+    color: var(--green);
     font-family: var(--font-ui);
     font-weight: 900;
     pointer-events: none;
@@ -330,6 +341,7 @@ body {
     position: relative;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 }
+
 /* Remove “system UI” feeling */
 .meter-track {
     /* softer contrast */
@@ -522,7 +534,15 @@ canvas.scope {
    SLIDERS
    ============================================================ */
 
-.param-list { display: flex; flex-direction: column; gap: 10px; }
+.param-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    /* DEBUG: bounds match the Oscilloscope (led display) edges */
+    /* border: 2px solid var(--amber); */
+    /* border-radius: var(--radius-sm); */
+}
 
 .ctrl { display: flex; flex-direction: column; gap: 4px; }
 
@@ -531,6 +551,7 @@ canvas.scope {
     justify-content: space-between;
     align-items: center;
     padding: 0 14px;
+    padding-inline-end: 0;
 }
 
 .slider-meta label {
@@ -546,15 +567,35 @@ canvas.scope {
 }
 
 .slider-val {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     font-family: var(--font-ui);
     color: var(--cream);
+
+    /* led chip overlay */
+    background: var(--surface) ;
+    /* box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18); */
+    /* box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); */
+
+    border-radius: var(--radius-sm);
+    /* border-radius: var(--radius-xs); */
+    padding: 3px 8px;
+    /* padding-inline-start: 1px; */
+    /* padding-inline-end: 1px; */
+    /* padding-block: 3px; */
+    white-space: nowrap;
+    min-width: 6ch;
+    text-align: right;
 }
 
 .slider-val b { font-weight: 800; }
-
-.slider-row { display: flex; align-items: center; gap: 6px; padding: 0 14px; }
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    padding-inline-end: 0;
+}
 
 .param-glyph {
     width: 14px; height: 14px;
@@ -630,11 +671,14 @@ input[type=range]::-moz-range-thumb {
    ============================================================ */
 
 .action-row {
-    margin-top: 18px;
+    /* margin-top: 18px; */
+    margin-top: 28px;
     display: flex;
     justify-content: center;
-    gap: 32px;
-    transform: rotate(-2deg);
+    /* gap: 32px; */
+    gap: 24px;
+    /* transform: rotate(-2deg); */
+    transform: rotate(-0.8deg);
 }
 
 .sys-btn {
@@ -663,7 +707,9 @@ input[type=range]::-moz-range-thumb {
     min-height: 22px;
     font-size: clamp(11px, 3vw, 13px);
     font-weight: 600;
-    font-family: var(--font-ui);
+    /* font-family: var(--font-ui); */
+    font-family: var(--font-mono);
+    text-transform: uppercase;
     color: var(--text-mute);
     margin: .4rem 0;
     letter-spacing: .02em;
@@ -753,7 +799,9 @@ input[type=range]::-moz-range-thumb {
 /* This contrast = instrument credibility */
 /* Do this ONLY for: timer score percentage readout */
 .timer,
-.meter-pct {
+.meter-pct,
+.topbar,
+b {
     font-family: var(--font-mono), monospace;
     font-weight: 700;
     letter-spacing: 0.05em;

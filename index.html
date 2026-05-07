@@ -53,12 +53,6 @@
                             <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
                             <div class="topbar-end-wrap">
                                 <div class="chip" style="padding: 0;">
-                                    <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop
-                                        preload="none"></audio>
-                                    <button class="crt-btn mute" id="mute-btn" onclick="toggleMute()"
-                                        title="Toggle audio">♪</button>
-                                </div>
-                                <div class="chip" style="padding: 0;">
                                     <div class="timer" id="timer">30</div>
                                 </div>
                             </div>
@@ -73,7 +67,7 @@
 
                         <div class="scope-wrap">
                             <div class="scope-label">
-                                <span>overlay scope</span>
+                                    <span>oscilloscope</span>
                                     <!-- NOTE: Disabled for now due to alternating color theme during each round -->
                                     <!-- <span>
                                         <span class="pip" style="background: rgba(200,190,170,0.35);"></span>target
@@ -243,9 +237,12 @@
                         <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
                     <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
                         id="skip-tut">SKIP TUT</button>
+                        <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()" title="Toggle audio">♪</button>
+                    </div>
                 </div>
             </div>
         </div>
+        <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop preload="none"></audio>
 
         <div class="credits-wrap">
             <span class="credits-title">Credits</span>
