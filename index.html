@@ -45,17 +45,26 @@
             <!-- GAME -->
             <div id="screen-game">
                 <div class="screen-frame">
+                    <div class="timer-ring-wrap">
+                        <svg class="timer-ring" viewBox="0 0 48 48">
+                            <circle class="timer-ring-track" cx="24" cy="24" r="20" />
+                            <circle class="timer-ring-fill" id="timer-ring-fill" cx="24" cy="24" r="20" stroke="#f0690a"
+                                stroke-dasharray="125.6" stroke-dashoffset="0" />
+                        </svg>
+                        <span class="timer-ring-label" id="timer">30</span>
+                    </div>
+
                     <div id="game-lcd">
                         <!-- TOPBAR -->
                         <div class="topbar">
                             <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
                             <div class="chip">score <b id="score">0</b></div>
                             <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
-                            <div class="topbar-end-wrap">
+                            <!-- <div class="topbar-end-wrap">
                                 <div class="chip" style="padding: 0;">
                                     <div class="timer" id="timer">30</div>
                                 </div>
-                            </div>
+                            </div> -->
                         </div>
 
                         <div class="meter-row">

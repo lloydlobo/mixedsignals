@@ -806,3 +806,59 @@ b {
     font-weight: 700;
     letter-spacing: 0.05em;
 }
+
+/* Circular timer */
+
+.timer-ring-wrap {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    width: 48px;
+    height: 48px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* WARNING: Scanlines interferring from #game-lcd::before ?? (it sits at z 2) */
+    z-index: 2;
+}
+
+.timer-ring {
+    position: absolute;
+    inset: 0;
+    transform: rotate(-90deg);
+}
+
+.timer-ring-track {
+    fill: none;
+    stroke: var(--surface2);
+    stroke-width: 3.5;
+}
+
+.timer-ring-fill {
+    fill: none;
+    stroke: var(--orange);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    stroke-dasharray: 125.6; /* 2π × r=20 */
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear, stroke .3s;
+}
+
+.timer-ring-fill.urgent {
+    stroke: var(--red);
+    animation: pulse .5s infinite alternate;
+}
+
+.timer-ring-label {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text);
+    position: relative;
+    z-index: 1;
+    transition: color .3s;
+}
+
+.timer-ring-label.urgent { color: var(--red); }
