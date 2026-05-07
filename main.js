@@ -145,12 +145,45 @@ const TUTORIAL_TASKS = [
     }
 ];
 
+// ─── CACHED DOM NODES ────────────────────────────────────────────────────────
+
+// Cache hot DOM nodes once at init instead of querying on every frame.
+// These are touched every updateMeter() call (up to rAF rate).
+
+/** @type {Record<string, HTMLElement>} */
+const DOM = {};
+
+function initDOM() {
+    const ids = [
+        "score", "fill", "pct", "feedback",
+        "lbl-freq", "lbl-amp", "lbl-phase", "lbl-dc", "lbl-harm", "lbl-noise",
+        "sl-freq", "sl-amp", "sl-phase", "sl-dc", "sl-harm", "sl-noise",
+        "timer", "timer-ring-fill",
+        "round-no", "round-total", "lbl-level",
+        "ctrl-phase", "ctrl-dc", "ctrl-harm", "ctrl-noise",
+        "btn-pwm", "btn-am",
+        "type-btns", "meter-row",
+        "c-overlay", "flash", "game-inner",
+        "screen-game", "screen-start", "screen-dead", "screen-levelup",
+        "lu-title", "lu-msg", "dead-msg",
+        "bgm-audio", "mute-btn",
+        "skip-tut",
+    ];
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) DOM[id] = el;
+        else console.error(`Failed to get DOM node of id: "${id}"`);
+    }
+}
+
 /**
- * Shorthand for document.getElementById.
+ * Shorthand for cached DOM lookup with fallback.
  * @param {string} id - The element ID.
  * @returns {HTMLElement|null} The element or null.
  */
 function $(id) {
+    return DOM[id] ?? document.getElementById(id);
+}
 
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
@@ -896,12 +929,12 @@ function updateMeter() {
     const pct = Math.round(sc * 100);
     $("pct").textContent = `${pct}%`;
 
-    const fill = $("fill");
+    const fill = $("fill"); // resolved from DOM cache
     fill.style.width = `${pct}%`;
     // fill.style.background = pct > 80 ? "#00ffb4" : (pct > 50 ? "#ffb830" : "#ff4554");
     fill.style.background = pct > 80 ? "var(--green)" : (pct > 50 ? "var(--amber)" : "var(--red)");
 
-    const fb = $("feedback");
+    const fb = $("feedback"); // resolved from DOM cache
     if (!won && !revealed) {
         if (pct >= CONFIG.WIN_PERCENTAGE) {
             won = true;
@@ -1417,3 +1450,9 @@ function endTutorial() {
 window.addEventListener('load', () => {
     setTimeout(() => window.scrollTo(0, 1), 0);
 });
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+// Run DOM cache population after the document is ready.
+// The script is loaded with `defer` so the DOM is guaranteed to be parsed.
+
+initDOM();
