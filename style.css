@@ -370,7 +370,7 @@ body {
 /* Remove “system UI” feeling */
 .scope-wrap {
     /* blend into bg */
-    /* background: #211d18;  */
+    background: #211d18; 
 }
 
 /* Tiny calibration ticks (subtle but powerful) */
@@ -421,10 +421,10 @@ canvas.scope {
             transparent,
             transparent 11px,
             rgba(255, 255, 255, 0.04) 12px),
-        var(--bg);
+        /* var(--bg); */
 
         /* i like this too - natural led glow && add subtle scope-wrap background (for more depth) */
-        /* var(--surface); */
+        var(--surface);
 
         /* #14110e; */
 
