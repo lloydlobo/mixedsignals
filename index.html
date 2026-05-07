@@ -67,9 +67,9 @@
 
                         <div class="scope-wrap">
                             <div class="scope-label">
-                                    <span>oscilloscope</span>
-                                    <!-- NOTE: Disabled for now due to alternating color theme during each round -->
-                                    <!-- <span>
+                                <span>oscilloscope</span>
+                                <!-- NOTE: Disabled for now due to alternating color theme during each round -->
+                                <!-- <span>
                                         <span class="pip" style="background: rgba(200,190,170,0.35);"></span>target
                                     &nbsp;
                                         <span class="pip" style="background: var(--cream);"></span>yours
@@ -233,16 +233,18 @@
                 </div>
 
                 <div class="action-row">
-                        <button class="sys-btn" style="color: var(--amber)" onclick="useHint()">HINT</button>
-                        <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
+                    <button class="sys-btn" style="color: var(--amber)" onclick="useHint()">HINT</button>
+                    <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
                     <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
                         id="skip-tut">SKIP TUT</button>
-                        <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()" title="Toggle audio">♪</button>
-                    </div>
+                    <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()"
+                        title="Toggle audio">♪</button>
+                    <audio id="bgm-audio" src="resources/music/pietix-art-pop-exp-2-510302.mp3" loop
+                        preload="none"></audio>
+
                 </div>
             </div>
         </div>
-        <audio id="bgm-audio" src="resources/music/Study And Relax.mp3" loop preload="none"></audio>
 
         <div class="credits-wrap">
             <span class="credits-title">Credits</span>
@@ -256,8 +258,8 @@
                 </div>
 
                 <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">Music Attribution:</div>
-                <div style="font-size: 10px;">"Study And Relax" Kevin MacLeod</div>
-                <div style="font-size: 9px; opacity: 0.6;">CC BY 4.0 (incompetech.com)</div>
+                <div style="font-size: 10px;">"Art Pop Exp 2" Peter Koepke</div>
+                <div style="font-size: 9px; opacity: 0.6;">Pixabay License (pixabay.com)</div>
 
                 <div style="margin-top: 8px; font-size: 9px; opacity: 0.6;">AI Assistance:</div>
                 <div style="font-size: 10px;">ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google), opencode (open
@@ -266,6 +268,7 @@
                 <div style="margin-top: 4px; font-size: 9px; opacity: 0.6;">And many more...</div>
             </div>
         </div>
+    </div>
 
     </div>
 </body>
