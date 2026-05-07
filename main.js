@@ -137,11 +137,11 @@ const TUTORIAL_TASKS = [
     },
     {
         text: "TUTORIAL: Set dc offset around 0.5",
-        check: () => Math.abs(yoursSignal.dc - 5) <= 0.5, // 
+        check: () => Math.abs(yoursSignal.dc - 5) <= 0.5,
     },
     {
-        text: "TUTORIAL: Now match the target signal (95%+)",
-        check: () => matchScore() >= 0.95,
+        text: `TUTORIAL: Now match the target signal (${CONFIG.WIN_PERCENTAGE}%+)`,
+        check: () => matchScore() >= CONFIG.WIN_PERCENTAGE * 0.01,
     }
 ];
 
@@ -384,7 +384,8 @@ function pickNextTrack() {
     const isShuffleDeterministic = false;
 
     do {
-        next = Math.floor((isShuffleDeterministic ? rand() : Math.random()) * BGM_TRACKS.length);
+        const randNum = isShuffleDeterministic ? rand() : Math.random();
+        next = Math.floor(randNum * BGM_TRACKS.length);
     } while (BGM_TRACKS.length > 1 && next === currentTrackIndex);
     currentTrackIndex = next;
 
@@ -812,7 +813,7 @@ function drawGrid(ctx, W, H) {
  * @param {number} scroll - Scroll offset (0-1).
  * @param {number} [lineW=1.8] - Line width.
  */
-function drawWave(ctx, sig, color, W, H, scroll, lineW) {
+function drawWave(ctx, sig, color, W, H, scroll, lineW = 1.8) {
     const halfH = H * 0.5;
     const yOffset = halfH - 10;
 
