@@ -12,21 +12,18 @@
 <body>
     <div id="game">
         <div class="flash-overlay" id="flash"></div>
+        <audio id="bgm-audio" preload="none"></audio>
         <div id="game-inner">
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
-
             <!-- START -->
             <div class="screen active" id="screen-start">
                 <h3 class="orb">MIXED SIGNALS</h3>
-                <p>
-                    Tune your waveform to mirror the target.<br>
-                    7 levels &middot; harder parameters &middot; tighter clocks.<br>Hints cost pts. Speed bonuses reward
-                    fast locks.
-                </p>
+                <p>Tune your waveform to mirror the target.</p>
+                <p>7 levels &middot; harder parameters &middot; tighter clocks.<br>Hints cost pts. Speed bonuses reward
+                    fast locks.</p>
                 <button class="crt-btn" onclick="startGame()">INITIALIZE</button>
                 <button class="crt-btn sm" onclick="startTutorial()">TUTORIAL</button>
             </div>
-
             <!-- DEAD -->
             <div class="screen" id="screen-dead">
                 <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
@@ -34,14 +31,12 @@
                 <button class="crt-btn" onclick="startGame()">RETRY LEVEL</button>
                 <button class="crt-btn sm danger" onclick="restartGame()">START OVER</button>
             </div>
-
             <!-- LEVEL UP -->
             <div class="screen" id="screen-levelup">
                 <h3 class="orb" id="lu-title">LEVEL 2</h3>
                 <p id="lu-msg"></p>
                 <button class="crt-btn" onclick="continueLevel()">CONTINUE</button>
             </div>
-
             <!-- GAME -->
             <div id="screen-game">
                 <div class="screen-frame">
@@ -90,7 +85,6 @@
                         <div class="feedback" id="feedback">Match the target signal.</div>
                     </div>
                 </div>
-
                 <!-- HARDWARE CONTROLS (outside LCD frame) -->
                 <div class="hardware-grid">
                     <!-- WAVE SELECTOR -->
@@ -134,7 +128,6 @@
                             <span>AM</span>
                         </button>
                     </div>
-
                     <!-- SLIDERS WITH LABELS + GLYPHS -->
                     <div class="param-list">
                         <div class="ctrl" id="ctrl-freq">
@@ -250,7 +243,6 @@
                         id="skip-tut">SKIP TUT</button>
                     <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()"
                         title="Toggle audio" aria-label="Toggle mute">♪</button>
-                    <audio id="bgm-audio" preload="none"></audio>
                 </div>
             </div>
         </div>
