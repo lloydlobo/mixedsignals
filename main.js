@@ -35,11 +35,7 @@
  * @property {boolean} noise    whether noise control is enabled
  */
 
-const DEV = typeof process !== "undefined" && process.env.NODE_ENV === "development";
-
 // ─── CONFIG ────────────────────────────────────────────────────────────────────
-
-const _baseReward = 100;
 
 /**
  * Game configuration constants.
@@ -49,23 +45,19 @@ const CONFIG = {
     FIXED_STEPS_PRECISION: 2, // 1 for fixed steps e.g.: 1; 2 for continuous e.g.: 0.1
 
     TIME_BONUS_RATE: 0.8, // points per second of remaining time
-    BASE_REWARD: _baseReward,
-    COST_HINT: Math.round(_baseReward * 0.25), // ~25
-    COST_SKIP: Math.round(_baseReward * 1.3), // ~130
+
+    BASE_REWARD: 100,
+    COST_HINT: 25, // 100 * 0.25
+    COST_SKIP: 130, // 100 * 1.3
 
     WIN_PERCENTAGE: 95,
     CLOSE_PERCENTAGE: 75,
 }
 
-
-const _creamColor = "#f5efe0"; // var(--cream)
-const _creamFadedColor = "rgba(200,190,170,0.35)";
-
 // Predefined palette, instead of dynamic mixing.
 const WAVE_COLORS = {
     target: "rgba(200,190,170,0.35)", // faded cream OR "rgba(232,224,204,0.35)"
     yours: "#f5efe0",                 // pure cream
-    accent: "#d6cbb3",                // slightly darker cream
 };
 
 /**
@@ -111,12 +103,10 @@ let score = 0,
     timeLeft = 0,
     timerInterval = null,
     animRaf = null, /* NOTE: Remember to `null` animRaf after cancel */
-    won = false,
-    revealed = false;
+    won = false;
 
 let tutorialStep = 0;
 let tutorialActive = false;
-let tutorialTarget = null;
 
 const TUTORIAL_TASKS = [
     {
@@ -185,6 +175,22 @@ function $(id) {
     return DOM[id] ?? document.getElementById(id);
 }
 
+// ─── CANVAS ──────────────────────────────────────────────────────────────────
+/** @type {HTMLCanvasElement|null} */
+let _canvas = null;
+/** @type {CanvasRenderingContext2D|null} */
+let _ctx = null;
+
+/**
+ * The only thing to be careful about: if we ever innerHTML-replace the parent
+ * of the canvas (we don't), the cached reference would go stale. In this
+ * codebase that never happens, so the cache is safe for the lifetime of the page. 
+ */
+function initCanvas() {
+    _canvas = /** @type {HTMLCanvasElement} */ ($("c-overlay"));
+    _ctx = _canvas.getContext("2d");
+}
+
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
 
@@ -249,104 +255,23 @@ function showScorePop(points) {
  * Speed:   Xorshift32 > LCG > SFC32 > Xoshiro128** > JSF32 > Splitmix32 > Mulberry32
  * Note:    Splitmix32 best used as a seeder, not main RNG
  */
-const prngs = {
-    "Math.random": (_seed) => () => Math.random(), // ~ unseeded
+const Xorshift32 = (s) => {
+    // Marsaglia 2003, triple (13,17,5) — one of the published valid triples
+    let state = s >>> 0 || 1; // state must be non-zero
+    return () => {
+        state ^= state << 13;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        return (state >>> 0) / 4294967296;
+    };
+}
 
-    LCG: (s) => {
-        // Numerical Recipes: a=1664525, c=1013904223 (Knuth vol.2)
-        let state = s >>> 0;
-        return () => {
-            state = (Math.imul(1664525, state) + 1013904223) | 0;
-            return (state >>> 0) / 4294967296;
-        };
-    },
+/** 
+ * NOTE: Use this instead of calling Math.random() for determinism
+ * @type {() => number} 
+ */
+const rand = Xorshift32(1831565813);
 
-    Xorshift32: (s) => {
-        // Marsaglia 2003, triple (13,17,5) — one of the published valid triples
-        let state = s >>> 0 || 1; // state must be non-zero
-        return () => {
-            state ^= state << 13;
-            state ^= state >>> 17;
-            state ^= state << 5;
-            return (state >>> 0) / 4294967296;
-        };
-    },
-
-    Splitmix32: (s) => {
-        // Stafford's finalizer — corrected constants vs previous version
-        let state = s >>> 0;
-        return () => {
-            state = (state + 0x9e3779b9) | 0;
-            let z = state;
-            z = Math.imul(z ^ (z >>> 16), 0x85ebca77); // corrected: was 0x85ebca6b
-            z = Math.imul(z ^ (z >>> 13), 0xc2b2ae3d); // corrected: was 0xc2b2ae35
-            return ((z ^ (z >>> 16)) >>> 0) / 4294967296;
-        };
-    },
-
-    Mulberry32: (s) => {
-        // Tommy Ettinger's design — matches original exactly
-        let state = s >>> 0;
-        return () => {
-            state = (state + 0x6d2b79f5) | 0;
-            let t = Math.imul(state ^ (state >>> 15), 1 | state);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-        };
-    },
-
-    JSF32: (s) => {
-        // Jenkins Small Fast — http://burtleburtle.net/bob/rand/smallprng.html
-        // Init: a=0xf1ea5eed, b=c=d=seed (fixed: was d=0, under-mixes initial state)
-        let a = 0xf1ea5eed, b = s >>> 0, c = s >>> 0, d = s >>> 0;
-        for (let i = 0; i < 20; i++) { // burn-in: JSF poorly mixed from cold
-            const e = (a - ((b << 27) | (b >>> 5))) | 0;
-            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
-            b = (c + d) | 0;
-            c = (d + e) | 0;
-            d = (e + a) | 0;
-        }
-        return () => {
-            const e = (a - ((b << 27) | (b >>> 5))) | 0;
-            a = (b ^ ((c << 17) | (c >>> 15))) | 0;
-            b = (c + d) | 0;
-            c = (d + e) | 0;
-            d = (e + a) | 0;
-            return (d >>> 0) / 4294967296;
-        };
-    },
-
-    SFC32: (s) => {
-        // Chris Doty-Humphrey's Small Fast Counting RNG
-        // Fixed: output is t, not c+t (c is next state, not part of output)
-        let a = s >>> 0, b = (s ^ 0xdeadbeef) >>> 0, c = (s ^ 0xbeefdead) >>> 0, d = 1;
-        return () => {
-            const t = (((a + b) | 0) + d) | 0;
-            d = (d + 1) | 0;
-            a = b ^ (b >>> 9);
-            b = (c + (c << 3)) | 0;
-            c = (c << 21) | (c >>> 11);
-            return (t >>> 0) / 4294967296; // fixed: was (c + t | 0)
-        };
-    },
-
-    "Xoshiro128**": (s) => {
-        // Blackman & Vigna — https://prng.di.unimi.it/xoshiro128starstar.c
-        // Both multiplies use imul to prevent float overflow on * 9
-        let a = s >>> 0, b = (s ^ 0x9e3779b9) >>> 0, c = (s ^ 0x6c62272e) >>> 0, d = (s ^ 0xf3bcc908) >>> 0;
-        return () => {
-            const r = Math.imul(b, 5);
-            const out = Math.imul((r << 7) | (r >>> 25), 9);
-            const t = b << 9;
-            c ^= a; d ^= b; b ^= c; a ^= d; c ^= t;
-            d = (d << 11) | (d >>> 21);
-            return (out >>> 0) / 4294967296;
-        };
-    },
-};
-
-// NOTE: Use this instead of calling Math.random() for determinism
-const rand = prngs.Xorshift32(1831565813);
 
 /**
  * Generates a random integer between lo and hi (inclusive).
@@ -357,15 +282,6 @@ const rand = prngs.Xorshift32(1831565813);
 function rng(lo, hi) {
     if (lo > hi) { const temp = lo; lo = hi, hi = temp; }
     return lo + (rand() * (hi - lo + 1)) | 0; // same as lo + Math.floor(rand() * (hi - lo + 1));
-}
-
-/**
- * Throws an error for unimplemented features.
- * @param {string} [msg=""] - Error message.
- * @throws {Error} Always throws.
- */
-function unimplemented(msg = "") {
-    throw new Error(`UNIMPLEMENTED: ${msg}`);
 }
 
 // ─── BGM ────────────────────────────────────────────────────────────────────
@@ -381,11 +297,9 @@ let currentTrackIndex = -1;
 function pickNextTrack() {
     // avoid repeating the same track
     let next;
-    const isShuffleDeterministic = false;
 
     do {
-        const randNum = isShuffleDeterministic ? rand() : Math.random();
-        next = Math.floor(randNum * BGM_TRACKS.length);
+        next = Math.floor(Math.random() * BGM_TRACKS.length);
     } while (BGM_TRACKS.length > 1 && next === currentTrackIndex);
     currentTrackIndex = next;
 
@@ -441,30 +355,6 @@ function startMusic() {
 }
 
 function stopMusic() {
-    const audio = $("bgm-audio");
-    if (!audio.paused) audio.pause();
-}
-
-/**
- * Fades BGM volume down over duration ms, then pauses if pauseAfter is true.
- * @param {number} duration - Fade duration in ms.
- * @param {boolean} pauseAfter - Whether to pause after fade.
- */
-function fadeBGM(duration = 1000, pauseAfter = true) {
-    const audio = $("bgm-audio");
-    const startVol = audio.volume;
-    const steps = 20;
-    const stepTime = duration / steps;
-    let step = 0;
-    const interval = setInterval(() => {
-        step++;
-        audio.volume = Math.max(0, startVol * (1 - step / steps));
-        if (step >= steps) {
-            clearInterval(interval);
-            if (pauseAfter) audio.pause();
-            audio.volume = startVol; // restore for next play
-        }
-    }, stepTime);
 }
 
 function toggleMute() {
@@ -479,8 +369,8 @@ function toggleMute() {
     btn.textContent = muted ? "🔇" : "🎵";
     btn.style.color = muted ? "var(--text-dim)" : "";
 
-    if (muted) {
-        stopMusic();
+    if (muted) { // stopMusic()
+        if (!audio.paused) audio.pause();
     } else if ($("screen-game").style.display !== "none") {
         startMusic();
     }
@@ -514,7 +404,7 @@ function actx() { // or simply `return _actx || (_actx = new AudioCtx());`
 
 let _lastSliderSfx = 0;
 let _lastUrgentSfx = 0;
-let _urgentBeepDone = false;
+// let _urgentBeepDone = false;
 let _wasCloseSfx = false;
 
 const SFX = {
@@ -609,8 +499,8 @@ const SFX = {
     },
 }
 
-function lerp(a, b, t) { return a + (b - a) * t };
-function lerptau(a, b) { return a + (b - a) * 0.12 };
+// function lerp(a, b, t) { return a + (b - a) * t };
+// function lerptau(a, b) { return a + (b - a) * 0.12 };
 function smoothstep(x) { return x * x * (3 - 2 * x); }
 function sigmoid(x) { return 1 / (1 + Math.exp(-8 * (x - 0.5))); }
 
@@ -782,28 +672,6 @@ function matchScore() {
 }
 
 /**
- * Draws the background grid on the canvas.
- * @param {CanvasRenderingContext2D} ctx - Canvas context.
- * @param {number} W - Canvas width.
- * @param {number} H - Canvas height.
- */
-function drawGrid(ctx, W, H) {
-    ctx.strokeStyle = "rgba(0,255,180,0.07)";
-    ctx.lineWidth = .5;
-
-    // www.teenage.engineering theme
-    ctx.lineJoin = "miter";
-    ctx.lineCap = "butt";
-    ctx.imageSmoothingEnabled = false;
-
-    const cols = 8, rows = 4;
-    for (let i = 1; i < cols; i++) { const x = W / cols * i; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let i = 1; i < rows; i++) { const y = H / rows * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(0,255,180,0.15)"; ctx.lineWidth = .5;
-    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
-}
-
-/**
  * Draws a waveform on the canvas from a pre-computed buffer.
  * @param {CanvasRenderingContext2D} ctx - Canvas context.
  * @param {Signal} sig - Signal.
@@ -868,29 +736,16 @@ let _canvasW = 320; // fallback until observer fires
 function loop(ts) {
     const scroll = (ts / 4200) % 1;
 
-    /** @type {HTMLCanvasElement|null} */
-    const c = $("c-overlay");
-    if (!c) { animRaf = requestAnimationFrame(loop); return; }
+    const W = _canvasW; // from ResizeObserver (use cached width instead of forcing layout)
+    const H = 120; // hardcoded in <canvas />
 
-    // Use cached width from ResizeObserver instead of forcing layout
-    // PERF: Avoid canvas resize every frame.
-    const newW = _canvasW;
-    const newH = 120; // NOTE: Fixed in <canvas/>
-    if (c.width !== newW || c.height !== newH) {
-        c.width = newW;
-        c.height = newH;
+    if (_canvas.width !== W || _canvas.height !== H) { // PERF: Avoid canvas resize every frame.
+        _canvas.width = W;
+        _canvas.height = H;
     }
-
-    const W = c.width, H = c.height;
 
     /** @type {CanvasRenderingContext2D|null} */
-    const ctx = c.getContext("2d");
-    ctx.clearRect(0, 0, W, H);
-
-    const _isEnableGrid = false; // NOTE: CSS handles this now
-    if (_isEnableGrid) {
-        drawGrid(ctx, W, H);
-    }
+    _ctx.clearRect(0, 0, W, H);
 
     // Use cached matchScore — already computed by updateMeter() this frame
     const sc = matchScore();
@@ -899,30 +754,39 @@ function loop(ts) {
     // Dual waveform layering 
     // (target vs yours) - Make it feel like a comparison instrument.
     // Target → dim, thin | Yours → bright, thicker
+    //
+    // PERF:
+    //       loop() has two parallel if/else if/else blocks for target vs yours that
+    //       mirror each other
+    //          
+    //       The color/alpha selection logic for roundNo is duplicated. A single
+    //       lookup table keyed by roundNo % 3 (or roundNo === 1) collapses this to
+    //       one decision instead of six branches.
+    //
     // --- target ---
     if (roundNo === 1) { // original alpha: 0.85
-        ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); // logistic ('designed' feel)
-        drawWave(ctx, targetSignal, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
+        _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); // logistic ('designed' feel)
+        drawWave(_ctx, targetSignal, "#00ff88", W, H, scroll, 4); // traditional: bright phosphor green
     } else if (roundNo % 2 === 0) {
-        ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); // perceptual ('natural' feel)
-        drawWave(ctx, targetSignal, "#5b8dd9", W, H, scroll, 4); // var(--blue)
+        _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); // perceptual ('natural' feel)
+        drawWave(_ctx, targetSignal, "#5b8dd9", W, H, scroll, 4); // var(--blue)
     } else {
-        ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
-        drawWave(ctx, targetSignal, WAVE_COLORS.target, W, H, scroll, 3 + sc);
+        _ctx.globalAlpha = 0.15 + 0.6 * t; // starts subtle (0.15) - ramps smoothly - avoids harsh jump near 1.0
+        drawWave(_ctx, targetSignal, WAVE_COLORS.target, W, H, scroll, 3 + sc);
     }
     // --- yours ---
     if (roundNo === 1) { // original alpha: 0.85
-        ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursSignal, "#ffb830", W, H, scroll, 4); // traditional scope color: yellow/amber
+        _ctx.globalAlpha = 0.9; // yours
+        drawWave(_ctx, yoursSignal, "#ffb830", W, H, scroll, 4); // traditional scope color: yellow/amber
     } else if (roundNo % 2 === 0) {
-        ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursSignal, "#e8604a", W, H, scroll, 4); // var(--coral)
+        _ctx.globalAlpha = 0.9; // yours
+        drawWave(_ctx, yoursSignal, "#e8604a", W, H, scroll, 4); // var(--coral)
     } else {
-        ctx.globalAlpha = 0.9; // yours
-        drawWave(ctx, yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4);
+        _ctx.globalAlpha = 0.9; // yours
+        drawWave(_ctx, yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4);
     }
 
-    ctx.globalAlpha = 1; // reset
+    _ctx.globalAlpha = 1; // reset
 
     animRaf = requestAnimationFrame(loop);
 }
@@ -964,7 +828,7 @@ function updateMeter() {
     fill.style.background = pct > 80 ? "var(--green)" : (pct > 50 ? "var(--amber)" : "var(--red)");
 
     const fb = $("feedback"); // resolved from DOM cache
-    if (!won && !revealed) {
+    if (!won) {
         if (pct >= CONFIG.WIN_PERCENTAGE) {
             won = true;
             _wasCloseSfx = false; // reset state
@@ -1051,6 +915,12 @@ function recompute() {
  * @param {HTMLElement} btn - The clicked button.
  */
 function setType(btn) {
+
+    // PERF: setType() walks all .type-btn elements to remove active, then adds
+    //       it to one This is O(n) on every button press. Since only one button is
+    //       ever active, track _activeTypeBtn and toggle just two elements instead of
+    //       querySelectorAll-ing the whole group.
+
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     yoursSignal.type = btn.dataset.t;
@@ -1110,15 +980,20 @@ function resetYours() {
         .forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
 
     invalidateMatchScore(); // mark cache stale on signal change
+
+    // WARN: recompute() should read sliders after they're set. It currently does,
+    //       since the rAF defers the read. But this is fragile — worth a comment or restructuring.
     recompute();
 }
+
+let hintsThisRound = [];
+
 
 /**
  * Advances to the next round.
  */
 function nextRound() {
     won = false;
-    revealed = false;
     roundNo++;
 
     const lv = LEVELS[level];
@@ -1138,6 +1013,16 @@ function nextRound() {
 
     targetSignal = buildTarget();
     invalidateMatchScore(); // new target = dirty cache
+
+    // PERF: Mutate the array
+    hintsThisRound = [
+        "type: " + targetSignal.type,
+        "freq: " + targetSignal.freq + " Hz",
+        "amp: " + (targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION),
+        ...(LEVELS[level].phase ? ['phase: ' + targetSignal.phase + "°"] : []),
+        ...(LEVELS[level].dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
+        ...(LEVELS[level].harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
+    ];
 
     applyLevelUI();
     resetYours();
@@ -1189,8 +1074,9 @@ function victory() {
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
-    dead.querySelector("h3").textContent = "MIXED SIGNALS MASTERED";
-    dead.querySelector("h3").style.color = "var(--green)";
+    const h3 = dead.querySelector("h3");
+    h3.textContent = "MIXED SIGNALS MASTERED";
+    h3.style.color = "var(--green)";
 
     $("dead-msg").textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
 
@@ -1213,8 +1099,9 @@ function gameOver() {
     $("screen-game").style.display = "none";
 
     const dead = $("screen-dead");
-    dead.querySelector("h3").textContent = "SIGNAL LOST";
-    dead.querySelector("h3").style.color = "var(--red)";
+    const h3 = dead.querySelector("h3");
+    h3.textContent = "SIGNAL LOST";
+    h3.style.color = "var(--red)";
 
     $("dead-msg").textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
 
@@ -1255,12 +1142,12 @@ function applyLevelUI() {
  * Starts the countdown timer.
  */
 function startTimer() {
+
     clearInterval(timerInterval);
-    timeLeft = LEVELS[level].time;
+    const total = timeLeft = LEVELS[level].time;
 
     const el = $("timer");
     const ring = $("timer-ring-fill");
-    const total = LEVELS[level].time;
     const C = 125.6; // 2π × r=20
 
     // Snap reset without transition
@@ -1302,23 +1189,13 @@ function startTimer() {
  * Uses a hint to reveal one target parameter.
  */
 function useHint() {
-    if (won || revealed) return;
+    if (won) return;
     if (score < CONFIG.COST_HINT) return
 
     score = Math.max(0, score - CONFIG.COST_HINT);
     $("score").textContent = score;
 
-    const hints = [
-        "type: " + targetSignal.type,
-        "freq: " + targetSignal.freq + " Hz",
-        "amp: " + (targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION),
-        ...(LEVELS[level].phase ? ['phase: ' + targetSignal.phase + "°"] : []),
-        ...(LEVELS[level].dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
-        ...(LEVELS[level].harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
-    ];
-
-    const h = hints[rng(0, hints.length - 1)];
-    $("feedback").textContent = `hint: ${h}`;
+    $("feedback").textContent = `hint: ${hintsThisRound[rng(0, hintsThisRound.length - 1)]}`;
     $("feedback").className = "feedback close";
 
     SFX.hint();
@@ -1346,6 +1223,12 @@ function restartGame() {
     level = 0;
     startGame();
 }
+
+// TODO: 
+// startGame() and startTutorial() share identical rAF cancel + screen-clear
+// boilerplate
+// Both do querySelectorAll(".screen").forEach(remove active) + cancel rAF +
+// screen-game show. Extract a showGameScreen() helper.
 
 /**
  * Starts the game.
@@ -1390,8 +1273,7 @@ function startTutorial() {
     }
     animRaf = requestAnimationFrame(loop);
 
-    tutorialTarget = { type: "triangle", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
-    targetSignal = tutorialTarget;
+    targetSignal = { type: "triangle", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };;
     invalidateMatchScore(); // new target = dirty cache
 
     roundNo = 1;
@@ -1439,19 +1321,13 @@ function checkTutorial() {
     }
 }
 
+const TUTORIAL_CONTROLS = ["type-btns", "ctrl-freq", "ctrl-amp", "ctrl-phase", "ctrl-dc", "meter-row"]
+
 function highlightControl() {
-    // Remove glow from all elements
     document.querySelectorAll(".tutorial-glow")
         .forEach(el => el.classList.remove("tutorial-glow"));
 
-    let el = null;
-    if (tutorialStep === 0) el = $("type-btns");
-    else if (tutorialStep === 1) el = $("ctrl-freq");
-    else if (tutorialStep === 2) el = $("ctrl-amp");
-    else if (tutorialStep === 3) el = $("ctrl-phase");
-    else if (tutorialStep === 4) el = $("ctrl-dc");
-    else if (tutorialStep === 5) el = $("meter-row");
-
+    const el = $(TUTORIAL_CONTROLS[tutorialStep]);
     if (el) el.classList.add("tutorial-glow");
 }
 
@@ -1494,8 +1370,57 @@ window.addEventListener('load', () => {
     setTimeout(() => window.scrollTo(0, 1), 0);
 });
 
+// Problem:  when the browser suspends the tab during a pinch-zoom gesture,
+// requestAnimationFrame stops firing and never restarts. The loop just dies
+// silently.
+//
+// Two things happen on mobile pinch-zoom: the browser fires visibilitychange to
+// hidden briefly, and sometimes just drops RAF callbacks entirely without
+// firing anything. The focus listener catches the second case.
+const _isEnableFocusOnVisibilityChange = false; // FIXME: Buggy (the timer runs on focus, but the drawing stops)
+if (_isEnableFocusOnVisibilityChange) {
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            // Tab/app returned to foreground — restart loop if game is active
+            if ($("screen-game").classList.contains("active")) { // FIXME: screen-game or screen?
+                if (animRaf) cancelAnimationFrame(animRaf);
+                animRaf = requestAnimationFrame(loop);
+            }
+        } else {
+            // Tab hidden — kill loop cleanly to save battery
+            if (animRaf) cancelAnimationFrame(animRaf);
+        }
+    });
+    window.addEventListener("focus", () => {
+        if ($("screen-game").classList.contains("active")) {
+            if (animRaf) cancelAnimationFrame(animRaf);
+            animRaf = requestAnimationFrame(loop);
+        }
+    });
+}
+
+// Easy wins:
+//
+// - [x] Timer visibility — consistent complaint across both versions. It needs to be
+//       bigger or more prominent during gameplay, not tucked in the topbar.
+// 
+// [ ] Phase lock issue — 360° and 0° are the same wave but your matchScore()
+//     probably computes them as different. Needs modulo normalization: Math.abs(a - b) % 360 clamped to [0, 180].
+//
+// Bigger features:
+//
+// - [ ] Audible wave — play the user's current waveform through the Web Audio
+//       API quietly in the background as they tune. This is actually a great learning
+//       mechanic and fits the game concept perfectly. You already have all the wave
+//       math — you just need an OscillatorNode or ScriptProcessorNode fed by your
+//       existing signal params.
+// - [ ] Save progress / continue — "start from beginning" is a real pain point
+//       for a jam game. Even just localStorage persisting level and score between
+//       sessions would fix this.
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 // Run DOM cache population after the document is ready.
 // The script is loaded with `defer` so the DOM is guaranteed to be parsed.
 
 initDOM();
+initCanvas();
