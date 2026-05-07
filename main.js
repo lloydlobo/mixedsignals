@@ -1070,6 +1070,11 @@ function setType(btn) {
     }
 }
 
+//
+// TODO: Cache target signal buffer	❌ Not done	
+//       drawWave() still calls sample() live per pixel for target
+//
+
 /**
  * Builds a random target signal based on current level.
  * Fills targetBuf immediately.
@@ -1078,15 +1083,15 @@ function setType(btn) {
 function buildTarget() {
     const lv = LEVELS[level];
     /** @type {Signal} */
-    const sig = {};
-    sig.type = lv.types[rng(0, lv.types.length - 1)];
-    sig.freq = rng(1, 6);
-    sig.amp = rng(3, 10);
-    sig.phase = lv.phase ? rng(0, 7) * 45 : 0;
-    sig.dc = lv.dc ? rng(-3, 3) : 0;
-    sig.harm = lv.harm ? rng(0, 5) : 0;
-    sig.noise = lv.noise ? rng(2, 6) : 0;
-    // updateBufWithSample(targetBuf, sig, true);
+    const sig = {
+        type: lv.types[rng(0, lv.types.length - 1)],
+        freq: rng(1, 6),
+        amp: rng(3, 10),
+        phase: lv.phase ? rng(0, 7) * 45 : 0,
+        dc: lv.dc ? rng(-3, 3) : 0,
+        harm: lv.harm ? rng(0, 5) : 0,
+        noise: lv.noise ? rng(2, 6) : 0,
+    };
     return sig;
 }
 
