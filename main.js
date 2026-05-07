@@ -1275,7 +1275,7 @@ function startTimer() {
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
 
     el.textContent = timeLeft;
-    el.className = "";
+    // el.className = ""; // HACK: Disabled this, since timer digits were unstyled for a second at round start
 
     timerInterval = setInterval(() => {
         timeLeft--;
