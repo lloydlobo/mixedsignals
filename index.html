@@ -67,7 +67,7 @@
                             </div> -->
                         </div>
 
-                        <div class="meter-row">
+                        <div id="meter-row" class="meter-row">
                             <div class="meter-track">
                                 <div class="meter-fill" id="fill" style="width: 0%;"></div>
                             </div>
@@ -95,37 +95,39 @@
                 <div class="hardware-grid">
                     <!-- WAVE SELECTOR -->
                     <div class="type-btns" id="type-btns">
-                        <button class="type-btn active" data-t="sine" onclick="setType(this)">
+                        <button class="type-btn active" data-t="sine" onclick="setType(this)" aria-label="Sine wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
                             </svg>
                             <span>SINE</span>
                         </button>
-                        <button class="type-btn" data-t="square" onclick="setType(this)">
+                        <button class="type-btn" data-t="square" onclick="setType(this)" aria-label="Square wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
                             </svg>
                             <span>SQR</span>
                         </button>
-                        <button class="type-btn" data-t="sawtooth" onclick="setType(this)">
+                        <button class="type-btn" data-t="sawtooth" onclick="setType(this)" aria-label="Sawtooth wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L12 2 L12 10 L24 2" />
                             </svg>
                             <span>SAW</span>
                         </button>
-                        <button class="type-btn" data-t="triangle" onclick="setType(this)">
+                        <button class="type-btn" data-t="triangle" onclick="setType(this)" aria-label="Triangle wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
                             </svg>
                             <span>TRI</span>
                         </button>
-                        <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" disabled>
+                        <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" aria-label="PWM wave"
+                            disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
                             </svg>
                             <span>PWM</span>
                         </button>
-                        <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" disabled>
+                        <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" aria-label="AM wave"
+                            disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
                             </svg>
@@ -147,7 +149,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-freq" min="1" max="8" step="1" value="1"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', this.value + ' Hz')" />
                             </div>
                         </div>
 
@@ -164,7 +166,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
                             </div>
                         </div>
 
@@ -183,7 +185,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-phase" min="0" max="360" step="1" value="0"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', this.value + '°')" />
                             </div>
                         </div>
 
@@ -200,7 +202,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
                             </div>
                         </div>
 
@@ -217,7 +219,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
                             </div>
                         </div>
 
@@ -234,7 +236,7 @@
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0"
-                                    oninput="recompute()" />
+                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
                             </div>
                         </div>
                     </div>
@@ -247,7 +249,7 @@
                     <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
                         id="skip-tut">SKIP TUT</button>
                     <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()"
-                        title="Toggle audio">♪</button>
+                        title="Toggle audio" aria-label="Toggle mute">♪</button>
                     <audio id="bgm-audio" preload="none"></audio>
                 </div>
             </div>
