@@ -311,6 +311,27 @@ function unimplemented(msg = "") {
 
 // ─── BGM ────────────────────────────────────────────────────────────────────
 
+const BGM_TRACKS = [
+    "resources/music/musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
+    "resources/music/slimeyfox-after-hours-arcade-487277.mp3",
+    "resources/music/pietix-art-pop-exp-2-510302.mp3",
+];
+
+let currentTrackIndex = -1;
+
+function pickNextTrack() {
+    // avoid repeating the same track
+    let next;
+    const isShuffleDeterministic = false;
+
+    do {
+        next = Math.floor((isShuffleDeterministic ? rand() : Math.random()) * BGM_TRACKS.length);
+    } while (BGM_TRACKS.length > 1 && next === currentTrackIndex);
+    currentTrackIndex = next;
+
+    return BGM_TRACKS[next];
+}
+
 let muted = localStorage.getItem("bgmMuted") === "true";
 let volume = parseFloat(localStorage.getItem("bgmVolume") ?? "0.4"); // ideal: 0.4
 
@@ -349,8 +370,14 @@ function setVolume(v) { // future proofing
 
 function startMusic() {
     const audio = $("bgm-audio");
-    audio.volume = volume;
-    if (!muted && audio.paused) audio.play();
+    if (muted) return;
+
+    if (audio.paused) {
+        if (!audio.src || audio.ended) {
+            audio.src = pickNextTrack();
+        }
+        audio.play();
+    }
 }
 
 function stopMusic() {
@@ -403,6 +430,13 @@ function toggleMute() {
 document.addEventListener("click", () => {
     if (!muted) startMusic();
 }, { once: true });
+
+$("bgm-audio").addEventListener("ended", () => {
+    if (!muted) {
+        $("bgm-audio").src = pickNextTrack();
+        $("bgm-audio").play();
+    }
+});
 
 // ─── SFX ────────────────────────────────────────────────────────────────────
 
