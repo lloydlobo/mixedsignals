@@ -845,6 +845,32 @@ function drawWave(ctx, sig, color, W, H, scroll, lineW) {
     ctx.stroke();
 }
 
+// ─── CANVAS RESIZE OBSERVER ───────────────────────────────────────────────────
+
+// Use ResizeObserver so we update canvas dimensions only when the
+// element actually changes size, instead of reading offsetWidth every frame.
+
+let _canvasW = 320; // fallback until observer fires
+
+(function initCanvasResizeObserver() {
+    const id = "c-overlay";
+    const c = document.getElementById(id);
+    if (!c) {
+        console.error(`Failed to get canvas of id "${id}"!`)
+        return;
+    }
+    if (typeof ResizeObserver !== "undefined") {
+        new ResizeObserver(entries => {
+            for (const entry of entries) {
+                _canvasW = Math.round(entry.contentRect.width) || 320;
+            }
+        }).observe(c);
+    } else {
+        // Fallback for old browsers: read once, accept it may not update on resize
+        _canvasW = c.offsetWidth || 320;
+    }
+})();
+
 /**
  * Main animation loop for rendering waveforms.
  * @param {number} ts - Timestamp from requestAnimationFrame.
@@ -856,18 +882,19 @@ function loop(ts) {
     const c = $("c-overlay");
     if (!c) { animRaf = requestAnimationFrame(loop); return; }
 
+    // Use cached width from ResizeObserver instead of forcing layout
     // PERF: Avoid canvas resize every frame.
-    const newW = c.offsetWidth || 320;
+    const newW = _canvasW;
     const newH = 120; // NOTE: Fixed in <canvas/>
     if (c.width !== newW || c.height !== newH) {
         c.width = newW;
         c.height = newH;
     }
 
+    const W = c.width, H = c.height;
+
     /** @type {CanvasRenderingContext2D|null} */
     const ctx = c.getContext("2d");
-
-    const W = c.width, H = c.height;
     ctx.clearRect(0, 0, W, H);
 
     const _isEnableGrid = false; // NOTE: CSS handles this now
