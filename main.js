@@ -554,7 +554,7 @@ const SFX = {
     },
     fail: () => { // In gameOver(), skipRound()
         if (muted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        const ac = actx();
         [[200, 0], [160, 0.1], [120, 0.22]].forEach(([f, t]) => {
             const o = ac.createOscillator(), g = ac.createGain();
             o.type = "sawtooth"; o.frequency.value = f;
