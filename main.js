@@ -110,7 +110,7 @@ let score = 0,
     roundNo = 0,
     timeLeft = 0,
     timerInterval = null,
-    animRaf = null,
+    animRaf = null, /* NOTE: Remember to `null` animRaf after cancel */
     won = false,
     revealed = false;
 
@@ -830,6 +830,7 @@ function loop(ts) {
     }
 
     ctx.globalAlpha = 1; // reset
+
     animRaf = requestAnimationFrame(loop);
 }
 
@@ -1097,7 +1098,10 @@ function victory() {
     dead.classList.add("active");
     SFX.levelUp();
 
-    cancelAnimationFrame(animRaf);
+    if (animRaf !== null) { // guard before cancel
+        cancelAnimationFrame(animRaf);
+        animRaf = null; // null after cancel
+    }
 }
 
 /**
@@ -1128,7 +1132,10 @@ function gameOver() {
     setTimeout(() => gameInner.classList.remove("shake"), 500);
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 
-    cancelAnimationFrame(animRaf);
+    if (animRaf !== null) { // guard before cancel
+        cancelAnimationFrame(animRaf);
+        animRaf = null; // null after cancel
+    }
 }
 
 /**
@@ -1265,8 +1272,14 @@ function startGame() {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $("screen-game").style.display = "block";
 
-    if (animRaf) cancelAnimationFrame(animRaf);
-    requestAnimationFrame(loop);
+
+    if (animRaf !== null) { // guard before cancel
+        cancelAnimationFrame(animRaf);
+        animRaf = null; // null after cancel
+    }
+
+    animRaf = requestAnimationFrame(loop);
+
     nextRound();
 }
 
@@ -1278,8 +1291,11 @@ function startTutorial() {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $("screen-game").style.display = "block";
 
-    if (animRaf) cancelAnimationFrame(animRaf);
-    requestAnimationFrame(loop);
+    if (animRaf !== null) { // guard before cancel
+        cancelAnimationFrame(animRaf);
+        animRaf = null; // null after cancel
+    }
+    animRaf = requestAnimationFrame(loop);
 
     tutorialTarget = { type: "triangle", freq: 4, amp: 6, phase: 0, dc: 0, harm: 0, noise: 0 };
     targetSignal = tutorialTarget;
