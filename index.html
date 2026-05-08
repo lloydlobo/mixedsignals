@@ -15,29 +15,57 @@
         <audio id="bgm-audio" preload="none"></audio>
         <div id="game-inner">
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
-            <!-- START -->
-            <div class="screen active" id="screen-start">
+            <!-- ━━━ START SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+            <div class="screen" id="screen-start">
                 <h3 class="orb">MIXED SIGNALS</h3>
-                <p>Tune your waveform to mirror the target.</p>
-                <p>7 levels &middot; harder parameters &middot; tighter clocks.<br>Hints cost pts. Speed bonuses reward
-                    fast locks.</p>
-                <button class="crt-btn" onclick="startGame()">INITIALIZE</button>
+                <p>
+                    Tune your waveform to mirror the target.<br>
+                    7 levels &middot; harder parameters &middot; tighter clocks.<br>
+                    Hints cost pts. Speed bonuses reward fast locks.
+                </p>
+
+                <!-- Shown only when save data exists — toggled by renderStartScreen() -->
+                <button class="crt-btn" id="btn-continue" style="display:none"
+                    onclick="continueSave()">CONTINUE</button>
+
+                <button class="crt-btn" onclick="startGame()">NEW GAME</button>
+
+                <!-- Level select, disabled until player has unlocked >1 level -->
+                <button class="crt-btn sm" onclick="showLevelSelect()">SELECT LEVEL</button>
+
                 <button class="crt-btn sm" onclick="startTutorial()">TUTORIAL</button>
+
+                <!-- Small unlock status line, populated by renderStartScreen() -->
+                <span id="unlock-msg" style="font-size:10px; color:var(--text-mute);"></span>
             </div>
-            <!-- DEAD -->
+
+            <!-- ━━━ DEAD/VICTORY SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-dead">
                 <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
                 <p id="dead-msg"></p>
                 <button class="crt-btn" onclick="startGame()">RETRY LEVEL</button>
+                <button class="crt-btn sm" onclick="showLevelSelect()">LEVEL SELECT</button>
                 <button class="crt-btn sm danger" onclick="restartGame()">START OVER</button>
             </div>
-            <!-- LEVEL UP -->
+
+            <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelup">
                 <h3 class="orb" id="lu-title">LEVEL 2</h3>
                 <p id="lu-msg"></p>
                 <button class="crt-btn" onclick="continueLevel()">CONTINUE</button>
             </div>
-            <!-- GAME -->
+
+            <!-- ━━━ LEVEL SELECT SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+            <div class="screen" id="screen-levelselect">
+                <h3 class="orb">SELECT LEVEL</h3>
+                <!-- JS populates this grid via showLevelSelect() -->
+                <div class="level-select-grid" id="level-select-grid"></div>
+                <!-- FIXED: show screen after rendering (logic similar to last line in goToMenu()) -->
+                <!-- <button class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
+                <button class="crt-btn sm" onclick="renderStartScreen(); showScreen('start')">BACK</button>
+            </div>
+
+            <!-- ━━━ GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div id="screen-game">
                 <div class="screen-frame">
                     <div class="timer-ring-wrap">
@@ -85,6 +113,20 @@
                         <div class="feedback" id="feedback">Match the target signal.</div>
                     </div>
                 </div>
+
+                <!-- PLAYBACK CONTROLS -->
+                <div class="pb-row">
+                    <button class="pb-btn" id="pb-target"
+                        onclick="setPlaybackMode(_pbMode === 'target' ? 'off' : 'target')"
+                        title="Listen to target signal">▶ TARGET</button>
+                    <button class="pb-btn" id="pb-yours"
+                        onclick="setPlaybackMode(_pbMode === 'yours' ? 'off' : 'yours')" title="Listen to your signal">▶
+                        YOURS</button>
+                    <button class="pb-btn" id="pb-ab" onclick="setPlaybackMode(_pbMode === 'ab' ? 'off' : 'ab')"
+                        title="A/B compare">⇄ A/B</button>
+                </div>
+
+
                 <!-- HARDWARE CONTROLS (outside LCD frame) -->
                 <div class="hardware-grid">
                     <!-- WAVE SELECTOR -->
@@ -236,9 +278,12 @@
                     <!-- END OF SLIDERS WITH LABELS + GLYPHS -->
                 </div>
 
+                <!-- ━━━ MENU BUTTON IN ACTION ROW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
                 <div class="action-row">
                     <button class="sys-btn" style="color: var(--amber)" onclick="useHint()">HINT</button>
                     <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
+                    <button class="sys-btn" style="color: var(--text-dim)" id="menu-btn"
+                        onclick="goToMenu()">MENU</button>
                     <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
                         id="skip-tut">SKIP TUT</button>
                     <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()"
@@ -279,7 +324,6 @@
         </div>
     </div>
 
-    </div>
 </body>
 
 </html>

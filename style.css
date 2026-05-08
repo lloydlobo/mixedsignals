@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap');
-/* @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap'); */
 
 :root {
     /* Threes dark mode — warm charcoal, not cold black */
@@ -37,8 +36,19 @@
 
     --font-ui:    'Nunito', sans-serif;
     --font-mono:  'Share Tech Mono', monospace;
-    /* --font-mono: 'Courier Prime', monospace; */
 }
+
+/* PERF: Stop Using Shadow/Glow Effects
+
+If CSS uses:
+- box-shadow
+- filter: blur
+- backdrop-filter
+- text-shadow
+
+- those often cost more than JS.
+- Especially on Android.
+- The biggest mobile killers are often CSS compositing. */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -70,6 +80,10 @@ body {
     position: relative;
     user-select: none;
     -webkit-user-select: none;
+
+    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
+    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
+     * will-change: transform to move these to the compositor and prevent blur. */
     transform: rotate(-0.5deg);
     will-change: transform;
     box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
@@ -117,7 +131,7 @@ body {
     min-height: 320px;
 }
 
-.screen.active { display: flex; }
+/* .screen.active { display: flex; } */
 
 .screen h3 {
     font-family: var(--font-ui);
@@ -184,7 +198,7 @@ body {
    ============================================================ */
 
 #screen-game { display: none; }
-#screen-game.active { display: block; }
+/* #screen-game.active { display: block; } */
 
 /* ============================================================
    LCD / SCREEN AREA
@@ -333,7 +347,11 @@ body {
     height: 100%;
     border-radius: 4px;
     background: var(--blue);
-    transition: background .3s;
+    transition: transform .3s, background .3s;
+    /* HACK: Fixes transform, instead of using width to simulate progress bar */
+    min-width: 100%;
+    transform-origin: left center;
+    will-change: transform;
 }
 
 .meter-pct {
@@ -414,11 +432,10 @@ canvas.scope {
             transparent,
             transparent 11px,
             rgba(255, 255, 255, 0.04) 12px),
-        /* var(--bg); */
-
+            /* picking this one when waves use a thinner line width - need more contrast */
+        var(--bg);
         /* i like this too - natural led glow && add subtle scope-wrap background (for more depth) */
-        var(--surface);
-
+        /* var(--surface); */
         /* #14110e; */
 
     /* Add edge clipping (very TE) */
@@ -426,16 +443,6 @@ canvas.scope {
     overflow: hidden;
     clip-path: inset(0 round 4px);
 }
-/* canvas.scope {
-    display: block;
-    width: 100%;
-    border-radius: 4px;
-    background: var(--bg);
-    image-rendering: pixelated;
-    position: relative;
-    z-index: 0;
-    transition: transform 0.05s;
-} */
 
 /* ============================================================
    HARDWARE GRID
@@ -519,7 +526,6 @@ canvas.scope {
     display: flex;
     flex-direction: column;
     gap: 10px;
-
     /* DEBUG: bounds match the Oscilloscope (led display) edges */
     /* border: 2px solid var(--amber); */
     /* border-radius: var(--radius-sm); */
@@ -555,15 +561,8 @@ canvas.scope {
 
     /* led chip overlay */
     background: var(--surface) ;
-    /* box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18); */
-    /* box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.4); */
-
     border-radius: var(--radius-sm);
-    /* border-radius: var(--radius-xs); */
     padding: 3px 8px;
-    /* padding-inline-start: 1px; */
-    /* padding-inline-end: 1px; */
-    /* padding-block: 3px; */
     white-space: nowrap;
     min-width: 6ch;
     text-align: right;
@@ -659,6 +658,10 @@ input[type=range]::-moz-range-thumb {
     /* gap: 32px; */
     gap: 24px;
     /* transform: rotate(-2deg); */
+
+    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
+    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
+     * will-change: transform to move these to the compositor and prevent blur. */
     transform: rotate(-0.8deg);
     will-change: transform;
 }
@@ -808,6 +811,12 @@ b {
 .timer-ring {
     position: absolute;
     inset: 0;
+
+    /* Optional here */
+    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
+    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
+     * will-change: transform to move these to the compositor and prevent blur. */
+    will-change: transform;
     transform: rotate(-90deg);
 }
 
@@ -843,3 +852,196 @@ b {
 }
 
 .timer-ring-label.urgent { color: var(--red); }
+
+/* Everything hidden by default */
+.screen { display: none; }
+#screen-game { display: none; }
+
+/* Show whichever screen matches the data attribute */
+#game[data-screen="start"]       #screen-start       { display: flex; }
+#game[data-screen="dead"]        #screen-dead        { display: flex; }
+#game[data-screen="levelup"]     #screen-levelup     { display: flex; }
+#game[data-screen="levelselect"] #screen-levelselect { display: flex; }
+#game[data-screen="game"]        #screen-game        { display: block; }
+
+/* ── PLAYBACK ROW ─────────────────────────────────────────────────────────── */
+ 
+.pb-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+ 
+.pb-btn {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--surface2);
+    background: var(--surface);
+    color: var(--text-mute);
+    cursor: pointer;
+    transition: color .1s, border-color .1s, background .1s, transform .07s, box-shadow .07s;
+    box-shadow: var(--shadow-sm);
+    outline: none;
+    user-select: none;
+}
+ 
+.pb-btn:hover {
+    color: var(--text-dim);
+    border-color: var(--surface2);
+}
+ 
+.pb-btn:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+ 
+/* Active state — each button gets its own tint to distinguish channels */
+#pb-target.active {
+    background: rgba(91, 141, 217, 0.15);   /* blue tint — matches target wave color */
+    border-color: var(--blue);
+    color: var(--blue);
+    box-shadow: 0 0 8px rgba(91, 141, 217, 0.2);
+}
+ 
+#pb-yours.active {
+    background: rgba(245, 239, 224, 0.12);  /* cream tint — matches yours wave color */
+    border-color: var(--cream);
+    color: var(--cream);
+    box-shadow: 0 0 8px rgba(245, 239, 224, 0.15);
+}
+ 
+#pb-ab.active {
+    background: rgba(109, 200, 122, 0.12);  /* green tint — both channels = match state */
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: 0 0 8px rgba(109, 200, 122, 0.15);
+}
+ 
+/* Disabled appearance when no round is active */
+.pb-btn:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Additions for persistence + level select + menu button
+   ───────────────────────────────────────────────────────────────────────── */
+ 
+/* ━━━ LEVEL SELECT GRID ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+ 
+.level-select-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto 16px;
+}
+ 
+.level-select-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 10px 12px;
+    border-radius: var(--radius-tile);
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    text-align: left;
+    transition: transform .07s, box-shadow .07s;
+    box-shadow: var(--shadow-sm);
+}
+ 
+/* Unlocked — playable */
+.level-select-btn.unlocked {
+    background: var(--surface2);
+    color: var(--text);
+}
+ 
+.level-select-btn.unlocked:hover {
+    background: #3e3830;
+}
+ 
+.level-select-btn.unlocked:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+ 
+/* Current highest unlocked level — amber highlight */
+.level-select-btn.current {
+    background: var(--surface2);
+    outline: 1.5px solid var(--amber);
+    outline-offset: -1.5px;
+}
+ 
+/* Locked — not yet reached */
+.level-select-btn.locked {
+    background: var(--surface);
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+ 
+/* Inner text elements */
+.ls-num {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--cream);
+    letter-spacing: .05em;
+}
+ 
+.level-select-btn.locked .ls-num {
+    color: var(--text-mute);
+}
+ 
+.ls-score {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-ui);
+    color: var(--amber);
+}
+ 
+.level-select-btn.locked .ls-score {
+    color: var(--text-mute);
+}
+ 
+.ls-tags {
+    font-size: 9px;
+    font-weight: 600;
+    font-family: var(--font-ui);
+    color: var(--text-mute);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+ 
+/* ━━━ SCREEN-LEVELSELECT SIZING ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* The level select screen can be taller than other screens — don't clip it. */
+ 
+#screen-levelselect {
+    gap: .8rem;
+    padding: 1.5rem 1rem;
+    min-height: 0; /* override the 320px min-height from .screen */
+}
+ 
+#screen-levelselect h3 {
+    font-size: clamp(18px, 5vw, 28px); /* slightly smaller to give grid room */
+}
+ 
+/* ━━━ MENU BUTTON ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* No extra styles needed — .sys-btn handles it.
+   The color: var(--text-dim) inline style keeps it visually subordinate
+   to HINT (amber) and SKIP (red) so it doesn't compete for attention. */
+ 
+/* ━━━ UNLOCK MSG ON START SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+ 
+#unlock-msg {
+    font-family: var(--font-mono);
+    letter-spacing: .04em;
+}
