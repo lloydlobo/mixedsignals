@@ -109,11 +109,134 @@ body {
 
 .orb { font-family: var(--font-ui); font-weight: 900; }
 
+/* ============================================================
+   LOGO
+   ============================================================ */
+
+.screen-logo {
+    width: 100%;
+    padding: 0 10px;
+    margin-bottom: 12px;
+}
+
+.logo-svg {
+    display: block;
+
+    width: min(100%, 520px);
+
+    aspect-ratio: 1200 / 700;
+
+    height: auto;
+
+    margin-inline: auto;
+
+    filter:
+        contrast(0.96)
+        saturate(0.92);
+}
+
+/* ============================================================
+   SVG THEME
+   ============================================================ */
+
+.logo-bg-stop-1 {
+    stop-color: var(--bg2);
+}
+
+.logo-bg-stop-2 {
+    stop-color: var(--bg);
+}
+
+.logo-grid-line {
+    stroke: var(--surface);
+    stroke-width: 1;
+}
+
+/* ============================================================
+   TEXT
+   ============================================================ */
+
+.logo-mixed,
+.logo-signals {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* MIXED */
+.logo-mixed {
+    font-size: 150px;
+    fill: var(--cream);
+    opacity: 0.92;
+}
+
+/* SIGNALS */
+.logo-signals {
+    font-size: 170px;
+    fill: var(--coral);
+    opacity: 0.88;
+}
+
+/* ============================================================
+   WAVEFORMS
+   ============================================================ */
+
+.logo-wave-cream,
+.logo-wave-orange {
+    fill: none;
+    stroke-width: 7;
+    stroke-linecap: round;
+    opacity: 0.78;
+}
+
+.logo-wave-cream { stroke: var(--cream); }
+.logo-wave-orange { stroke: var(--coral); }
+
+/* ============================================================
+   TAGLINE
+   ============================================================ */
+
+.logo-tagline {
+    font-family: var(--font-ui);
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: 6px;
+    fill: var(--text-mute);
+}
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 640px) {
+    .logo-svg { width: 100%; }
+    .logo-tagline { font-size: 42px; letter-spacing: 4px; }
+}
+
 .sr-only {
     position: absolute;
     width: 1px; height: 1px;
     overflow: hidden;
     clip: rect(0,0,0,0);
+}
+
+.start-copy-list {
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+    text-align: center;
+    font-family: var(--font-mono);
+    /* font-size: 12px; */
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.start-copy-list li {
+    opacity: 0.95;
 }
 
 /* ============================================================
@@ -130,8 +253,6 @@ body {
     gap: 1.2rem;
     min-height: 320px;
 }
-
-/* .screen.active { display: flex; } */
 
 .screen h3 {
     font-family: var(--font-ui);

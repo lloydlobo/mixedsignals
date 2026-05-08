@@ -18,89 +18,84 @@
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
             <!-- ━━━ START SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-start">
-                <h3 class="orb logo">
-                    <span>&nbsp;</span>
-                    <svg style="transform: scale(10.0);" viewBox="0 0 1200 700" fill="none"
-                        xmlns="http://www.w3.org/2000/svg">
+                <div class="screen-logo">
+                    <svg class="logo-svg" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg"
+                        aria-label="Mixed Signals Logo">
+
                         <defs style="display: none;">
-                            <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#0c120d" />
-                                <stop offset="100%" stop-color="#101612" />
+
+                            <linearGradient id="logo-bg" x1="0" y1="0" x2="0" y2="1">
+                                <stop class="logo-bg-stop-1" offset="0%" />
+                                <stop class="logo-bg-stop-2" offset="100%" />
                             </linearGradient>
 
-                            <filter id="glowCream" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur stdDeviation="8" result="blur" />
+                            <filter id="logoGlowSoft" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="2.5" result="blur" />
                                 <feMerge>
                                     <feMergeNode in="blur" />
                                     <feMergeNode in="SourceGraphic" />
                                 </feMerge>
                             </filter>
 
-                            <filter id="glowOrange" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur stdDeviation="7" result="blur" />
-                                <feMerge>
-                                    <feMergeNode in="blur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
-
-                            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                                <path d="M40 0H0V40" stroke="#1f2a20" stroke-width="1" />
+                            <pattern id="logo-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                <path class="logo-grid-line" d="M40 0H0V40" />
                             </pattern>
+
                         </defs>
 
-                        <!-- LED PANEL -->
-                        <rect x="40" y="40" width="1120" height="620" rx="40" fill="url(#bg)" />
+                        <!-- PANEL -->
+                        <rect x="40" y="40" width="1120" height="620" rx="36" fill="url(#logo-bg)" />
 
                         <!-- GRID -->
-                        <rect x="40" y="40" width="1120" height="620" rx="40" fill="url(#grid)" opacity="0.7" />
+                        <rect x="40" y="40" width="1120" height="620" rx="36" fill="url(#logo-grid)" opacity="0.55" />
 
                         <!-- MIXED -->
-                        <text x="600" y="220" text-anchor="middle" font-family="var(--font-mono)" font-size="150"
-                            font-weight="800" letter-spacing="6" fill="#F5EFD8" filter="url(#glowCream)">
+                        <text class="logo-mixed" x="600" y="220" text-anchor="middle" filter="url(#logoGlowSoft)">
                             MIXED
                         </text>
 
-                        <!-- SIGNAL WAVES -->
-                        <path d="M180 340
-           C230 280 280 280 330 340
-           S430 400 480 340
-           S580 280 630 340
-           S730 400 780 340
-           S880 280 930 340
-           S1030 400 1080 340" stroke="#F5EFD8" stroke-width="10" stroke-linecap="round" fill="none"
-                            filter="url(#glowCream)" opacity="0.95" />
+                        <!-- WAVEFORM -->
 
-                        <path d="M180 340
-           C230 400 280 400 330 340
-           S430 280 480 340
-           S580 400 630 340
-           S730 280 780 340
-           S880 400 930 340
-           S1030 280 1080 340" stroke="#F0690A" stroke-width="10" stroke-linecap="round" fill="none"
-                            filter="url(#glowOrange)" opacity="0.95" />
+                        <path class="logo-wave-cream" d="
+                            M180 340
+                            C230 290 280 290 330 340
+                            S430 390 480 340
+                            S580 290 630 340
+                            S730 390 780 340
+                            S880 290 930 340
+                            S1030 390 1080 340
+                            " filter="url(#logoGlowSoft)" />
+
+                        <path class="logo-wave-orange" d="
+                            M180 340
+                            C230 390 280 390 330 340
+                            S430 290 480 340
+                            S580 390 630 340
+                            S730 290 780 340
+                            S880 390 930 340
+                            S1030 290 1080 340
+                            " filter="url(#logoGlowSoft)" />
 
                         <!-- SIGNALS -->
-                        <text x="600" y="520" text-anchor="middle" font-family="var(--font-mono)" font-size="170"
-                            font-weight="900" letter-spacing="6" fill="#F0690A" filter="url(#glowOrange)">
+                        <text class="logo-signals" x="600" y="510" text-anchor="middle" filter="url(#logoGlowSoft)">
                             SIGNALS
                         </text>
 
                         <!-- TAGLINE -->
-                        <text x="600" y="610" text-anchor="middle" font-family="var(-font-ui)" font-size="42"
-                            letter-spacing="8" fill="#56644F">
+                        <text class="logo-tagline" x="600" y="600" text-anchor="middle">
                             TUNE · MATCH · LOCK IN
                         </text>
+
                     </svg>
-                    <span>&nbsp;</span>
-                </h3>
-                <br>
-                <p style="font-family: var(--font-mono); text-transform: uppercase;">
-                    Tune your waveform to mirror the target.
-                    7 levels &middot; harder parameters &middot; tighter clocks.
-                    Hints cost pts. Speed bonuses reward fast locks.
-                </p>
-                <br>
+
+                </div>
+
+                <ul class="start-copy-list">
+                    <li>Match your waveform to the target signal</li>
+                    <li>7 levels with increasingly unstable parameters</li>
+                    <li>Hints reduce score · fast locks earn bonuses</li>
+                </ul>
+
                 <!-- Shown only when save data exists — toggled by renderStartScreen() -->
                 <button class="crt-btn" id="btn-continue" style="display:none"
                     onclick="continueSave()">CONTINUE</button>
