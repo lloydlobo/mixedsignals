@@ -24,6 +24,7 @@
  * @property {boolean}    dc
  * @property {boolean}    harm
  * @property {boolean}    noise
+ * @property {boolean}    [grace] round 1 never triggers gameOver on timeout — advances instead
  *
  * @typedef {Object} SaveData
  * @property {number}   highestLevel  0-indexed
@@ -894,24 +895,44 @@ function applyLevelUI() {
 
 function startTimer() {
     clearInterval(timerInterval);
-    const total = timeLeft = LEVELS[level].time;
+    const lv = LEVELS[level];
+    // Grace period
+    // startTimer() now reads lv.grace && roundNo === 1. When true: the timer ring turns blue instead of orange (visual signal to the player that this round is safe), the urgent SFX never fires, and on timeout it calls nextRound() after a 1.2s pause with the message "Time's up. Now it counts." — not gameOver().
+    // Grace is on levels 3, 4, 5, 6, 7 — every level that introduces a new parameter. Level 2 doesn't get it because it only adds waveform shapes, which players already understand the control for.
+    // showLevelUpScreen() now dynamically generates its message from the level config — it lists the new params, whether there's a grace round, and whether there's a warmup. Players arrive knowing what's coming.
+    const grace = lv.grace && roundNo === 1; // grace round: timeout advance, never kills
+    const total = timeLeft = lv.time;
     const el = $("timer"), ring = $("timer-ring-fill"), C = 125.6; // C = 2π × r=20
 
-    ring.style.transition = "none"; ring.style.strokeDashoffset = "0"; ring.style.stroke = "#f0690a";
+    ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
+    ring.style.stroke = grace ? "var(--blue)" : "#f0690a"; // blue ring = safe round
     const enableExpensiveSynchronousLayoutOnMobile = false;
-    if (enableExpensiveSynchronousLayoutOnMobile) ring.getBoundingClientRect(); // force reflow
+    if (enableExpensiveSynchronousLayoutOnMobile) {
+        ring.getBoundingClientRect(); // force reflow
+    }
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
+
     el.textContent = timeLeft; el.className = "timer-ring-label";
+    if (grace) $("feedback").textContent = "Explore freely — no penalty this round.";
 
     timerInterval = setInterval(() => {
         timeLeft--;
         ring.style.strokeDashoffset = C * (1 - timeLeft / total);
-        const urgent = timeLeft <= 8;
+        const urgent = !grace && timeLeft <= 8;
         el.textContent = timeLeft;
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
-        ring.style.stroke = urgent ? "#e85a4a" : "#f0690a";
+        ring.style.stroke = grace ? "var(--blue)" : (urgent ? "#e85a4a" : "#f0690a");
         if (urgent) { const now = Date.now(); if (now - _lastUrgentSfx > 500) { SFX.urgent(); _lastUrgentSfx = now; } }
-        if (timeLeft <= 0 && !won) { clearInterval(timerInterval); gameOver(); }
+        if (timeLeft <= 0 && !won) {
+            clearInterval(timerInterval);
+            if (grace) { // Grace timeout: no gameOver.
+                $("feedback").textContent = "Time's up. Now it counts.";
+                const enableAdvanceToNextRound = false;
+                if (enableAdvanceToNextRound) setTimeout(() => nextRound(), 1200);
+            } else {
+                gameOver();
+            }
+        }
     }, 1000);
 }
 
@@ -943,7 +964,14 @@ function nextRound() {
 function showLevelUpScreen() {
     clearInterval(timerInterval);
     $("lu-title").textContent = `LEVEL ${level + 1}`;
-    $("lu-msg").textContent = "New parameters unlocked. Less time. Good luck.";
+    const lv = LEVELS[level];
+    const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
+    // TODO: BONUS: Use screen transition like that Sine worm game (bitcrusher, distortion)
+    // Wavy vignette wobbly screen reveal of param
+    const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
+    const graceStr = lv.grace ? " First round has no time penalty." : "";
+    // $("lu-msg").textContent = "New parameters unlocked. Less time. Good luck.";
+    $("lu-msg").textContent = [paramStr, graceStr, /* warmupStr */].filter(Boolean).join(" ") || "Good luck.";
     showScreen("levelup");
     SFX.levelUp();
 }
