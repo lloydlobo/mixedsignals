@@ -1169,17 +1169,17 @@ function initLogoScope() {
 
     function noise(x, t) {
         return (
-            Math.sin(x * NOISE_LOW_FREQ + t * NOISE_LOW_SPEED) * NOISE_LOW_AMP +
-            Math.sin(x * NOISE_HIGH_FREQ - t * NOISE_HIGH_SPEED) * NOISE_HIGH_AMP +
-            (Math.random() - 0.5) * RANDOM_NOISE_AMP
+            fastSin(x * NOISE_LOW_FREQ + t * NOISE_LOW_SPEED) * NOISE_LOW_AMP +
+            fastSin(x * NOISE_HIGH_FREQ - t * NOISE_HIGH_SPEED) * NOISE_HIGH_AMP +
+            (rand() - 0.5) * RANDOM_NOISE_AMP
         );
     }
 
     function signal(x, t) {
         return (
-            Math.sin(x * BASE_FREQ + t * BASE_SPEED) * BASE_AMP +
-            Math.sin(x * MOD_FREQ + t * MOD_SPEED) * MOD_AMP +
-            Math.sin(x * DETAIL_FREQ - t * DETAIL_SPEED) * DETAIL_AMP +
+            fastSin(x * BASE_FREQ + t * BASE_SPEED) * BASE_AMP +
+            fastSin(x * MOD_FREQ + t * MOD_SPEED) * MOD_AMP +
+            fastSin(x * DETAIL_FREQ - t * DETAIL_SPEED) * DETAIL_AMP +
             noise(x, t)
         );
     }
