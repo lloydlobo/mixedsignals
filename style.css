@@ -121,18 +121,20 @@ body {
 
 .logo-svg {
     display: block;
-
     width: min(100%, 520px);
-
     aspect-ratio: 1200 / 700;
-
     height: auto;
-
     margin-inline: auto;
-
     filter:
         contrast(0.96)
         saturate(0.92);
+}
+
+.logo-scope-foreign-object {
+    filter:
+        contrast(0.9)
+        saturate(0.92);
+
 }
 
 /* ============================================================
@@ -158,17 +160,20 @@ body {
 
 .logo-mixed,
 .logo-signals {
-    font-family: var(--font-mono);
-    font-weight: 700;
+    /* font-family: var(--font-mono); */
+    font-family: var(--font-ui);
+    font-weight: 900;
     letter-spacing: 2px;
+    letter-spacing: 10px;
+    /* letter-spacing: 0.02em; */
     text-transform: uppercase;
 }
 
 /* MIXED */
 .logo-mixed {
-    font-size: 150px;
+    font-size: 170px;
     fill: var(--cream);
-    opacity: 0.92;
+    opacity: 0.82;
 }
 
 /* SIGNALS */
@@ -182,12 +187,16 @@ body {
    WAVEFORMS
    ============================================================ */
 
+/* Removed in favor of animated logo canvas inside foreign object. (TEMP COMMIT) */
+/* <path class="logo-wave-cream"...> */
+/* <path class="logo-wave-orange"...> */
 .logo-wave-cream,
 .logo-wave-orange {
     fill: none;
     stroke-width: 7;
     stroke-linecap: round;
     opacity: 0.78;
+    display: none;
 }
 
 .logo-wave-cream { stroke: var(--cream); }
@@ -199,7 +208,7 @@ body {
 
 .logo-tagline {
     font-family: var(--font-ui);
-    font-size: 36px;
+    font-size: 42px;
     font-weight: 800;
     letter-spacing: 6px;
     fill: var(--text-mute);
@@ -211,7 +220,7 @@ body {
 
 @media (max-width: 640px) {
     .logo-svg { width: 100%; }
-    .logo-tagline { font-size: 42px; letter-spacing: 4px; }
+    /* .logo-tagline { font-size: 32px; letter-spacing: 6px; } */
 }
 
 .sr-only {

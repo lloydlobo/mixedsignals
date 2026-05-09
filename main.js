@@ -1082,6 +1082,154 @@ function skipRound() {
     SFX.fail(); nextRound();
 }
 
+// ─── LOGO OSCILLOSCOPE ───────────────────────────────────────────────────────
+
+const LOGO_SCOPE_SCREEN = "start"; // change this if the logo moves later
+let _logoScopeRAF = null;
+
+function initLogoScope() {
+    const canvas = document.getElementById("logo-scope");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+
+    const W = 900;
+    const H = 300;
+
+    canvas.width = W;
+    canvas.height = H;
+
+    // Prevent duplicate loops
+    if (_logoScopeRAF) {
+        cancelAnimationFrame(_logoScopeRAF);
+        _logoScopeRAF = null;
+    }
+
+    // Resolve palette
+    const styles = getComputedStyle(document.documentElement);
+
+    const COLORS = {
+        cream: styles.getPropertyValue('--cream').trim(),
+        coral: styles.getPropertyValue('--coral').trim(),
+    };
+
+    /* ---------------- SIGNAL CONSTANTS ---------------- */
+
+    const NOISE_LOW_FREQ = 0.02;
+    const NOISE_LOW_SPEED = 2.0;
+    const NOISE_LOW_AMP = 40;
+
+    const NOISE_HIGH_FREQ = 0.07;
+    const NOISE_HIGH_SPEED = 1.3;
+    const NOISE_HIGH_AMP = 20;
+
+    const RANDOM_NOISE_AMP = 10;
+
+    const BASE_FREQ = 0.015;
+    const BASE_SPEED = 2.2;
+    const BASE_AMP = 28;
+
+    const MOD_FREQ = 0.05;
+    const MOD_SPEED = 1.1;
+    const MOD_AMP = 25;
+
+    const DETAIL_FREQ = 0.11;
+    const DETAIL_SPEED = 0.7;
+    const DETAIL_AMP = 12;
+
+    /* ---------------- SIGNAL MODEL ---------------- */
+
+    function noise(x, t) {
+        return (
+            Math.sin(x * NOISE_LOW_FREQ + t * NOISE_LOW_SPEED) * NOISE_LOW_AMP +
+            Math.sin(x * NOISE_HIGH_FREQ - t * NOISE_HIGH_SPEED) * NOISE_HIGH_AMP +
+            (Math.random() - 0.5) * RANDOM_NOISE_AMP
+        );
+    }
+
+    function signal(x, t) {
+        return (
+            Math.sin(x * BASE_FREQ + t * BASE_SPEED) * BASE_AMP +
+            Math.sin(x * MOD_FREQ + t * MOD_SPEED) * MOD_AMP +
+            Math.sin(x * DETAIL_FREQ - t * DETAIL_SPEED) * DETAIL_AMP +
+            noise(x, t)
+        );
+    }
+
+    /* ---------------- RENDER LOOP ---------------- */
+
+    function draw(ts) {
+        if (currentScreen() !== LOGO_SCOPE_SCREEN) {
+            _logoScopeRAF = requestAnimationFrame(draw);
+            return;
+        }
+
+        // Stop if element vanished
+        if (!document.body.contains(canvas)) {
+            cancelAnimationFrame(_logoScopeRAF);
+            _logoScopeRAF = null;
+            return;
+        }
+
+        // Stop if start screen hidden
+        const startScreen = document.getElementById("screen-start");
+
+        if (!startScreen || startScreen.style.display === "none") {
+            _logoScopeRAF = requestAnimationFrame(draw);
+            return;
+        }
+
+        const t = ts * 0.001;
+
+        ctx.clearRect(0, 0, W, H);
+
+        const mid = H / 2;
+
+        // PRIMARY SIGNAL
+        ctx.strokeStyle = COLORS.cream;
+        ctx.shadowColor = COLORS.cream;
+        ctx.shadowBlur = 16;
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+
+        for (let x = 0; x < W; x++) {
+
+            const y = mid + signal(x, t);
+
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+
+        // INTERFERENCE SIGNAL
+        ctx.strokeStyle = COLORS.coral;
+        ctx.shadowColor = COLORS.coral;
+        ctx.shadowBlur = 20;
+
+        ctx.beginPath();
+
+        for (let x = 0; x < W; x++) {
+
+            const y = mid - signal(x, t * 1.05);
+
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+
+        _logoScopeRAF = requestAnimationFrame(draw);
+    }
+
+    _logoScopeRAF = requestAnimationFrame(draw);
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    initLogoScope();
+});
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
 initDOM();
