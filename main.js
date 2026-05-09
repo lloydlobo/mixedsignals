@@ -44,6 +44,7 @@ const CONFIG = {
     CLOSE_PERCENTAGE: 75,
 };
 
+// TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
     target: "rgba(200,190,170,0.35)",
     yours: "#f5efe0",
@@ -51,13 +52,19 @@ const WAVE_COLORS = {
 
 /** @readonly @type {Level[]} */
 const LEVELS = [
-    { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false },
+    // LV1 — freeplay warmup so players understand controls before the clock starts
+    { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false, freeplay: true },
     { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
-    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false },
-    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false },
-    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false },
-    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false },
-    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true },
+    // LV3 — grace: phase is new, give players one round to discover it
+    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false, grace: true },
+    // LV4 — grace: DC offset is new
+    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false, grace: true },
+    // LV5 — grace: PWM and AM are new
+    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false, grace: true },
+    // LV6 — grace + freeplay: harmonics need exploration time most of all
+    { rounds: 5, time: 42, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false, grace: true, freeplay: true },
+    // LV7 — noise as atmosphere (tolerance band), not a slider to match
+    { rounds: 5, time: 48, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true },
 ];
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
