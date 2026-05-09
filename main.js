@@ -25,6 +25,7 @@
  * @property {boolean}    harm
  * @property {boolean}    noise
  * @property {boolean}    [grace] round 1 never triggers gameOver on timeout — advances instead
+ * @property {boolean}    [freeplay] round 1 preceded by untimed free-play warmup
  *
  * @typedef {Object} SaveData
  * @property {number}   highestLevel  0-indexed
@@ -74,6 +75,8 @@ const LEVELS = [
 
 let score = 0, levelStartScore = 0, level = 0, roundNo = 0,
     timeLeft = 0, timerInterval = null, animRaf = null, won = false;
+
+let freePlayActive = false; // true during untimed free-play warmup round
 
 let tutorialStep = 0, tutorialActive = false;
 
@@ -126,6 +129,7 @@ function initDOM() {
         "bgm-audio", "mute-btn", "skip-tut",
         "btn-continue", "unlock-msg", "level-select-grid",
         "pb-target", "pb-yours", "pb-ab",
+        "btn-freeplay-ready",
     ].forEach(id => { const el = document.getElementById(id); if (el) DOM[id] = el; });
 }
 
@@ -786,6 +790,8 @@ function showScorePop(points) {
 let _lastPct = 0;
 
 function updateMeter() {
+    if (won || freePlayActive) return;
+
     const sc = matchScore();
 
     const pct = Math.round(sc * 100);
@@ -802,7 +808,6 @@ function updateMeter() {
     }
 
     const fb = $("feedback");
-    if (won) return;
 
     if (pct >= CONFIG.WIN_PERCENTAGE) {
         won = true; _wasCloseSfx = false;
@@ -948,6 +953,67 @@ function startTimer() {
 function startLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } animRaf = requestAnimationFrame(loop); }
 function stopLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
 
+// ─── FREE-PLAY WARMUP ────────────────────────────────────────────────────────
+// An untimed sandbox round before the first round of levels that have
+// freeplay:true. No target signal, no score, no timer. Just the player's
+// signal and the controls. A "READY →" button starts the real round.
+
+/**
+ * Starts the free-play warmup for the current level.
+ * Called from nextRound() when level.freeplay && roundNo === 1.
+ */
+function startFreePlay() {
+    freePlayActive = true;
+    clearInterval(timerInterval);
+
+    // Show a neutral target (flat sine) so the scope isn't empty,
+    // but make it invisible — the warmup is about YOUR signal, not matching.
+    // HACK: amp: 0 silent target is a code smell worth removing later.
+    targetSignal = { type: "sine", freq: 1, amp: 0, phase: 0, dc: 0, harm: 0, noise: 0 };
+    invalidateMatchScore();
+    applyLevelUI();
+    resetYours();
+
+    // Timer ring: hide it (full, dim, no color)
+    const ring = $("timer-ring-fill");
+    ring.style.transition = "none";
+    ring.style.strokeDashOffset = "0";
+    ring.style.stroke = "var(--surface)";
+    const timer = $("timer");
+    timer.textContent = "∞";
+    timer.className = "timer-ring-label";
+
+    // Feedback and ready button
+    const feedback = $("feedback");
+    feedback.textContent = "Free explore — try the controls. Hit READY when done.";
+    feedback.className = "feedback close";
+    $("btn-freeplay-ready").style.display = "inline-block";
+    $("meter-row").style.opacity = "0.2"; // meter meaningless during warmup
+
+    // Start yours playback so they can hear their own signal.
+    stopSignalPlayback();
+    _playbackActive = true;
+    _buildChannel(_chYours, yoursSignal);
+    setPlaybackMode("yours");
+}
+
+/** Called by the READY button — ends free-play and starts the real round 1. */
+function endFreePlay() {
+    freePlayActive = false;
+    $("btn-freeplay-ready").style.display = "none";
+    $("meter-row").style.opacity = "1";
+    stopSignalPlayback();
+
+    // Now kick off round 1 properly (nextRound already incremented roundNo to 1)
+    targetSignal = buildTarget(); invalidateMatchScore();
+    applyLevelUI(); resetYours();
+    const feedback = $("feedback");
+    feedback.textContent = "Match the target signal.";
+    feedback.className = "feedback";
+    startTimer();
+    startSignalPlayback();
+}
+
 // ─── ROUND / LEVEL FLOW ───────────────────────────────────────────────────────
 
 function nextRound() {
@@ -961,9 +1027,12 @@ function nextRound() {
         showLevelUpScreen(); return;
     }
     $("round-no").textContent = roundNo;
+
+    if (lv.freeplay && roundNo === 1) { startFreePlay(); return; }
+
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    $("feedback").textContent = "Match the target signal."; $("feedback").className = "feedback";
+    const feedback = $("feedback"); feedback.textContent = "Match the target signal."; feedback.className = "feedback";
     startTimer();
     startSignalPlayback();
 }
@@ -973,12 +1042,12 @@ function showLevelUpScreen() {
     $("lu-title").textContent = `LEVEL ${level + 1}`;
     const lv = LEVELS[level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
-    // TODO: BONUS: Use screen transition like that Sine worm game (bitcrusher, distortion)
+    // TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion)
     // Wavy vignette wobbly screen reveal of param
     const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
+    const warmupStr = lv.freeplay ? " Free warmup round to explore." : "";
     const graceStr = lv.grace ? " First round has no time penalty." : "";
-    // $("lu-msg").textContent = "New parameters unlocked. Less time. Good luck.";
-    $("lu-msg").textContent = [paramStr, graceStr, /* warmupStr */].filter(Boolean).join(" ") || "Good luck.";
+    $("lu-msg").textContent = [paramStr, graceStr, warmupStr].filter(Boolean).join(" ") || "Good luck.";
     showScreen("levelup");
     SFX.levelUp();
 }
@@ -1022,7 +1091,9 @@ function goToMenu() {
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
         $("skip-tut").style.display = "none";
     }
-    won = false;
+    won = false; freePlayActive = false;
+    const btnFreePlayReady = $("btn-freeplay-ready"); if (btnFreePlayReady) btnFreePlayReady.style.display = "none";
+    const meterRow = $("meter-row"); if (meterRow) meterRow.style.opacity = "1";
     renderStartScreen(); showScreen("start");
 }
 

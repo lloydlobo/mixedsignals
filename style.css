@@ -1177,3 +1177,28 @@ b {
     font-family: var(--font-mono);
     letter-spacing: .04em;
 }
+
+/* ── GRACE ROUND: blue timer ring is handled via JS inline style.
+      Only the urgent pulsing needs to be suppressed — grace rounds never urgent. */
+ 
+/* ── FREE-PLAY WARMUP ───────────────────────────────────────────────────────── */
+ 
+/* Meter fades out during free-play — it's meaningless without a target */
+/* (opacity set directly via JS on .meter-row) */
+ 
+/* READY button pulses gently to draw attention without being annoying */
+#btn-freeplay-ready {
+    animation: ready-pulse 2s ease-in-out infinite;
+}
+ 
+@keyframes ready-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}
+ 
+/* ── LEVEL-UP MESSAGE — longer text now, needs room to breathe */
+#lu-msg {
+    max-width: 280px;
+    line-height: 1.8;
+}
+ 
