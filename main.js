@@ -447,6 +447,56 @@ const PB = {
     TC: 0.02,  // s — AudioParam smoothing time constant
 };
 
+// ─── WAVEFORM LOUDNESS NORMALISATION ────────────────────────────────────────
+// Different waveform shapes have different RMS energy at the same peak amplitude.
+// Without compensation, switching from sine → square feels like a volume jump.
+//
+// Reference: sine RMS = peak × 0.7071
+// Each coefficient = sine_RMS / waveform_RMS, so all types output equal loudness.
+//
+//   sine:     RMS = 0.7071  → coeff = 1.000  (reference)
+//   square:   RMS = 1.0000  → coeff = 0.707  (loudest raw — needs most attenuation)
+//   sawtooth: RMS = 0.5774  → coeff = 1.225
+//   triangle: RMS = 0.5774  → coeff = 1.225
+//   pwm:      RMS ≈ 0.8062  → coeff = 0.877  (65% duty cycle)
+//   am:       RMS ≈ 0.5303  → coeff = 1.334  (carrier × (1 + 0.5 mod) / 2)
+//
+// Applied at ampGain so the compensation is transparent to the sig.amp control.
+// The limiter below catches any residual peaks from harmonics or AM modulation.
+
+/**
+ * The compensation table normalizes each waveform to sine's RMS so switching
+ * types stays at equal perceived loudness.
+ */
+const WAVEFORM_GAIN = Object.freeze({
+    sine: 1.000,
+    square: 0.707,
+    sawtooth: 1.225,
+    triangle: 1.225,
+    pwm: 0.877,
+    am: 1.334,
+});
+
+// Shared DynamicsCompressorNode — one instance, both channels feed into it.
+// Acts as a brickwall safety net: catches transients from type switches,
+// AM modulation peaks, and any gain overshoot during parameter changes.
+// Settings are transparent at normal levels — only engages on peaks.
+let _limiter = null;
+
+function getLimiter() {
+    if (_limiter) return _limiter;
+    const ac = actx();
+    const c = ac.createDynamicsCompressor();
+    c.threshold.value = -3; // dB - engages just below 0 dBFS
+    c.knee.value = 2; // dB - soft knee, barely audible
+    c.ratio.value = 20; // effectively a brickwall above threshold
+    c.attack.value = 0.001; // 1 ms - fast enough to catch transients
+    c.release.value = 0.1; // 100 ms - recover quickly after peak
+    c.connect(ac.destination);
+    _limiter = c;
+    return _limiter;
+}
+
 let freqToHz;
 
 const enableMusicalTuning = true;
@@ -509,7 +559,6 @@ if (enableMusicalTuning) {
                 INV_FREQ_RANGE) *
             AUDIO_EXP_FACTOR
         );
-        console.log({ freq, hz });
         return hz;
     }
     freqToHz = _freqToHz;
@@ -610,9 +659,16 @@ function _buildChannel(ch, sig) {
     }
 
     // ── amp + master ──────────────────────────────────────────────────────────
+    // ampGain: sig.amp control × per-waveform RMS normalisation coefficient.
+    // This keeps perceived loudness equal across all waveform types.
+    const normCoeff = WAVEFORM_GAIN[sig.type] ?? 1.0;
     const ampGain = ac.createGain();
-    ampGain.gain.value = sig.amp * 0.1;     // 1–10 → 0.1–1.0
+    // TODO: Commented out to show how this evolved. (Need to verify the final range after MUL with normCoeff)
+    // ampGain.gain.value = sig.amp * 0.1;     // 1–10 → 0.1–1.0
+    ampGain.gain.value = sig.amp * 0.1 * normCoeff;
 
+    // masterGain: mute/unmute this channel (mode switching).
+    // Feeds into the shared limiter, not directly to destination.
     const masterGain = ac.createGain();
     masterGain.gain.setValueAtTime(0, now);  // start silent — mode sets volume
 
@@ -620,6 +676,7 @@ function _buildChannel(ch, sig) {
     (isAM ? carGain : osc).connect(ampGain);
     ampGain.connect(masterGain);
     masterGain.connect(ac.destination);
+    masterGain.connect(getLimiter()); // ← limiter, not destination directly
 
     // ── start ─────────────────────────────────────────────────────────────────
     osc.start(now);
@@ -652,7 +709,10 @@ function _updateChannel(ch, sig) {
 
     let hz = freqToHz(sig.freq);
     ch.osc.frequency.setTargetAtTime(hz, now, tc);
-    ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1, now, tc);
+    const normCoeff = WAVEFORM_GAIN[sig.type] ?? 1.0;
+    // TODO: Commented out to show how this evolved. (Need to verify how normCoeff infuences it)
+    // ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1, now, tc);
+    ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1 * normCoeff, now, tc);
 
     if (ch.modOsc) {
         hz = freqToHz(sig.freq);
