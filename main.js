@@ -447,8 +447,96 @@ const PB = {
     TC: 0.02,  // s — AudioParam smoothing time constant
 };
 
-/** Gameplay freq 1–6 → audible Hz, exponential 3-octave spread. */
-function freqToHz(f) { return 110 * Math.pow(2, ((f - 1) / 5) * 3); }
+let freqToHz;
+
+const enableMusicalTuning = true;
+if (enableMusicalTuning) {
+    // ======================================================
+    // MUSICAL OCTAVE TUNING
+    // 1 → 8 spans exactly one octave
+    // A2 → A3
+    // ======================================================
+    // Step, Frequency (Hz), Note
+    // 1,    110.00 Hz,      Starting Pitch (A2)
+    // 2,    121.45 Hz,
+    // 3,    134.09 Hz,
+    // 4,    148.05 Hz,
+    // 5,    163.46 Hz,
+    // 6,    180.47 Hz,
+    // 7,    199.26 Hz,
+    // 8,    220.00 Hz,      Octave Peak (A3)
+    const AUDIO_MIN_HZ = 110;
+    const AUDIO_MAX_HZ = 220;
+
+    const FREQ_MIN = 1;
+    const FREQ_MAX = 8;
+
+    // ------------------------------------------------------
+    // Precomputed constants
+    // ------------------------------------------------------
+
+    const INV_FREQ_RANGE =
+        1 / (FREQ_MAX - FREQ_MIN);
+
+    const AUDIO_EXP_FACTOR =
+        Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
+
+    // ------------------------------------------------------
+    // Gameplay freq → musical Hz
+    // ------------------------------------------------------
+
+    // Equal logarithmic spacing
+    // Meaning each step multiplies by the same ratio.
+    // That ratio is:
+    //      (220/110) ^ (1/7) => 1.10409
+    // So every slider movement increases frequency by ~10.4%.
+    // 
+    // That’s why it feels smooth and consistent.
+    //
+    // Even though values are discrete.
+    //
+    // Because:
+    //
+    // - logarithmic spacing mimics physical/audio perception
+    // - each step feels proportional
+    // - no giant jumps
+    // - no dead tiny differences
+    //
+    // This is far better than linear Hz stepping
+    const _freqToHz = (freq) => {
+        const hz = AUDIO_MIN_HZ * Math.exp(
+            ((freq - FREQ_MIN) *
+                INV_FREQ_RANGE) *
+            AUDIO_EXP_FACTOR
+        );
+        console.log({ freq, hz });
+        return hz;
+    }
+    freqToHz = _freqToHz;
+} else {
+    const FREQ_MIN = 1;
+    const FREQ_MAX = 7;
+
+    const AUDIO_MIN_HZ = 110; // A2
+    const AUDIO_MAX_HZ = 220; // A3 (1 octave spread)
+
+    const INV_FREQ_RANGE = 1 / (FREQ_MAX - FREQ_MIN);
+    const AUDIO_EXP_FACTOR = Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
+
+    /**
+     * Gameplay freq → audio Hz, Logarithmic interpolation
+     * @param {*} freq   Gameplay freq
+     * @returns {number} Audible Hz
+     */
+    const _freqToHz = (freq) => {
+        return AUDIO_MIN_HZ * Math.exp(
+            ((freq - FREQ_MIN) *
+                INV_FREQ_RANGE) *
+            AUDIO_EXP_FACTOR
+        );
+    }
+    freqToHz = _freqToHz;
+}
 
 /**
  * @typedef {Object} Channel
@@ -562,11 +650,13 @@ function _updateChannel(ch, sig) {
     const now = ac.currentTime;
     const tc = PB.TC;
 
-    ch.osc.frequency.setTargetAtTime(freqToHz(sig.freq), now, tc);
+    let hz = freqToHz(sig.freq);
+    ch.osc.frequency.setTargetAtTime(hz, now, tc);
     ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1, now, tc);
 
     if (ch.modOsc) {
-        ch.modOsc.frequency.setTargetAtTime(freqToHz(sig.freq) * 0.25, now, tc);
+        hz = freqToHz(sig.freq);
+        ch.modOsc.frequency.setTargetAtTime(hz * 0.25, now, tc);
         ch.modGain.gain.setTargetAtTime(Math.max(0.1, sig.harm || 0.5) * 0.8, now, tc);
     }
 }
