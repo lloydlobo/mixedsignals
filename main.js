@@ -43,6 +43,9 @@ const CONFIG = {
     COST_SKIP: 130,
     WIN_PERCENTAGE: 95,
     CLOSE_PERCENTAGE: 75,
+    // Noise widens the win threshold: noisy targets are easier to "lock in".
+    // noise=0 → no change. noise=6 (max) → threshold drops by 10 points.
+    NOISE_TOLERANCE_PER_UNIT: 1.8, // points of threshold reduction per noise unit
 };
 
 // TODO: POLISH: If grace, use grace like colors
@@ -63,9 +66,9 @@ const LEVELS = [
     // LV5 — grace: PWM and AM are new
     { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false, grace: true },
     // LV6 — grace + freeplay: harmonics need exploration time most of all
-    { rounds: 5, time: 42, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false, grace: true, freeplay: true },
+    { rounds: 5, time: 36, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false, grace: true, freeplay: true },
     // LV7 — noise as atmosphere (tolerance band), not a slider to match
-    { rounds: 5, time: 48, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true },
+    { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true },
 ];
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
@@ -717,6 +720,31 @@ function matchScore() {
     return _cachedMatchScore;
 }
 
+// Noise as tolerance band
+//
+// winThreshold() replaces the hardcoded CONFIG.WIN_PERCENTAGE in updateMeter().
+// It computes: max(75, 95 - noise × 1.8). At max noise (6 units) the threshold
+// drops to ~84%. At zero noise it's exactly 95% as before.
+//
+// The noise slider is permanently hidden via applyLevelUI() — one comment line.
+// The ctrl-noise element stays in the HTML for future use. The target still has
+// noise (it affects visuals and audio texture), but players never need to match
+// it — they just need to get close enough despite it.
+//
+// The 1.8 pts per unit constant is in CONFIG.NOISE_TOLERANCE_PER_UNIT — tunable without touching logic.
+
+/**
+ * Win threshold for the current round, accounting for noise tolerance.
+ * Noisy targets are inherently harder to match precisely — noise widens the
+ * acceptable window so players aren't penalised for the signal's own jitter.
+ * noise=0 → 95% required. noise=6 (max) → ~84% required.
+ * @returns {number} percentage (0–100)
+ */
+function winThreshold() {
+    const noiseReduction = (targetSignal.noise ?? 0) * CONFIG.NOISE_TOLERANCE_PER_UNIT;
+    return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction);
+}
+
 // ─── CANVAS ───────────────────────────────────────────────────────────────────
 
 /** @type {HTMLCanvasElement} */ let _canvas;
@@ -808,8 +836,9 @@ function updateMeter() {
     }
 
     const fb = $("feedback");
+    const winPct = winThreshold();
 
-    if (pct >= CONFIG.WIN_PERCENTAGE) {
+    if (pct >= winPct) {
         won = true; _wasCloseSfx = false;
         if (tutorialActive) { checkTutorial(); return; }
         clearInterval(timerInterval);
@@ -898,7 +927,9 @@ function applyLevelUI() {
     $("ctrl-phase").style.opacity = lv.phase ? "1" : ".3";
     $("ctrl-dc").style.opacity = lv.dc ? "1" : ".3";
     $("ctrl-harm").style.display = lv.harm ? "" : "none";
-    $("ctrl-noise").style.display = lv.noise ? "" : "none";
+    // Noise is atmosphere (tolerance band), not a puzzle param — always hidden
+    //     $("ctrl-noise").style.display = lv.noise ? "" : "none";
+    $("ctrl-noise").style.display = "none";
     $("btn-pwm").disabled = !lv.types.includes("pwm");
     $("btn-am").disabled = !lv.types.includes("am");
 }
@@ -1018,6 +1049,14 @@ function endFreePlay() {
 
 function nextRound() {
     won = false; roundNo++;
+    if (level >= LEVELS.length) {
+        level = LEVELS.length - 1;
+        roundNo = 1;
+        startFreePlay();
+        const feedback = $("feedback"); 
+        feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`; feedback.className = "feedback close";
+        return;
+    }
     const lv = LEVELS[level];
     if (roundNo > lv.rounds) {
         recordLevelComplete(level, score - levelStartScore);
@@ -1032,7 +1071,8 @@ function nextRound() {
 
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    const feedback = $("feedback"); feedback.textContent = "Match the target signal."; feedback.className = "feedback";
+    const feedback = $("feedback"); 
+    feedback.textContent = "Match the target signal."; feedback.className = "feedback";
     startTimer();
     startSignalPlayback();
 }
@@ -1298,7 +1338,6 @@ function initLogoScope() {
         ctx.lineWidth = 2;
 
         ctx.beginPath();
-
         for (let x = 0; x < W; x++) {
 
             const y = mid + signal(x, t);
@@ -1306,7 +1345,6 @@ function initLogoScope() {
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
-
         ctx.stroke();
 
         // INTERFERENCE SIGNAL
@@ -1315,7 +1353,6 @@ function initLogoScope() {
         ctx.shadowBlur = 20;
 
         ctx.beginPath();
-
         for (let x = 0; x < W; x++) {
 
             const y = mid - signal(x, t * 1.05);
@@ -1323,7 +1360,6 @@ function initLogoScope() {
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
-
         ctx.stroke();
 
         _logoScopeRAF = requestAnimationFrame(draw);
@@ -1343,3 +1379,11 @@ initCanvas();
 initAudio();
 renderStartScreen();
 showScreen("start");
+
+
+// ─── TEST ────────────────────────────────────────────────────────────────────
+
+// At the bottom of main.js — lets test.js import pure functions
+if (typeof module !== "undefined") {
+    module.exports = { sample, matchScore, winThreshold, freqToHz, rng, LEVELS, CONFIG };
+}

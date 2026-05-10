@@ -257,7 +257,8 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1rem;
+    /* FIXED: #game handles the overall padding, else this makes it seem bloated */
+    /* padding: 2rem 1rem; */
     text-align: center;
     gap: 1.2rem;
     min-height: 320px;
@@ -1202,3 +1203,20 @@ b {
     line-height: 1.8;
 }
  
+/* ── NOISE ATMOSPHERE INDICATOR ─────────────────────────────────────────────
+   Small visual cue in the scope label area when target has noise.
+   JS adds .has-noise to .scope-wrap; CSS animates a subtle static texture. */
+ 
+.scope-wrap.has-noise::before,
+.scope-wrap.has-noise::after {
+    opacity: 0.5;
+    animation: scope-static 0.08s steps(1) infinite;
+}
+ 
+@keyframes scope-static {
+    0%   { transform: translateX(0); }
+    25%  { transform: translateX(1px); }
+    50%  { transform: translateX(-1px); }
+    75%  { transform: translateX(0.5px); }
+    100% { transform: translateX(0); }
+}
