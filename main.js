@@ -441,8 +441,8 @@ let _pbMode = "off";
 let _playbackActive = false;
 
 const PB = {
-    TARGET_VOL: 0.25,
-    YOURS_VOL: 0.28,
+    TARGET_VOL: 0.25 * 0.5, // default: 0.25
+    YOURS_VOL: 0.28 * 0.5, // default: 0.28
     FADE: 0.04,  // s — fade in/out to prevent clicks
     TC: 0.02,  // s — AudioParam smoothing time constant
 };
@@ -1053,7 +1053,7 @@ function nextRound() {
         level = LEVELS.length - 1;
         roundNo = 1;
         startFreePlay();
-        const feedback = $("feedback"); 
+        const feedback = $("feedback");
         feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`; feedback.className = "feedback close";
         return;
     }
@@ -1071,7 +1071,7 @@ function nextRound() {
 
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    const feedback = $("feedback"); 
+    const feedback = $("feedback");
     feedback.textContent = "Match the target signal."; feedback.className = "feedback";
     startTimer();
     startSignalPlayback();
