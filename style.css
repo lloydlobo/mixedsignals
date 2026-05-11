@@ -854,9 +854,9 @@ input[type=range]::-moz-range-thumb {
 /* ============================================================
    CREDITS
    ============================================================ */
-
+ 
 .credits-wrap { position: fixed; bottom: 8px; right: 5px; z-index: 1010; }
-
+ 
 .credits-title {
     font-family: var(--font-ui);
     font-family: var(--font-mono);
@@ -869,9 +869,9 @@ input[type=range]::-moz-range-thumb {
     border-radius: 20px;
     transition: all .15s;
 }
-
+ 
 .credits-title:hover { color: var(--cream); }
-
+ 
 .credits-popup {
     display: none;
     position: absolute;
@@ -891,8 +891,90 @@ input[type=range]::-moz-range-thumb {
     -webkit-user-select: text;
     box-shadow: 0 6px 20px rgba(0,0,0,0.5);
 }
-
+ 
 .credits-wrap:hover .credits-popup { display: block; }
+ 
+.credits-section {
+    margin-bottom: 10px;
+}
+ 
+.credits-section:last-child {
+    margin-bottom: 0;
+}
+ 
+.credits-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    opacity: 0.8;
+}
+ 
+.credits-names,
+.credits-tools {
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-dim);
+}
+ 
+.credits-note {
+    font-size: 8px;
+    color: var(--text-mute);
+    opacity: 0.6;
+    margin-top: 2px;
+    font-style: italic;
+}
+ 
+.credits-track {
+    font-size: 9px;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+ 
+.credits-track:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+ 
+.credits-track-title {
+    font-weight: 500;
+    color: var(--text-dim);
+    font-size: 10px;
+}
+ 
+.credits-track-artist {
+    color: var(--text-mute);
+    font-size: 9px;
+    margin-top: 1px;
+}
+ 
+.credits-track-license {
+    color: var(--text-mute);
+    font-size: 8px;
+    opacity: 0.6;
+    margin-top: 1px;
+}
+ 
+.credits-thanks {
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--text-dim);
+}
+ 
+.credits-thanks a {
+    color: var(--cream);
+    text-decoration: none;
+    transition: opacity .15s;
+}
+ 
+.credits-thanks a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+}
 
 /* ============================================================
    TUTORIAL GLOW
