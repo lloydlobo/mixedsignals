@@ -4,6 +4,48 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+### Features
+- Add interactive tutorial with step-by-step guidance and visual cues
+- Enhance scoring system with dynamic time-based bonuses
+- Enhance timer UI with animated ring and urgent state indication
+- Add animated logo oscilloscope and redesigned start screen with new SVG logo
+- Add freeplay warmup and grace periods for new levels
+- Implement noise tolerance in game mechanics with visual atmosphere cue
+- Implement musical octave tuning for frequency adjustments
+- Implement waveform loudness normalization and shared dynamics compressor
+- Add background music tracks with track selection and shuffle logic
+- Enhance color palette with predefined waveform colors and alternating wave colors per round
+- Add canvas resize observer for efficient dimension updates
+- Add localStorage helper functions for safer data handling
+- Enhance accessibility with aria labels on buttons and range inputs
+- Add frame-independent game loop with improved timing precision
+
+### Performance
+- Replace buffer-based signal sampling with direct procedural sampling for scoring and rendering
+- Cache DOM references and match score to reduce reflows
+- Throttle recompute() to 16ms to fix input overprocessing
+- Reduce SAMPLE_BUFFER_SIZE to 256 with tradeoff documentation
+
+### Fixes
+- Correct strokeStyle syntax in drawGrid function
+- Fix fastSin LUT interpolation for negative angles
+- Ensure animRaf is properly nullified after canceling animation frame
+- Optimize oscillator creation in fail sound effect
+- Update victory message and level counts (5→7) to reflect total levels
+- Prevent unstyled timer digits at round start
+- Remove loop attribute from background music audio element
+
+### Refactoring
+- Replace buffer-based signals with direct procedural sampling
+- Reorganize audio controls and update scope labels
+- Cache DOM/canvas/matchScore and remove dead code
+
+### Documentation
+- Update credits section with contributor corrections, additions, and special thanks
+- Restructure credits section for improved readability and organization
+- Update music attribution in README and index.html
+- Update tutorial messages to use dynamic win percentage
+
 ## [0.4.0] - 2026-05-04
 
 ### Performance
