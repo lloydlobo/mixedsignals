@@ -4,6 +4,8 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-11
+
 ### Features
 - Add interactive tutorial with step-by-step guidance and visual cues
 - Enhance scoring system with dynamic time-based bonuses
