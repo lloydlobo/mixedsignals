@@ -46,7 +46,7 @@ const CONFIG = {
     // Noise widens the win threshold: noisy targets are easier to "lock in".
     // noise=0 → no change. noise=6 (max) → threshold drops by 10 points.
     NOISE_TOLERANCE_PER_UNIT: 1.8, // points of threshold reduction per noise unit
-};
+}; // TODO: Tweak NOISE_TOLERANCE_PER_UNIT (last level seems too easy)
 
 // TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
@@ -892,7 +892,7 @@ function matchScore() {
  */
 function winThreshold() {
     const noiseReduction = (targetSignal.noise ?? 0) * CONFIG.NOISE_TOLERANCE_PER_UNIT;
-    return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction);
+    return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction); // TODO: Tweak the max (last level seems too easy)
 }
 
 // ─── CANVAS ───────────────────────────────────────────────────────────────────
@@ -913,8 +913,50 @@ function initCanvas() {
 
 // ─── RENDER LOOP ──────────────────────────────────────────────────────────────
 
+/**
+ * Maximum delta time (milliseconds).
+ * 
+ * Lower value = higher FPS floor. Determines smoothness and timing precision.
+ * - 10ms → ~100 FPS (high-refresh displays, competitive)
+ * - 15ms → ~67 FPS (✓ default: rhythm-game sweet spot)
+ * - 20ms → ~50 FPS (forgiving, still smooth)
+ * - 30ms → ~33 FPS (lower-end devices)
+ * 
+ * Ensures crisp scroll animation, tight timing precision, and handles frame stutters gracefully.
+ */
+const _DT_MAX = 15.0;
+
+const _FRAME_INDEPENDENT = true;
+
+// `elapsedTime` grows smoothly regardless of frame rate
+// When frames skip or stutter, dt compensates (clamped at dtMax)
+// Dividing by 4200 now gives consistent scroll speed across all frame rates
+let _elapsedTime = 0;
+
+/** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
+
+// Optional: Reset on tab blur (prevents huge jumps when tab regains focus)
+window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
+
+/**
+ * Loop is callback `FrameRequestCallback` for requestAnimationFrame
+ * @link [MDN Reference](https://developer.mozilla.org/docs/Web/API/DedicatedWorkerGlobalScope/requestAnimationFrame)
+ * @param {DOMHighResTimeStamp} ts
+ * @returns {void}
+ */
 function loop(ts) {
-    const scroll = (ts / 4200) % 1;
+    const dt = Math.min(ts - _lastTime, _DT_MAX);
+    _elapsedTime += dt;
+
+    /**
+     * Normalized scroll position [0, 1). Wraps every 4200ms.
+     * Example: _elapsedTime = 8400ms → 8400/4200 = 2.0 → 2.0 % 1 = 0.0 (loops)
+     * Used for horizontal wave scrolling position.
+     */
+    const scroll = _FRAME_INDEPENDENT ?
+        (_elapsedTime / 4200) % 1 // use accumulate time
+        : scroll = (ts / 4200) % 1;
+
     const W = _canvasW, H = 120;
     if (_canvas.width !== W || _canvas.height !== H) { _canvas.width = W; _canvas.height = H; }
     _ctx.clearRect(0, 0, W, H);
@@ -931,6 +973,8 @@ function loop(ts) {
     else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2);
 
     _ctx.globalAlpha = 1;
+
+    _lastTime = ts;
     animRaf = requestAnimationFrame(loop);
 }
 
@@ -1454,7 +1498,16 @@ function initLogoScope() {
 
     /* ---------------- RENDER LOOP ---------------- */
 
+    let _logoElapsedTime = 0;
+    let _logoLastTime = 0;
+    // Optional: Reset on tab blur (prevents huge jumps when tab regains focus)
+    window.addEventListener('blur', () => { _logoLastTime = 0; _logoElapsedTime = 0; });
+
     function draw(ts) {
+        const dt = Math.min(ts - _logoLastTime, _DT_MAX);
+        _logoElapsedTime += dt;
+
+
         if (currentScreen() !== LOGO_SCOPE_SCREEN) {
             _logoScopeRAF = requestAnimationFrame(draw);
             return;
@@ -1475,7 +1528,14 @@ function initLogoScope() {
             return;
         }
 
-        const t = ts * 0.001;
+        /**
+         * Time in seconds (unbounded). Grows continuously, no wrapping.
+         * Example: _logoElapsedTime = 8400ms → 8400 * 0.001 = 8.4 seconds
+         * Used for wave oscillations (sine/cosine frequency calculations).
+         */
+        const t = _FRAME_INDEPENDENT ?
+            (_logoElapsedTime * 0.001) // use accumulate time (frame-independent)
+            : (ts * 0.001);
 
         ctx.clearRect(0, 0, W, H);
 
@@ -1504,14 +1564,13 @@ function initLogoScope() {
 
         ctx.beginPath();
         for (let x = 0; x < W; x++) {
-
             const y = mid - signal(x, t * 1.05);
-
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         ctx.stroke();
 
+        _logoLastTime = ts;
         _logoScopeRAF = requestAnimationFrame(draw);
     }
 
