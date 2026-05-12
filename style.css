@@ -822,11 +822,10 @@ input[type=range]::-moz-range-thumb {
     text-align: center;
     min-height: 22px;
     font-size: clamp(11px, 3vw, 13px);
-    font-weight: 600;
-    /* font-family: var(--font-ui); */
+    font-weight: bolder;
     font-family: var(--font-mono);
     text-transform: uppercase;
-    color: var(--text-mute);
+    color: var(--text);
     margin: .4rem 0;
     letter-spacing: .02em;
     transition: color .2s;
@@ -985,6 +984,16 @@ input[type=range]::-moz-range-thumb {
     box-shadow: 0 0 16px rgba(232,162,58,0.4) !important;
     border-radius: var(--radius-tile);
     animation: tutorial-pulse 1.5s ease-in-out infinite;
+}
+
+.tutorial-glow-text {
+    color: var(--coral);
+    animation: tutorial-pulse-text 1.5s ease-in-out infinite;
+}
+ 
+@keyframes tutorial-pulse-text {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
 }
 
 @keyframes tutorial-pulse {
