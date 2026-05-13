@@ -597,18 +597,21 @@ if (enableMusicalTuning) {
 
 /**
  * @typedef {Object} Channel
- * @property {OscillatorNode|null} osc
- * @property {OscillatorNode|null} modOsc
- * @property {GainNode|null}       carGain   carrier amplitude node (AM only)
- * @property {GainNode|null}       modGain   modulator depth (AM only)
- * @property {GainNode|null}       ampGain
- * @property {GainNode|null}       masterGain
- * @property {string}              type      last-built waveform type
+ * @property {OscillatorNode|null}   osc
+ * @property {OscillatorNode|null}   modOsc
+ * @property {OscillatorNode|null}   vibratoLfo  subtle pitch wobble for warmth
+ * @property {GainNode|null}         vibratoGain
+ * @property {GainNode|null}         carGain     carrier amplitude node (AM only)
+ * @property {GainNode|null}         modGain     modulator depth (AM only)
+ * @property {GainNode|null}         ampGain
+ * @property {GainNode|null}         masterGain
+ * @property {BiquadFilterNode|null} filter      low-pass, rounds off harsh harmonics
+ * @property {string}                type        last-built waveform type
  */
 
 /** @returns {Channel} */
 function _emptyChannel() {
-    return { osc: null, modOsc: null, carGain: null, modGain: null, ampGain: null, masterGain: null, type: "" };
+    return { osc: null, modOsc: null, vibratoLfo: null, vibratoGain: null, carGain: null, modGain: null, ampGain: null, filter: null, masterGain: null, type: "" };
 }
 
 const _chTarget = _emptyChannel();
@@ -678,24 +681,46 @@ function _buildChannel(ch, sig) {
     // masterGain: mute/unmute this channel (mode switching).
     // Feeds into the shared limiter, not directly to destination.
     const masterGain = ac.createGain();
-    masterGain.gain.setValueAtTime(0, now);  // start silent — mode sets volume
+    // ── vibrato ───────────────────────────────────────────────────────────────
+    // Subtle LFO wobbles pitch ±2 Hz at 5 Hz — imperceptible as effect,
+    // but removes the "frozen" quality of a pure digital oscillator.
+    const vibratoLfo = ac.createOscillator();
+    vibratoLfo.type = "sine";
+    vibratoLfo.frequency.value = 5; // 5 Hz wobble rate
+    const vibratoGain = ac.createGain();
+    vibratoGain.gain.value = 2; // ±2 Hz depth
+    vibratoLfo.connect(vibratoGain);
+    vibratoGain.connect(osc.frequency); // modulates carrier pitch
+
+    // ── filter ────────────────────────────────────────────────────────────────
+    // Low-pass at 2400 Hz softens harsh upper harmonics on square/sawtooth.
+    // Sine passes through almost unchanged; triangle barely touched.
+    const filter = ac.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 2400;
+    filter.Q.value = 0.5; // gentle slope, no resonance
 
     // ── connect ───────────────────────────────────────────────────────────────
     (isAM ? carGain : osc).connect(ampGain);
-    ampGain.connect(masterGain);
+    ampGain.connect(filter);
+    filter.connect(masterGain);
     masterGain.connect(ac.destination);
     masterGain.connect(getLimiter()); // ← limiter, not destination directly
 
     // ── start ─────────────────────────────────────────────────────────────────
     osc.start(now);
     modOsc?.start(now);
+    vibratoLfo.start(now);
 
     // ── store ─────────────────────────────────────────────────────────────────
     ch.osc = osc;
     ch.modOsc = modOsc;
+    ch.vibratoLfo = vibratoLfo;
+    ch.vibratoGain = vibratoGain;
     ch.carGain = carGain;
     ch.modGain = modGain;
     ch.ampGain = ampGain;
+    ch.filter = filter;
     ch.masterGain = masterGain;
     ch.type = sig.type;
 }
@@ -711,6 +736,7 @@ function _updateChannel(ch, sig) {
         _buildChannel(ch, sig);
         return;
     }
+
     const ac = actx();
     const now = ac.currentTime;
     const tc = PB.TC;
@@ -718,9 +744,7 @@ function _updateChannel(ch, sig) {
     let hz = freqToHz(sig.freq);
     ch.osc.frequency.setTargetAtTime(hz, now, tc);
     const normCoeff = WAVEFORM_GAIN[sig.type] ?? 1.0;
-    // TODO: Commented out to show how this evolved. (Need to verify how normCoeff infuences it)
-    // ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1, now, tc);
-    ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1 * normCoeff, now, tc);
+    ch.ampGain.gain.setTargetAtTime(sig.amp * 0.1 * normCoeff, now, tc); // RMS-compensated
 
     if (ch.modOsc) {
         hz = freqToHz(sig.freq);
@@ -741,10 +765,12 @@ function _destroyChannel(ch) {
     ch.masterGain.gain.linearRampToValueAtTime(0, now + PB.FADE);
     const snap = { ...ch };
     setTimeout(() => {
-        try { snap.osc?.stop(); } catch { }
-        try { snap.modOsc?.stop(); } catch { }
-        [snap.carGain, snap.modGain, snap.ampGain, snap.masterGain]
-            .forEach(n => { try { n?.disconnect(); } catch { } });
+        try { snap.osc?.stop(); } catch (err) { console.warn(err); }
+        try { snap.modOsc?.stop(); } catch (err) { console.warn(err); }
+        [snap.carGain, snap.modGain, snap.ampGain, snap.filter, snap.masterGain, snap.vibratoGain]
+            .forEach(n => { try { n?.disconnect(); } catch (err) { console.warn(err); } });
+        try { snap.vibratoLfo?.stop(); } catch (err) { console.warn(err) };
+        try { snap.vibratoLfo?.disconnect(); } catch (err) { console.warn(err) };
     }, (PB.FADE + 0.05) * 1000);
     Object.assign(ch, _emptyChannel());
 }
