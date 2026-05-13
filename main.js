@@ -1092,6 +1092,7 @@ function updateMeter() {
 let _recomputeScheduled = false, _setTypeScheduled = false;
 
 function recompute() {
+    if (won) return; // NOTE: Freeze sliders on lock-in
     yoursSignal.freq = +$("sl-freq").value; yoursSignal.amp = +$("sl-amp").value;
     yoursSignal.phase = +$("sl-phase").value; yoursSignal.dc = +$("sl-dc").value;
     yoursSignal.harm = +$("sl-harm").value; yoursSignal.noise = +$("sl-noise").value;
@@ -1115,6 +1116,7 @@ function recompute() {
 }
 
 function setType(btn) {
+    if (won) return; // NOTE: Freeze waveform type buttons on lock-in
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active"); yoursSignal.type = btn.dataset.t; invalidateMatchScore();
     if (_setTypeScheduled) return;
