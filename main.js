@@ -1283,6 +1283,7 @@ function nextRound() {
 
 function showLevelUpScreen() {
     clearInterval(timerInterval);
+    stopSignalPlayback();
     $("lu-title").textContent = `LEVEL ${level + 1}`;
     const lv = LEVELS[level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
