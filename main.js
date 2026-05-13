@@ -420,6 +420,63 @@ const SFX = {
     },
 };
 
+// ─── STAMP SYSTEM ─────────────────────────────────────────────────────────────
+// Tactile rubber-stamp feedback. One stamp at a time, DOM-based, no canvas.
+// Inspired by Threes / WarioWare micro-feedback — restrained, not juice-spam.
+
+const STAMP_WORDS = {
+    hint: ["BLIP", "PING", "TRACE", "WARMER"],
+    hint_broke: ["NO SIGNAL", "FLAT BROKE", "INSUFFICIENT", "LOW FUNDS"], /* can't afford now */
+    skip: ["ZONK", "STATIC", "DRIFT", "NOPE"],
+    skip_broke: ["NOPE", "NO CREDIT", "HELD", "LOCKED OUT"], /* can't afford now */
+    fail: ["DESYNC", "FZZZT", "LOST LOCK", "OVERLOAD"],
+    success: ["LOCKED", "CLEAN", "DIALED", "SMOOTH"],
+};
+
+let _activeStamp = null;
+
+/**
+ * Spawns a transient rubber-stamp label in the game screen.
+ * @param {"hint"|"skip"|"fail"|"success"|"hint_broke"|"skip_broke"} type
+ */
+function spawnStamp(type) {
+    const layer = document.getElementById("stamp-layer");
+    if (!layer) return;
+
+    // Only one stamp at a time — remove previous immediately
+    if (_activeStamp) {
+        _activeStamp.remove();
+        _activeStamp = null;
+    }
+
+    const words = STAMP_WORDS[type];
+    if (!words) return;
+    const word = words[Math.floor(rand() * words.length)];
+
+    const el = document.createElement("div");
+    el.className = `stamp stamp-${type}`;
+    el.textContent = word;
+
+    // Random position within safe inner zone (avoid edges)
+    const px = 15 + rand() * 55; // 15–70% from left
+    const py = 15 + rand() * 55; // 15–70% from top
+    el.style.left = `${px}%`;
+    el.style.top = `${py}%`;
+
+    // Slight random rotation: −8° to +8°
+    const deg = (rand() * 16 - 8).toFixed(1);
+    el.style.setProperty("--stamp-rot", `rotate(${deg}deg)`);
+
+    layer.appendChild(el);
+    _activeStamp = el;
+
+    // Self-remove after animation completes
+    el.addEventListener("animationend", () => {
+        el.remove();
+        if (_activeStamp === el) _activeStamp = null;
+    }, { once: true });
+}
+
 // ─── SIGNAL PLAYBACK ─────────────────────────────────────────────────────────
 //
 // Simple Web Audio native-node graph. Zero JS sample loops.
@@ -1073,7 +1130,7 @@ function updateMeter() {
         const gain = CONFIG.BASE_REWARD + Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE);
         score += gain; $("score").textContent = score; showScorePop(gain);
         fb.textContent = `LOCKED IN +${gain} pts`; fb.className = "feedback win";
-        flash("var(--green)"); SFX.lock();
+        flash("var(--green)"); SFX.lock(); spawnStamp("success");
         if (navigator.vibrate) navigator.vibrate(100);
         setTimeout(() => nextRound(), 1800);
     } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
@@ -1345,7 +1402,7 @@ function victory() {
 }
 
 function gameOver() {
-    clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554");
+    clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554"); spawnStamp("fail");
     const h3 = $("screen-dead")?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
     $("dead-msg").textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
@@ -1444,7 +1501,7 @@ function endTutorial() {
 // ─── HINTS / SKIP ────────────────────────────────────────────────────────────
 
 function useHint() {
-    if (won || score < CONFIG.COST_HINT) return;
+    if (won || score < CONFIG.COST_HINT) { spawnStamp("hint_broke"); return; }
     score = Math.max(0, score - CONFIG.COST_HINT); $("score").textContent = score;
     const lv = LEVELS[level];
     const hints = [
@@ -1455,15 +1512,17 @@ function useHint() {
         ...(lv.dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
         ...(lv.harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
     ];
-    $("feedback").textContent = `hint: ${hints[rng(0, hints.length - 1)]}`;
-    $("feedback").className = "feedback close";
-    SFX.hint();
+    const feedback = $("feedback");
+    feedback.textContent = `hint: ${hints[rng(0, hints.length - 1)]}`;
+    feedback.className = "feedback close";
+    SFX.hint(); spawnStamp("hint");
 }
 
 function skipRound() {
-    if (score < CONFIG.COST_SKIP) return;
+    if (score < CONFIG.COST_SKIP) { spawnStamp("skip_broke"); return; }
     score = Math.max(0, score - CONFIG.COST_SKIP); $("score").textContent = score;
-    SFX.fail(); nextRound();
+    SFX.fail(); spawnStamp("skip");
+    setTimeout(() => nextRound(), 600); // « delay
 }
 
 // ─── LOGO OSCILLOSCOPE ───────────────────────────────────────────────────────
