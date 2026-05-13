@@ -134,7 +134,6 @@ body {
     filter:
         contrast(0.9)
         saturate(0.92);
-
 }
 
 /* ============================================================
@@ -1314,6 +1313,8 @@ b {
 
 /* ============================================================
    STAMP LAYER
+   Chunky physical tile stamps — Threes-inspired warm presence.
+   Feels like a toy stamped it onto the screen, not a UI label.
    ============================================================ */
  
 #stamp-layer {
@@ -1328,34 +1329,47 @@ b {
     position: absolute;
     font-family: var(--font-ui);
     font-weight: 900;
-    font-size: 1.05rem;
-    letter-spacing: 0.08em;
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    padding: 5px 11px 4px;
-    border-radius: 6px;
-    border: 2px dashed currentColor;
-    box-shadow: 2px 3px 0px rgba(0,0,0,0.35);
+    padding: 8px 16px 7px;
+    border-radius: 14px;
+    border: 3px solid currentColor;
+    box-shadow:
+        0 4px 0 rgba(0,0,0,0.5),
+        0 0 18px rgba(0,0,0,0.4);
     opacity: 0;
     user-select: none;
     white-space: nowrap;
     transform-origin: center center;
-    animation: stamp-in 700ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    animation: stamp-in 750ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
  
-/* Color variants */
-.stamp-hint    { color: var(--amber);  background: rgba(232,162,58,0.10); border-color: var(--amber); }
-.stamp-skip    { color: var(--coral);  background: rgba(232,96,74,0.10);  border-color: var(--coral); }
-.stamp-fail    { color: var(--red);    background: rgba(232,90,74,0.12);  border-color: var(--red); }
-.stamp-success { color: var(--cream);  background: rgba(245,239,224,0.10); border-color: var(--cream); }
-.stamp-hint_broke { color: var(--amber); background: rgba(232,162,58,0.06); border-color: var(--amber); opacity: 0.7; }
-.stamp-skip_broke { color: var(--coral); background: rgba(232,96,74,0.06);  border-color: var(--coral); opacity: 0.7; }
+/* Solid warm fills — physical tiles, not transparent labels */
+.stamp-hint    { color: #1c1915; background: var(--amber); border-color: #c47d1a; text-shadow: 0 1px 0 rgba(255,255,255,0.2); }
+.stamp-skip    { color: #1c1915; background: var(--coral); border-color: #b83d28; text-shadow: 0 1px 0 rgba(255,255,255,0.15); }
+.stamp-fail    { color: #f5efe0; background: #8b1a1a;      border-color: #5a0a0a; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.stamp-success { color: #1c1915; background: var(--cream); border-color: #b8a882; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+ 
+/* Broke variants — ghost of the real thing. Smaller, dashed, faded.
+   Like the machine ran out of ink. */
+.stamp-hint_broke {
+    color: var(--amber); background: rgba(232,162,58,0.12); border-color: var(--amber);
+    border-style: dashed; font-size: 0.85rem; padding: 5px 12px 4px;
+    border-radius: 10px; opacity: 0.75; box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+}
+.stamp-skip_broke {
+    color: var(--coral); background: rgba(232,96,74,0.12); border-color: var(--coral);
+    border-style: dashed; font-size: 0.85rem; padding: 5px 12px 4px;
+    border-radius: 10px; opacity: 0.75; box-shadow: 0 2px 0 rgba(0,0,0,0.3);
+}
  
 @keyframes stamp-in {
-    0%   { opacity: 0;    transform: var(--stamp-rot) scale(1.7); }
-    18%  { opacity: 1;    transform: var(--stamp-rot) scale(0.92); }
-    30%  { opacity: 1;    transform: var(--stamp-rot) scale(1.04); }
-    42%  { opacity: 1;    transform: var(--stamp-rot) scale(0.97); }
-    55%  { opacity: 1;    transform: var(--stamp-rot) scale(1.0); }
-    75%  { opacity: 0.85; transform: var(--stamp-rot) scale(1.0); }
-    100% { opacity: 0;    transform: var(--stamp-rot) scale(1.0); }
+    0%   { opacity: 0;    transform: var(--stamp-rot) scale(1.8) translateY(-6px); }
+    16%  { opacity: 1;    transform: var(--stamp-rot) scale(0.88) translateY(2px); }
+    30%  { opacity: 1;    transform: var(--stamp-rot) scale(1.06) translateY(0px); }
+    44%  { opacity: 1;    transform: var(--stamp-rot) scale(0.97) translateY(0px); }
+    58%  { opacity: 1;    transform: var(--stamp-rot) scale(1.0)  translateY(0px); }
+    76%  { opacity: 1;    transform: var(--stamp-rot) scale(1.0)  translateY(0px); }
+    100% { opacity: 0;    transform: var(--stamp-rot) scale(0.95) translateY(4px); }
 }
