@@ -328,15 +328,158 @@ document.addEventListener("click", () => { if (!muted) startMusic(); }, { once: 
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
 
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
+/**
+ * A singleton factory for the AudioContext.
+ * 
+ * Manages a persistent AudioContext instance, ensuring it is lazily initialized
+ * and resumed if it was suspended by the browser's autoplay policy.
+ * 
+ * Fallback for cross-browser AudioContext support.
+ * 
+ * @returns {AudioContext} The active AudioContext instance.
+ */
+// const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const AudioCtx = (() => {
+    try {
+        const audioCtx = (window.AudioContext || window.webkitAudioContext);
+        // ... rest of audio setup
+        return audioCtx;
+    } catch (err) {
+        console.warn(`Audio context unavailable (private browsing?):`, err);
+        $("bgm-toggle").disabled = true; /* Graceful degradation: disable audio features */
+        return null;
+    }
+})()
+
+/**
+ * Internal singleton instance of the AudioContext.
+ * @type {AudioContext|null}
+ * @private
+ */
 let _actx = null;
+
+/**
+ * Returns a global AudioContext instance, initializing it if necessary.
+ * 
+ * This function implements the Singleton pattern to ensure only one context 
+ * is created. It also attempts to resume the context if it is in a 'suspended' 
+ * state, which is a common requirement for bypassing browser autoplay restrictions.
+ * 
+ * @returns {AudioContext} The initialized and active AudioContext.
+ */
 function actx() {
-    if (!_actx) _actx = new AudioCtx();
-    if (_actx.state === "suspended") _actx.resume();
+    if (!_actx) _actx = new AudioCtx(); // Lazy initialization
+    if (_actx.state === "suspended") _actx.resume(); // Check for suspended state (common in Chrome/Safari until a user gesture occurs)
     return _actx;
 }
 
 let _lastSliderSfx = 0, _lastUrgentSfx = 0, _wasCloseSfx = false;
+
+// ── SFX helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Play a warm triangle note with a soft attack and a detuned twin for thickness.
+ * The twin oscillator slightly above the fundamental gives a gentle chorus warmth.
+ * @param {AudioContext} ac
+ * @param {number} freq      Fundamental frequency in Hz
+ * @param {number} startTime AudioContext time to begin
+ * @param {number} gain      Peak gain (before envelope)
+ * @param {number} duration  Total note duration in seconds
+ * @param {number} [detune=4] Detune amount for the twin oscillator in Hz
+ */
+
+function _warmNote(ac, freq, startTime, gain, duration, detune = 4) {
+    const t = startTime;
+    // const attack = 0.012;
+    const attack = 0.008; // 8ms soft attack — removes the click of instant-on oscillators
+
+    const filterOpen = 1800;   // Hz — where the filter "opens" to
+    const filterClosed = 400;  // Hz — dark starting point
+
+    function moogOsc(f, peakGain) {
+        const osc = ac.createOscillator();
+        const filter = ac.createBiquadFilter();
+        const env = ac.createGain();
+
+        osc.type = "sawtooth";
+        osc.frequency.value = f;
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(filterClosed, t);
+        filter.frequency.linearRampToValueAtTime(filterOpen, t + attack * 3);
+        filter.frequency.exponentialRampToValueAtTime(filterClosed + 200, t + duration * 0.7);
+        filter.Q.value = 10;
+
+        env.gain.setValueAtTime(0, t);
+        env.gain.linearRampToValueAtTime(peakGain, t + attack);
+        env.gain.exponentialRampToValueAtTime(0.001, t + duration);
+
+        osc.connect(filter);
+        filter.connect(env);
+        env.connect(ac.destination);
+        osc.start(t);
+        osc.stop(t + duration + 0.02);
+    }
+
+    moogOsc(freq, gain);
+    moogOsc(freq + detune, gain * 0.5);   // detuned second osc, slightly quieter
+}
+
+// ── Lock variations ───────────────────────────────────────────────────────────
+// Five distinct melodic personalities, all warm triangle + detuned twin.
+// Picked randomly on each win so 35 locks/playthrough don't feel repetitive.
+
+// [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]]
+const _LOCK_VARIANTS = [
+
+    // A: "happy bounce" — ascending C chord, quick and cheerful
+    (ac) => {
+        [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.13, 0.22 + rng(0, 3)));
+    },
+
+    // B: "smug little nod" — 3 notes, last one wobbles like it's pleased with itself
+    (ac) => {
+        [[440, 0], [554, 0.08], [659, 0.16]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.12, 0.26));
+        // wobble on the last note
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "triangle"; o.frequency.value = 659;
+        o.frequency.linearRampToValueAtTime(698, ac.currentTime + 0.28);
+        o.frequency.linearRampToValueAtTime(659, ac.currentTime + 0.36);
+        g.gain.setValueAtTime(0, ac.currentTime + 0.16);
+        g.gain.linearRampToValueAtTime(0.05, ac.currentTime + 0.18);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.40);
+        o.connect(g); g.connect(ac.destination);
+        o.start(ac.currentTime + 0.16); o.stop(ac.currentTime + 0.42);
+    },
+
+    // C: "lil fanfare" — 5 notes, bounces back to middle, feels playful
+    (ac) => {
+        [[392, 0], [523, 0.07], [659, 0.14], [523, 0.20], [784, 0.28]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.11, 0.20));
+    },
+
+    // D: "soft bloop" — just 2 notes, understated, like a quiet thumbs up
+    (ac) => {
+        [[440, 0], [659, 0.10]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.14, 0.28, 6));
+    },
+
+    // E: "wobbly high five" — 3 notes climbing, last one slides up a bit, triumphant but goofy
+    (ac) => {
+        [[523, 0], [784, 0.09], [1047, 0.18]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.10, 0.20));
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "triangle"; o.frequency.value = 1047;
+        o.frequency.linearRampToValueAtTime(1175, ac.currentTime + 0.32);
+        g.gain.setValueAtTime(0, ac.currentTime + 0.18);
+        g.gain.linearRampToValueAtTime(0.08, ac.currentTime + 0.20);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.38);
+        o.connect(g); g.connect(ac.destination);
+        o.start(ac.currentTime + 0.18); o.stop(ac.currentTime + 0.40);
+    },
+];
 
 const SFX = {
     tick: (pitch = 880) => {
@@ -347,6 +490,7 @@ const SFX = {
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
         o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.06);
     },
+
     slider: () => {
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
@@ -355,52 +499,77 @@ const SFX = {
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
         o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.05);
     },
+
+    // Randomly picks one of five warm melodic variations so wins don't sound identical
     lock: () => {
         if (muted) return;
         const ac = actx();
-        [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) => {
-            const o = ac.createOscillator(), g = ac.createGain();
-            o.type = "triangle"; o.frequency.value = f;
-            g.gain.setValueAtTime(0, ac.currentTime + t);
-            g.gain.linearRampToValueAtTime(0.15, ac.currentTime + t + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
-            o.connect(g); g.connect(ac.destination);
-            o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.2);
-        });
+        _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](ac);
     },
+
+    // Warm descending triangle cascade — losing but not brutal
     fail: () => {
         if (muted) return;
         const ac = actx();
-        [[200, 0], [160, 0.1], [120, 0.22]].forEach(([f, t]) => {
-            const o = ac.createOscillator(), g = ac.createGain();
-            o.type = "sawtooth"; o.frequency.value = f;
-            g.gain.setValueAtTime(0.12, ac.currentTime + t);
-            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + t + 0.18);
-            o.connect(g); g.connect(ac.destination);
-            o.start(ac.currentTime + t); o.stop(ac.currentTime + t + 0.2);
-        });
+        [[220, 0], [175, 0.11], [130, 0.24]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3));
     },
+
+    // Tired shrug — single triangle note gliding down, short and dismissive. "bwop"
+    skip: () => {
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "triangle"; o.frequency.value = 330;
+        o.frequency.linearRampToValueAtTime(200, ac.currentTime + 0.12);
+        g.gain.setValueAtTime(0, ac.currentTime);
+        g.gain.linearRampToValueAtTime(0.12, ac.currentTime + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.20);
+    },
+
+    // Broke-skip: sawtooth like fail but shorter, quieter, single note — a dull thud, not a cascade.
+    // "You tried to skip but the machine shrugged."
+    skipBroke: () => {
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sawtooth"; o.frequency.value = 180;
+        g.gain.setValueAtTime(0.08, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.14);
+    },
+
+    // Sine sweep up — helpful, bright, curious
     hint: () => {
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 660;
         o.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.12);
-        g.gain.setValueAtTime(0.1, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.2);
+        g.gain.setValueAtTime(0, ac.currentTime);
+        g.gain.linearRampToValueAtTime(0.10, ac.currentTime + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.20);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.22);
     },
+
+    // Deflated balloon — sine goes up then immediately flops down. Cute, not mean. "bwip"
+    hintBroke: () => {
+        if (muted) return;
+        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = 660;
+        o.frequency.linearRampToValueAtTime(720, ac.currentTime + 0.04);
+        o.frequency.linearRampToValueAtTime(380, ac.currentTime + 0.12);
+        g.gain.setValueAtTime(0, ac.currentTime);
+        g.gain.linearRampToValueAtTime(0.08, ac.currentTime + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.16);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.18);
+    },
+
     levelUp: () => {
         if (muted) return;
         const ac = actx();
-        [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) => {
-            const o = ac.createOscillator(), g = ac.createGain();
-            o.type = "triangle"; o.frequency.value = f;
-            g.gain.setValueAtTime(0.13, ac.currentTime + t);
-            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
-            o.connect(g); g.connect(ac.destination);
-            o.start(ac.currentTime + t); o.stop(ac.currentTime + 0.28);
-        });
+        [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) =>
+            _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
     },
+
     urgent: () => {
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
@@ -409,14 +578,16 @@ const SFX = {
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
         o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.09);
     },
+
     close: () => {
         if (muted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 330;
         o.frequency.linearRampToValueAtTime(440, ac.currentTime + 0.15);
-        g.gain.setValueAtTime(0.05, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.2);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.05);
+        g.gain.setValueAtTime(0, ac.currentTime);
+        g.gain.linearRampToValueAtTime(0.05, ac.currentTime + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.22);
+        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.24);
     },
 };
 
@@ -731,21 +902,43 @@ function _buildChannel(ch, sig) {
     // This keeps perceived loudness equal across all waveform types.
     const normCoeff = WAVEFORM_GAIN[sig.type] ?? 1.0;
     const ampGain = ac.createGain();
-    // TODO: Commented out to show how this evolved. (Need to verify the final range after MUL with normCoeff)
-    // ampGain.gain.value = sig.amp * 0.1;     // 1–10 → 0.1–1.0
     ampGain.gain.value = sig.amp * 0.1 * normCoeff;
+    //                              ↑    ↑
+    //                         scale   compensation
+    //                                 (from WAVEFORM_GAIN)
+
+    // Examples:
+    // sine:   0.5 * 0.1 * 1.000 = 0.05
+    // square: 0.5 * 0.1 * 0.707 = 0.03535 ← Quieter, balances the raw square loudness
+    // am:     0.5 * 0.1 * 1.334 = 0.0667  ← Louder, balances the quiet AM
 
     // masterGain: mute/unmute this channel (mode switching).
     // Feeds into the shared limiter, not directly to destination.
     const masterGain = ac.createGain();
+    masterGain.gain.setValueAtTime(0, now); // start silent — mode sets volume
+
+    // Tuning knobs once you hear it:
+    //
+    // |Want                      | Change                             |
+    // |--------------------------|------------------------------------|
+    // |Warmer / more muffled     | filter.frequency.value → 1200–1800 |
+    // |Brighter but still smooth | → 3000–4000                        |
+    // |More wobble/alive         | vibratoGain.gain.value → 4–6       |
+    // |Less wobble               | → 0.5–1                            |
+    // |Thicker/chorus-y          | vibratoLfo.frequency.value → 3–4   |
+    //
+    // Start with these defaults and tune by ear. The filter alone will make the
+    // biggest difference — square and sawtooth will go from buzzy → rounded
+    // immediately.
+
     // ── vibrato ───────────────────────────────────────────────────────────────
     // Subtle LFO wobbles pitch ±2 Hz at 5 Hz — imperceptible as effect,
     // but removes the "frozen" quality of a pure digital oscillator.
     const vibratoLfo = ac.createOscillator();
-    vibratoLfo.type = "sine";
-    vibratoLfo.frequency.value = 5; // 5 Hz wobble rate
+    vibratoLfo.type = "square";
+    vibratoLfo.frequency.value = 2; // 3 Hz wobble rate
     const vibratoGain = ac.createGain();
-    vibratoGain.gain.value = 2; // ±2 Hz depth
+    vibratoGain.gain.value = 0.5; // ±2 Hz depth
     vibratoLfo.connect(vibratoGain);
     vibratoGain.connect(osc.frequency); // modulates carrier pitch
 
@@ -754,7 +947,7 @@ function _buildChannel(ch, sig) {
     // Sine passes through almost unchanged; triangle barely touched.
     const filter = ac.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 2400;
+    filter.frequency.value = 1800;
     filter.Q.value = 0.5; // gentle slope, no resonance
 
     // ── connect ───────────────────────────────────────────────────────────────
@@ -1501,7 +1694,7 @@ function endTutorial() {
 // ─── HINTS / SKIP ────────────────────────────────────────────────────────────
 
 function useHint() {
-    if (won || score < CONFIG.COST_HINT) { spawnStamp("hint_broke"); return; }
+    if (won || score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
     score = Math.max(0, score - CONFIG.COST_HINT); $("score").textContent = score;
     const lv = LEVELS[level];
     const hints = [
@@ -1519,10 +1712,9 @@ function useHint() {
 }
 
 function skipRound() {
-    if (score < CONFIG.COST_SKIP) { spawnStamp("skip_broke"); return; }
+    if (score < CONFIG.COST_SKIP) { SFX.skipBroke(); spawnStamp("skip_broke"); return; }
     score = Math.max(0, score - CONFIG.COST_SKIP); $("score").textContent = score;
-    SFX.fail(); spawnStamp("skip");
-    setTimeout(() => nextRound(), 600); // « delay
+    SFX.skip(); spawnStamp("skip"); setTimeout(() => nextRound(), 600); /* delay */
 }
 
 // ─── LOGO OSCILLOSCOPE ───────────────────────────────────────────────────────
