@@ -223,15 +223,27 @@ body {
 
 @media (max-width: 640px) {
     .logo-svg { width: 100%; }
-    /* .logo-tagline { font-size: 32px; letter-spacing: 6px; } */
+
+    body {
+        align-items: flex-start;
+        background: var(--bg2);
+    }
 
     #game {
+        width: 100%;
+        max-width: none;
+        min-height: 100svh;
+        min-height: 100dvh;
+        border-radius: 0;
+        padding: 16px 12px;
         transform: none;
         will-change: auto;
-        box-shadow: 0 4px 0 #0d0b08;
+        box-shadow: none;
+        overflow-x: hidden;
     }
 
     .action-row {
+        margin-top: 16px;
         transform: none;
         will-change: auto;
     }
