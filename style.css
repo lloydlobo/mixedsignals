@@ -1000,6 +1000,17 @@ input[type=range]::-moz-range-thumb {
     50%      { box-shadow: 0 0 28px rgba(232,162,58,0.7); }
 }
 
+.tutorial-done {
+    opacity: 0.45;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.tutorial-done input,
+.tutorial-done button {
+    opacity: 0.5;
+}
+
 /* TE adjustment */
 
 /* Switch one element to precision mono */

@@ -96,7 +96,7 @@ const TUTORIAL_TASKS = [
     { text: "TUTORIAL: Select TRI waveform", check: () => yoursSignal.type === "triangle" },
     { text: "TUTORIAL: Set frequency to 5 Hz", check: () => yoursSignal.freq === 5 },
     { text: "TUTORIAL: Set amplitude around 0.80", check: () => Math.abs(yoursSignal.amp - 8) < 0.5 },
-    { text: "TUTORIAL: Set phase around 360°", check: () => Math.abs(yoursSignal.phase - 360) <= 15 },
+    { text: "TUTORIAL: Set phase around 360°", check: () => Math.abs(yoursSignal.phase - 360) <= 2 },
     { text: "TUTORIAL: Set dc offset around 0.3", check: () => Math.abs(yoursSignal.dc - 3) <= 0.5 },
     { text: `TUTORIAL: Now match the target (${CONFIG.WIN_PERCENTAGE}%+)`, check: () => matchScore() >= CONFIG.WIN_PERCENTAGE * 0.01 },
 ];
@@ -1636,7 +1636,7 @@ function restartGame() { score = 0; levelStartScore = 0; level = 0; startGame();
 function startTutorial() {
     tutorialActive = true; tutorialStep = 0; score = 0;
     showScreen("game"); startLoop();
-    targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 3, harm: 0, noise: 0 };
+    targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
     invalidateMatchScore();
     roundNo = 1; $("round-no").textContent = 1; $("round-total").textContent = 1;
     $("ctrl-phase").style.opacity = "1"; $("ctrl-dc").style.opacity = "1";
@@ -1656,9 +1656,30 @@ function showTutorialTask() {
     highlightControl();
 }
 
+function lockControl(stepIndex) {
+    const id = TUTORIAL_CONTROLS[stepIndex];
+    if (!id) return;
+    const el = $(id);
+    if (!el) return;
+    el.classList.add("tutorial-done");
+    el.querySelectorAll("input, button").forEach(i => i.disabled = true);
+}
+
+function unlockAllTutorialControls() {
+    document.querySelectorAll(".tutorial-done, .tutorial-glow").forEach(el => {
+        el.classList.remove("tutorial-done", "tutorial-glow");
+        el.querySelectorAll("input, button").forEach(i => i.disabled = false);
+    });
+}
+
 function checkTutorial() {
     if (!tutorialActive || tutorialStep >= TUTORIAL_TASKS.length) return;
-    if (TUTORIAL_TASKS[tutorialStep].check()) { tutorialStep++; showTutorialTask(); }
+    if (TUTORIAL_TASKS[tutorialStep].check()) {
+        lockControl(tutorialStep);
+        tutorialStep++;
+        showTutorialTask();
+        checkTutorial();
+    }
 }
 
 function highlightControl() {
@@ -1666,13 +1687,13 @@ function highlightControl() {
     const id = TUTORIAL_CONTROLS[tutorialStep];
     if (id) {
         $(id)?.classList.add("tutorial-glow");
-        feedback.classList.add("tutorial-glow-text");
+        $("feedback")?.classList.add("tutorial-glow-text");
     }
 }
 
 function skipTutorial() {
     tutorialActive = false; lsSet("tutorialSeen", "true");
-    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    unlockAllTutorialControls();
     $("skip-tut").style.display = "none";
     stopSignalPlayback();
     const feedback = $("feedback");
@@ -1682,7 +1703,7 @@ function skipTutorial() {
 
 function endTutorial() {
     tutorialActive = false; lsSet("tutorialSeen", "true");
-    document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+    unlockAllTutorialControls();
     stopSignalPlayback();
     flash("var(--green)"); SFX.lock();
     const feedback = $("feedback");
