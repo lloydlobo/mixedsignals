@@ -1268,7 +1268,7 @@ function loop(ts) {
      */
     const scroll = _FRAME_INDEPENDENT ?
         (_elapsedTime / 4200) % 1 // use accumulate time
-        : scroll = (ts / 4200) % 1;
+        : (ts / 4200) % 1;
 
     const W = _canvasW, H = 120;
     if (_canvas.width !== W || _canvas.height !== H) { _canvas.width = W; _canvas.height = H; }
