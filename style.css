@@ -812,8 +812,7 @@ input[type=range]::-moz-range-thumb {
     margin-top: 28px;
     display: flex;
     justify-content: center;
-    /* gap: 32px; */
-    gap: 24px;
+    gap: 2ch;
     /* transform: rotate(-2deg); */
 
     /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
