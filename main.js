@@ -260,6 +260,16 @@ const rand = (() => {
     return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
 })();
 
+function makeRand(seed = 1831565813) {
+    let s = seed >>> 0;
+    return () => {
+        s ^= s << 13;
+        s ^= s >>> 17;
+        s ^= s << 5;
+        return (s >>> 0) / 4294967296;
+    };
+}
+
 function rng(lo, hi) {
     if (lo > hi) { const t = lo; lo = hi; hi = t; }
     return lo + (rand() * (hi - lo + 1)) | 0;
@@ -1224,6 +1234,23 @@ let _elapsedTime = 0;
 // Optional: Reset on tab blur (prevents huge jumps when tab regains focus)
 window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
 
+/*
+ * Current Rendering Bottlenecks
+ *
+ * Area                         Technique                               Pain Point
+ * ---------------------------------------------------------------------------------------------
+ * Logo scope (900×300)         shadowBlur: 16–20 on every frame       Notorious perf hog —
+ *                                                                     triggers software fallback
+ *                                                                     on many browsers
+ *
+ * Main wave canvas (320×120)   lineTo per pixel,                      Trivial — no bottleneck
+ *                              globalAlpha compositing
+ *
+ * Convergence animation        globalAlpha fade + overlay             Fine — no bottleneck
+ *
+ * Noise/static effect          CSS steps(1) animation                 Fine
+ */
+
 /**
  * Loop is callback `FrameRequestCallback` for requestAnimationFrame
  * @link [MDN Reference](https://developer.mozilla.org/docs/Web/API/DedicatedWorkerGlobalScope/requestAnimationFrame)
@@ -1803,6 +1830,8 @@ function initLogoScope() {
         coral: styles.getPropertyValue('--coral').trim(),
     };
 
+    const logoRand = makeRand(1831565813 ^ 0xC0FFEE);
+
     /* ---------------- SIGNAL CONSTANTS ---------------- */
 
     const NOISE_LOW_FREQ = 0.02;
@@ -1833,7 +1862,7 @@ function initLogoScope() {
         return (
             fastSin(x * NOISE_LOW_FREQ + t * NOISE_LOW_SPEED) * NOISE_LOW_AMP +
             fastSin(x * NOISE_HIGH_FREQ - t * NOISE_HIGH_SPEED) * NOISE_HIGH_AMP +
-            (rand() - 0.5) * RANDOM_NOISE_AMP
+            (logoRand() - 0.5) * RANDOM_NOISE_AMP
         );
     }
 
@@ -1844,6 +1873,43 @@ function initLogoScope() {
             fastSin(x * DETAIL_FREQ - t * DETAIL_SPEED) * DETAIL_AMP +
             noise(x, t)
         );
+    }
+
+    /* ---------------- STROKE HELPERS ---------------- */
+
+    function strokeGlow(ctx, buildPath, glowColor, coreColor) {
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        buildPath();
+
+        const widths = [48, 28, 16, 8, 4, 2];
+        const alphas = [0.02, 0.04, 0.10, 0.22, 0.45, 0.80];
+
+        for (let i = 0; i < widths.length; i++) {
+            ctx.globalAlpha = alphas[i];
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = widths[i];
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = coreColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function drawWavePath(ctx, W, H, t, invert = false) {
+        const mid = H * 0.5;
+        ctx.beginPath();
+        for (let x = 0; x < W; x++) {
+            const y = mid + (invert ? -signal(x, t) : signal(x, t));
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
     }
 
     /* ---------------- RENDER LOOP ---------------- */
@@ -1889,36 +1955,19 @@ function initLogoScope() {
 
         ctx.clearRect(0, 0, W, H);
 
-        const mid = H / 2;
+        strokeGlow(
+            ctx,
+            () => drawWavePath(ctx, W, H, t, false),
+            COLORS.cream,
+            COLORS.cream
+        );
 
-        // PRIMARY SIGNAL
-        ctx.strokeStyle = COLORS.cream;
-        ctx.shadowColor = COLORS.cream;
-        ctx.shadowBlur = 16;
-        ctx.lineWidth = 2;
-
-        ctx.beginPath();
-        for (let x = 0; x < W; x++) {
-
-            const y = mid + signal(x, t);
-
-            if (x === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // INTERFERENCE SIGNAL
-        ctx.strokeStyle = COLORS.coral;
-        ctx.shadowColor = COLORS.coral;
-        ctx.shadowBlur = 20;
-
-        ctx.beginPath();
-        for (let x = 0; x < W; x++) {
-            const y = mid - signal(x, t * 1.05);
-            if (x === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+        strokeGlow(
+            ctx,
+            () => drawWavePath(ctx, W, H, t * 1.05, true),
+            COLORS.coral,
+            COLORS.coral
+        );
 
         _logoLastTime = ts;
         _logoScopeRAF = requestAnimationFrame(draw);
