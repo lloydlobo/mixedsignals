@@ -1,10 +1,11 @@
 "use strict";
 
-// NOTE: I want to share with you the joy of playing this fun little game.
-// NOTE: Heavely Vibed with le' AI
 /**
- * @fileoverview Mixed Signals Game
- * @version 1.2.0
+ * Mixed Signals
+ * @fileoverview I want to share with you the joy of playing this fun little
+ * game — originally made for Ludum Dare 59.
+ * Heavily vibed with le' AI. Hope you enjoy playing it!
+ * @version 0.5.0
  */
 
 /**

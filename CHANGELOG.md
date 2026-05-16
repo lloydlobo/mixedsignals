@@ -4,6 +4,18 @@ All notable changes to Mixed Signals.
 
 ## [Unreleased]
 
+### Features
+- Redesign sound effects with warm analog-feel audio, melodic lock variants, and consistent stamp feedback
+- Implement stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
+- Enhance stamp layer styling and animation for improved visual feedback
+- Enhance audio channel with vibrato and low-pass filter effects
+- Improve tutorial clarity with updated messaging, glow effects, and better text contrast
+
+### Fixes
+- Stop signal playback when level up screen is displayed
+- Prevent slider adjustments after game lock-in
+- Prevent sliders from freezing during tutorial when winning
+
 ## [0.5.0] - 2026-05-11
 
 ### Features
