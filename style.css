@@ -808,12 +808,10 @@ input[type=range]::-moz-range-thumb {
    ============================================================ */
 
 .action-row {
-    /* margin-top: 18px; */
     margin-top: 28px;
     display: flex;
     justify-content: center;
-    gap: 2ch;
-    /* transform: rotate(-2deg); */
+    gap: clamp(2px, min(2dvw, 2ch), 10px);
 
     /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
     /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
