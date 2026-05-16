@@ -220,6 +220,17 @@ body {
 @media (max-width: 640px) {
     .logo-svg { width: 100%; }
     /* .logo-tagline { font-size: 32px; letter-spacing: 6px; } */
+
+    #game {
+        transform: none;
+        will-change: auto;
+        box-shadow: 0 4px 0 #0d0b08;
+    }
+
+    .action-row {
+        transform: none;
+        will-change: auto;
+    }
 }
 
 .sr-only {

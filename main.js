@@ -1813,8 +1813,19 @@ function initLogoScope() {
     const W = 900;
     const H = 300;
 
-    canvas.width = W;
-    canvas.height = H;
+    const mobile = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
+
+    if (mobile) {
+        document.querySelectorAll('[filter="url(#logoGlowSoft)"]')
+            .forEach(n => n.removeAttribute("filter"));
+    }
+
+    const scale = mobile ? 0.5 : 1;
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    canvas.style.width = "900px";
+    canvas.style.height = "300px";
+    ctx.scale(scale, scale);
 
     // Prevent duplicate loops
     if (_logoScopeRAF) {
@@ -1916,12 +1927,21 @@ function initLogoScope() {
 
     let _logoElapsedTime = 0;
     let _logoLastTime = 0;
+    let _lastLogoFrame = 0;
     // Optional: Reset on tab blur (prevents huge jumps when tab regains focus)
-    window.addEventListener('blur', () => { _logoLastTime = 0; _logoElapsedTime = 0; });
+    window.addEventListener('blur', () => { _logoLastTime = 0; _logoElapsedTime = 0; _lastLogoFrame = 0; });
 
     function draw(ts) {
         const dt = Math.min(ts - _logoLastTime, _DT_MAX);
         _logoElapsedTime += dt;
+        _logoLastTime = ts;
+
+        const frameInterval = mobile ? 50 : 33;
+        if (ts - _lastLogoFrame < frameInterval) {
+            _logoScopeRAF = requestAnimationFrame(draw);
+            return;
+        }
+        _lastLogoFrame = ts;
 
 
         if (currentScreen() !== LOGO_SCOPE_SCREEN) {
@@ -1969,9 +1989,17 @@ function initLogoScope() {
             COLORS.coral
         );
 
-        _logoLastTime = ts;
         _logoScopeRAF = requestAnimationFrame(draw);
     }
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+            cancelAnimationFrame(_logoScopeRAF);
+        } else {
+            _logoLastTime = performance.now();
+            _logoScopeRAF = requestAnimationFrame(draw);
+        }
+    });
 
     _logoScopeRAF = requestAnimationFrame(draw);
 }
