@@ -1317,8 +1317,9 @@ function updateMeter() {
     const winPct = winThreshold();
 
     if (pct >= winPct) {
-        won = true; _wasCloseSfx = false;
+        _wasCloseSfx = false;
         if (tutorialActive) { checkTutorial(); return; }
+        won = true; // Don't freeze sliders during tutorial — step checks may not have passed yet
         clearInterval(timerInterval);
         const gain = CONFIG.BASE_REWARD + Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE);
         score += gain; $("score").textContent = score; showScorePop(gain);
