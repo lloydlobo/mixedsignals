@@ -869,6 +869,12 @@ input[type=range]::-moz-range-thumb {
    ============================================================ */
  
 .credits-wrap { position: fixed; bottom: 8px; right: 5px; z-index: 1010; }
+
+@media (max-width: 640px) {
+    .credits-wrap {
+        position: absolute;
+    }
+}
  
 .credits-title {
     font-family: var(--font-ui);
