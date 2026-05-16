@@ -81,12 +81,12 @@
                 <button class="crt-btn" id="btn-continue" style="display:none"
                     onclick="continueSave()">CONTINUE</button>
 
-                <button class="crt-btn" onclick="startGame()">NEW GAME</button>
+                <button class="crt-btn" id="btn-new-game" onclick="startGame()">NEW GAME</button>
 
                 <!-- Level select, disabled until player has unlocked >1 level -->
-                <button class="crt-btn sm" onclick="showLevelSelect()">SELECT LEVEL</button>
+                <button class="crt-btn sm" id="btn-select-level" onclick="showLevelSelect()">SELECT LEVEL</button>
 
-                <button class="crt-btn sm" onclick="startTutorial()">TUTORIAL</button>
+                <button class="crt-btn sm" id="btn-tutorial" onclick="startTutorial()">TUTORIAL</button>
 
                 <!-- Small unlock status line, populated by renderStartScreen() -->
                 <span id="unlock-msg" style="font-size:10px; color:var(--text-mute);"></span>
@@ -96,16 +96,16 @@
             <div class="screen" id="screen-dead">
                 <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
                 <p id="dead-msg"></p>
-                <button class="crt-btn" onclick="startGame()">RETRY LEVEL</button>
-                <button class="crt-btn sm" onclick="showLevelSelect()">LEVEL SELECT</button>
-                <button class="crt-btn sm danger" onclick="restartGame()">START OVER</button>
+                <button class="crt-btn" id="btn-retry" onclick="startGame()">RETRY LEVEL</button>
+                <button class="crt-btn sm" id="btn-dead-level-select" onclick="showLevelSelect()">LEVEL SELECT</button>
+                <button class="crt-btn sm danger" id="btn-start-over" onclick="restartGame()">START OVER</button>
             </div>
 
             <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelup">
                 <h3 class="orb" id="lu-title">LEVEL 2</h3>
                 <p id="lu-msg"></p>
-                <button class="crt-btn" onclick="continueLevel()">CONTINUE</button>
+                <button class="crt-btn" id="btn-continue-level" onclick="continueLevel()">CONTINUE</button>
             </div>
 
             <!-- ━━━ LEVEL SELECT SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -115,7 +115,7 @@
                 <div class="level-select-grid" id="level-select-grid"></div>
                 <!-- FIXED: show screen after rendering (logic similar to last line in goToMenu()) -->
                 <!-- <button class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
-                <button class="crt-btn sm" onclick="renderStartScreen(); showScreen('start')">BACK</button>
+                <button class="crt-btn sm" id="btn-level-back" onclick="renderStartScreen(); showScreen('start')">BACK</button>
             </div>
 
             <!-- ━━━ GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -171,12 +171,10 @@
                 <!-- PLAYBACK CONTROLS -->
                 <div class="pb-row">
                     <button class="pb-btn" id="pb-target"
-                        onclick="setPlaybackMode(_pbMode === 'target' ? 'off' : 'target')"
                         title="Listen to target signal">▶ TARGET</button>
-                    <button class="pb-btn" id="pb-yours"
-                        onclick="setPlaybackMode(_pbMode === 'yours' ? 'off' : 'yours')" title="Listen to your signal">▶
+                    <button class="pb-btn" id="pb-yours" title="Listen to your signal">▶
                         YOURS</button>
-                    <button class="pb-btn" id="pb-ab" onclick="setPlaybackMode(_pbMode === 'ab' ? 'off' : 'ab')"
+                    <button class="pb-btn" id="pb-ab"
                         title="A/B compare">⇄ A/B</button>
                 </div>
 
@@ -209,14 +207,14 @@
                             </svg>
                             <span>TRI</span>
                         </button>
-                        <button class="type-btn" data-t="pwm" onclick="setType(this)" id="btn-pwm" aria-label="PWM wave"
+                        <button class="type-btn" data-t="pwm" id="btn-pwm" aria-label="PWM wave"
                             disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
                             </svg>
                             <span>PWM</span>
                         </button>
-                        <button class="type-btn" data-t="am" onclick="setType(this)" id="btn-am" aria-label="AM wave"
+                        <button class="type-btn" data-t="am" id="btn-am" aria-label="AM wave"
                             disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
@@ -336,15 +334,12 @@
 
                 <!-- ━━━ MENU BUTTON IN ACTION ROW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
                 <div class="action-row">
-                    <button class="sys-btn" style="color: var(--amber)" onclick="useHint()">HINT</button>
-                    <button class="sys-btn" style="color: var(--red)" onclick="skipRound()">SKIP</button>
-                    <button class="sys-btn" style="color: var(--text-dim)" id="menu-btn"
-                        onclick="goToMenu()">MENU</button>
-                    <button class="sys-btn" style="color: var(--green); display: none;" onclick="skipTutorial()"
-                        id="skip-tut">SKIP TUT</button>
-                    <button class="sys-btn" id="btn-freeplay-ready" style="color: var(--green); display: none;"
-                        onclick="endFreePlay()">READY</button>
-                    <button class="sys-btn" style="color: var(--blue)" id="mute-btn" onclick="toggleMute()"
+                    <button class="sys-btn" style="color: var(--amber)" id="btn-hint">HINT</button>
+                    <button class="sys-btn" style="color: var(--red)" id="btn-skip">SKIP</button>
+                    <button class="sys-btn" style="color: var(--text-dim)" id="menu-btn">MENU</button>
+                    <button class="sys-btn" style="color: var(--green); display: none;" id="skip-tut">SKIP TUT</button>
+                    <button class="sys-btn" id="btn-freeplay-ready" style="color: var(--green); display: none;">READY</button>
+                    <button class="sys-btn" style="color: var(--blue)" id="mute-btn"
                         title="Toggle audio" aria-label="Toggle mute">♪</button>
                 </div>
             </div>

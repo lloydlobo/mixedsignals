@@ -114,40 +114,102 @@ const TUTORIAL_CONTROLS = ["type-btns", "ctrl-freq", "ctrl-amp", "ctrl-phase", "
  * @param {"start"|"dead"|"levelup"|"levelselect"|"game"} screen
  */
 function showScreen(screen) {
-    document.getElementById("game").dataset.screen = screen;
+    UI.game.dataset.screen = screen;
 }
 
 function currentScreen() {
-    return document.getElementById("game").dataset.screen ?? "start";
+    return UI.game.dataset.screen ?? "start";
 }
 
-// ─── DOM CACHE ────────────────────────────────────────────────────────────────
+// ─── UI (data-oriented DOM access) ───────────────────────────────────────────
 
-/** @type {Record<string, HTMLElement>} */
-const DOM = {};
+const UI = {};
 
-function initDOM() {
-    [
-        "game",
-        "score", "fill", "pct", "feedback",
-        "lbl-freq", "lbl-amp", "lbl-phase", "lbl-dc", "lbl-harm", "lbl-noise",
-        "sl-freq", "sl-amp", "sl-phase", "sl-dc", "sl-harm", "sl-noise",
-        "timer", "timer-ring-fill",
-        "round-no", "round-total", "lbl-level",
-        "ctrl-phase", "ctrl-dc", "ctrl-harm", "ctrl-noise",
-        "btn-pwm", "btn-am",
-        "type-btns", "meter-row",
-        "c-overlay", "flash", "game-inner",
-        "screen-dead", "lu-title", "lu-msg", "dead-msg",
-        "bgm-audio", "mute-btn", "skip-tut",
-        "btn-continue", "unlock-msg", "level-select-grid",
-        "pb-target", "pb-yours", "pb-ab",
-        "btn-freeplay-ready",
-    ].forEach(id => { const el = document.getElementById(id); if (el) DOM[id] = el; });
+function initUI() {
+    UI.labels = {};
+    UI.labels.freq = document.getElementById("lbl-freq");
+    UI.labels.amp = document.getElementById("lbl-amp");
+    UI.labels.phase = document.getElementById("lbl-phase");
+    UI.labels.dc = document.getElementById("lbl-dc");
+    UI.labels.harm = document.getElementById("lbl-harm");
+    UI.labels.noise = document.getElementById("lbl-noise");
+    UI.labels.level = document.getElementById("lbl-level");
+
+    UI.sliders = {};
+    UI.sliders.freq = document.getElementById("sl-freq");
+    UI.sliders.amp = document.getElementById("sl-amp");
+    UI.sliders.phase = document.getElementById("sl-phase");
+    UI.sliders.dc = document.getElementById("sl-dc");
+    UI.sliders.harm = document.getElementById("sl-harm");
+    UI.sliders.noise = document.getElementById("sl-noise");
+
+    UI.buttons = {};
+    UI.buttons.continue = document.getElementById("btn-continue");
+    UI.buttons.hint = document.getElementById("btn-hint");
+    UI.buttons.skip = document.getElementById("btn-skip");
+    UI.buttons.menu = document.getElementById("menu-btn");
+    UI.buttons.skipTut = document.getElementById("skip-tut");
+    UI.buttons.freeplayReady = document.getElementById("btn-freeplay-ready");
+    UI.buttons.mute = document.getElementById("mute-btn");
+    UI.buttons.pwm = document.getElementById("btn-pwm");
+    UI.buttons.am = document.getElementById("btn-am");
+
+    UI.playback = {};
+    UI.playback.target = document.getElementById("pb-target");
+    UI.playback.yours = document.getElementById("pb-yours");
+    UI.playback.ab = document.getElementById("pb-ab");
+
+    UI.displays = {};
+    UI.displays.score = document.getElementById("score");
+    UI.displays.pct = document.getElementById("pct");
+    UI.displays.feedback = document.getElementById("feedback");
+    UI.displays.timer = document.getElementById("timer");
+    UI.displays.roundNo = document.getElementById("round-no");
+    UI.displays.roundTotal = document.getElementById("round-total");
+    UI.displays.fill = document.getElementById("fill");
+    UI.displays.flash = document.getElementById("flash");
+    UI.displays.deadMsg = document.getElementById("dead-msg");
+    UI.displays.luTitle = document.getElementById("lu-title");
+    UI.displays.luMsg = document.getElementById("lu-msg");
+    UI.displays.unlockMsg = document.getElementById("unlock-msg");
+    UI.displays.screenDead = document.getElementById("screen-dead");
+
+    UI.controls = {};
+    UI.controls.phase = document.getElementById("ctrl-phase");
+    UI.controls.dc = document.getElementById("ctrl-dc");
+    UI.controls.harm = document.getElementById("ctrl-harm");
+    UI.controls.noise = document.getElementById("ctrl-noise");
+
+    UI.canvas = document.getElementById("c-overlay");
+    UI.audio = document.getElementById("bgm-audio");
+    UI.stampLayer = document.getElementById("stamp-layer");
+    UI.gameInner = document.getElementById("game-inner");
+    UI.timerRingFill = document.getElementById("timer-ring-fill");
+    UI.meterRow = document.getElementById("meter-row");
+    UI.game = document.getElementById("game");
+    UI.levelSelectGrid = document.getElementById("level-select-grid");
 }
 
-/** @param {string} id @returns {HTMLElement|null} */
-function $(id) { return DOM[id] ?? document.getElementById(id); }
+// ─── EVENT BINDING ────────────────────────────────────────────────────────────
+
+function initEvents() {
+    UI.buttons.hint?.addEventListener("click", useHint);
+    UI.buttons.skip?.addEventListener("click", skipRound);
+    UI.buttons.menu?.addEventListener("click", goToMenu);
+    UI.buttons.skipTut?.addEventListener("click", skipTutorial);
+    UI.buttons.freeplayReady?.addEventListener("click", endFreePlay);
+    UI.buttons.mute?.addEventListener("click", toggleMute);
+    UI.buttons.pwm?.addEventListener("click", () => setType(UI.buttons.pwm));
+    UI.buttons.am?.addEventListener("click", () => setType(UI.buttons.am));
+
+    (["target", "yours", "ab"]).forEach(mode => {
+        UI.playback[mode]?.addEventListener("click",
+            () => setPlaybackMode(_pbMode === mode ? "off" : mode));
+    });
+
+    document.addEventListener("click", () => { if (!muted) startMusic(); }, { once: true });
+    window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
+}
 
 // ─── LOCALSTORAGE (Safari-safe) ───────────────────────────────────────────────
 
@@ -195,14 +257,14 @@ function recordLevelComplete(completedLevel, runScore) {
 function renderStartScreen() {
     const save = loadSave();
 
-    const continueBtn = $("btn-continue");
+    const continueBtn = UI.buttons.continue;
     if (continueBtn) {
         const hasProgress = save.highestLevel > 0 || save.bestScores[0] > 0;
         continueBtn.style.display = hasProgress ? "inline-block" : "none";
         if (hasProgress) continueBtn.textContent = `CONTINUE (LV ${save.highestLevel + 1})`;
     }
 
-    const unlockMsg = $("unlock-msg");
+    const unlockMsg = UI.displays.unlockMsg;
     if (unlockMsg) {
         const unlocked = Math.min(save.highestLevel + 1, LEVELS.length);
         unlockMsg.textContent = unlocked < LEVELS.length
@@ -221,7 +283,7 @@ function continueSave() {
 
 function showLevelSelect() {
     const save = loadSave();
-    const grid = $("level-select-grid");
+    const grid = UI.levelSelectGrid;
     grid.innerHTML = "";
 
     LEVELS.forEach((lv, i) => {
@@ -296,7 +358,7 @@ let muted = lsGet("bgmMuted") === "true";
 let volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
-    const audio = $("bgm-audio"), btn = $("mute-btn");
+    const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = muted; audio.volume = volume;
     btn.textContent = muted ? "🔇" : "🎵";
     btn.style.color = muted ? "var(--text-dim)" : "";
@@ -306,7 +368,7 @@ function initAudio() {
 }
 
 function startMusic() {
-    const audio = $("bgm-audio");
+    const audio = UI.audio;
     if (muted || !audio.paused) return;
     if (!audio.src || audio.ended) audio.src = pickNextTrack();
     audio.play();
@@ -314,13 +376,13 @@ function startMusic() {
 
 function setVolume(v) {
     volume = Math.max(0, Math.min(1, v));
-    $("bgm-audio").volume = volume;
+    UI.audio.volume = volume;
     lsSet("bgmVolume", String(volume));
 }
 
 function toggleMute() {
     muted = !muted;
-    const audio = $("bgm-audio"), btn = $("mute-btn");
+    const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = muted;
     lsSet("bgmMuted", String(muted));
     btn.textContent = muted ? "🔇" : "🎵";
@@ -335,8 +397,6 @@ function toggleMute() {
         if (_playbackActive) setPlaybackMode(_pbMode);
     }
 }
-
-document.addEventListener("click", () => { if (!muted) startMusic(); }, { once: true });
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
 
@@ -358,7 +418,7 @@ const AudioCtx = (() => {
         return audioCtx;
     } catch (err) {
         console.warn(`Audio context unavailable (private browsing?):`, err);
-        $("bgm-toggle").disabled = true; /* Graceful degradation: disable audio features */
+        // no bgm-toggle element — warn is sufficient
         return null;
     }
 })()
@@ -623,7 +683,7 @@ let _activeStamp = null;
  * @param {"hint"|"skip"|"fail"|"success"|"hint_broke"|"skip_broke"} type
  */
 function spawnStamp(type) {
-    const layer = document.getElementById("stamp-layer");
+    const layer = UI.stampLayer;
     if (!layer) return;
 
     // Only one stamp at a time — remove previous immediately
@@ -1095,9 +1155,9 @@ function updateYoursPlayback() {
 }
 
 function _updatePlaybackUI() {
-    const modes = { "pb-target": "target", "pb-yours": "yours", "pb-ab": "ab" };
-    Object.entries(modes).forEach(([id, mode]) => {
-        $(id)?.classList.toggle("active", _pbMode === mode && _playbackActive);
+    const modes = ["target", "yours", "ab"];
+    modes.forEach(mode => {
+        UI.playback[mode]?.classList.toggle("active", _pbMode === mode && _playbackActive);
     });
 }
 
@@ -1198,7 +1258,7 @@ function winThreshold() {
 let _canvasW = 320;
 
 function initCanvas() {
-    _canvas = /** @type {HTMLCanvasElement} */ ($("c-overlay"));
+    _canvas = /** @type {HTMLCanvasElement} */ (UI.canvas);
     _ctx = _canvas.getContext("2d");
     if (typeof ResizeObserver !== "undefined") {
         new ResizeObserver(entries => { _canvasW = Math.round(entries[0].contentRect.width) || 320; }).observe(_canvas);
@@ -1230,9 +1290,6 @@ const _FRAME_INDEPENDENT = true;
 let _elapsedTime = 0;
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
-
-// Optional: Reset on tab blur (prevents huge jumps when tab regains focus)
-window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
 
 /*
  * Current Rendering Bottlenecks
@@ -1326,18 +1383,18 @@ function drawWave(sig, color, W, H, scroll, lineW) {
 // ─── FLASH + SCORE POP ───────────────────────────────────────────────────────
 
 function flash(color) {
-    const el = $("flash"); el.style.background = color;
+    const el = UI.displays.flash; el.style.background = color;
     el.classList.add("go"); setTimeout(() => el.classList.remove("go"), 80);
 }
 
 function showScorePop(points) {
-    const scoreEl = $("score"); if (!scoreEl) return;
+    const scoreEl = UI.displays.score; if (!scoreEl) return;
     const pop = document.createElement("div");
     pop.className = "score-pop"; pop.textContent = "+" + points;
     scoreEl.parentElement.style.position = "relative";
     scoreEl.parentElement.appendChild(pop);
     setTimeout(() => pop.remove(), 800);
-    const gi = $("game-inner");
+    const gi = UI.gameInner;
     gi.classList.add("shake-light"); setTimeout(() => gi.classList.remove("shake-light"), 300);
 }
 
@@ -1354,16 +1411,16 @@ function updateMeter() {
     if (pct !== _lastPct) {
         _lastPct = pct;
 
-        $("pct").textContent = `${pct}%`;
+        UI.displays.pct.textContent = `${pct}%`;
 
-        const fill = $("fill");
+        const fill = UI.displays.fill;
         // DEPRECATE: fill.style.width = `${pct}%`;
         //            CSS add: min-width: 100%; lol (kinda works)
         fill.style.transform = `scaleX(${pct * 0.01})`;
         fill.style.background = pct > 80 ? "var(--green)" : pct > 50 ? "var(--amber)" : "var(--red)";
     }
 
-    const fb = $("feedback");
+    const fb = UI.displays.feedback;
     const winPct = winThreshold();
 
     if (pct >= winPct) {
@@ -1373,7 +1430,7 @@ function updateMeter() {
         _lockAnimStart = performance.now();
         clearInterval(timerInterval);
         const gain = CONFIG.BASE_REWARD + Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE);
-        score += gain; $("score").textContent = score; showScorePop(gain);
+        score += gain; UI.displays.score.textContent = score; showScorePop(gain);
         fb.textContent = `LOCKED IN +${gain} pts`; fb.className = "feedback win";
         flash("var(--green)"); SFX.lock(); spawnStamp("success");
         if (navigator.vibrate) navigator.vibrate(100);
@@ -1395,20 +1452,20 @@ let _recomputeScheduled = false, _setTypeScheduled = false;
 
 function recompute() {
     if (won) return; // NOTE: Freeze sliders on lock-in
-    yoursSignal.freq = +$("sl-freq").value; yoursSignal.amp = +$("sl-amp").value;
-    yoursSignal.phase = +$("sl-phase").value; yoursSignal.dc = +$("sl-dc").value;
-    yoursSignal.harm = +$("sl-harm").value; yoursSignal.noise = +$("sl-noise").value;
+    yoursSignal.freq = +UI.sliders.freq.value; yoursSignal.amp = +UI.sliders.amp.value;
+    yoursSignal.phase = +UI.sliders.phase.value; yoursSignal.dc = +UI.sliders.dc.value;
+    yoursSignal.harm = +UI.sliders.harm.value; yoursSignal.noise = +UI.sliders.noise.value;
     invalidateMatchScore();
     if (_recomputeScheduled) return;
     _recomputeScheduled = true;
     requestAnimationFrame(() => {
         updateMeter();
-        $("lbl-freq").textContent = `${yoursSignal.freq} Hz`;
-        $("lbl-amp").textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        $("lbl-phase").textContent = `${yoursSignal.phase}°`;
-        $("lbl-dc").textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        $("lbl-harm").textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        $("lbl-noise").textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+        UI.labels.freq.textContent = `${yoursSignal.freq} Hz`;
+        UI.labels.amp.textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+        UI.labels.phase.textContent = `${yoursSignal.phase}°`;
+        UI.labels.dc.textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+        UI.labels.harm.textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+        UI.labels.noise.textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
         const now = Date.now();
         if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
         updateYoursPlayback();
@@ -1448,7 +1505,7 @@ function buildTarget() {
 
 function resetYours() {
     yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
-    ["freq", "amp", "phase", "dc", "harm", "noise"].forEach(k => { const el = $(`sl-${k}`); if (el) el.value = yoursSignal[k]; });
+    ["freq", "amp", "phase", "dc", "harm", "noise"].forEach(k => { const el = document.getElementById(`sl-${k}`); if (el) el.value = yoursSignal[k]; });
     document.querySelectorAll(".type-btn").forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
     invalidateMatchScore(); recompute();
 }
@@ -1457,15 +1514,15 @@ function resetYours() {
 
 function applyLevelUI() {
     const lv = LEVELS[level];
-    $("lbl-level").textContent = level + 1; $("round-total").textContent = lv.rounds;
-    $("ctrl-phase").style.opacity = lv.phase ? "1" : ".3";
-    $("ctrl-dc").style.opacity = lv.dc ? "1" : ".3";
-    $("ctrl-harm").style.display = lv.harm ? "" : "none";
+    UI.labels.level.textContent = level + 1; UI.displays.roundTotal.textContent = lv.rounds;
+    UI.controls.phase.style.opacity = lv.phase ? "1" : ".3";
+    UI.controls.dc.style.opacity = lv.dc ? "1" : ".3";
+    UI.controls.harm.style.display = lv.harm ? "" : "none";
     // Noise is atmosphere (tolerance band), not a puzzle param — always hidden
-    //     $("ctrl-noise").style.display = lv.noise ? "" : "none";
-    $("ctrl-noise").style.display = "none";
-    $("btn-pwm").disabled = !lv.types.includes("pwm");
-    $("btn-am").disabled = !lv.types.includes("am");
+    //     UI.controls.noise.style.display = lv.noise ? "" : "none";
+    UI.controls.noise.style.display = "none";
+    UI.buttons.pwm.disabled = !lv.types.includes("pwm");
+    UI.buttons.am.disabled = !lv.types.includes("am");
 }
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
@@ -1479,7 +1536,7 @@ function startTimer() {
     // showLevelUpScreen() now dynamically generates its message from the level config — it lists the new params, whether there's a grace round, and whether there's a warmup. Players arrive knowing what's coming.
     const grace = lv.grace && roundNo === 1; // grace round: timeout advance, never kills
     const total = timeLeft = lv.time;
-    const el = $("timer"), ring = $("timer-ring-fill"), C = 125.6; // C = 2π × r=20
+    const el = UI.displays.timer, ring = UI.timerRingFill, C = 125.6; // C = 2π × r=20
 
     ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
     ring.style.stroke = grace ? "var(--blue)" : "#f0690a"; // blue ring = safe round
@@ -1490,7 +1547,7 @@ function startTimer() {
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
 
     el.textContent = timeLeft; el.className = "timer-ring-label";
-    if (grace) $("feedback").textContent = "Explore freely — no penalty this round.";
+    if (grace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
 
     timerInterval = setInterval(() => {
         timeLeft--;
@@ -1503,7 +1560,7 @@ function startTimer() {
         if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
             if (grace) { // Grace timeout: no gameOver.
-                $("feedback").textContent = "Time's up. Now it counts.";
+                UI.displays.feedback.textContent = "Time's up. Now it counts.";
                 const enableAdvanceToNextRound = false;
                 if (enableAdvanceToNextRound) setTimeout(() => nextRound(), 1200);
             } else {
@@ -1540,20 +1597,20 @@ function startFreePlay() {
     resetYours();
 
     // Timer ring: hide it (full, dim, no color)
-    const ring = $("timer-ring-fill");
+    const ring = UI.timerRingFill;
     ring.style.transition = "none";
     ring.style.strokeDashOffset = "0";
     ring.style.stroke = "var(--surface)";
-    const timer = $("timer");
+    const timer = UI.displays.timer;
     timer.textContent = "∞";
     timer.className = "timer-ring-label";
 
     // Feedback and ready button
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "Free explore — try the controls. Hit READY when done.";
     feedback.className = "feedback close";
-    $("btn-freeplay-ready").style.display = "inline-block";
-    $("meter-row").style.opacity = "0.2"; // meter meaningless during warmup
+    UI.buttons.freeplayReady.style.display = "inline-block";
+    UI.meterRow.style.opacity = "0.2"; // meter meaningless during warmup
 
     // Start yours playback so they can hear their own signal.
     stopSignalPlayback();
@@ -1565,14 +1622,14 @@ function startFreePlay() {
 /** Called by the READY button — ends free-play and starts the real round 1. */
 function endFreePlay() {
     freePlayActive = false;
-    $("btn-freeplay-ready").style.display = "none";
-    $("meter-row").style.opacity = "1";
+    UI.buttons.freeplayReady.style.display = "none";
+    UI.meterRow.style.opacity = "1";
     stopSignalPlayback();
 
     // Now kick off round 1 properly (nextRound already incremented roundNo to 1)
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "Match the target signal.";
     feedback.className = "feedback";
     startTimer();
@@ -1587,7 +1644,7 @@ function nextRound() {
         level = LEVELS.length - 1;
         roundNo = 1;
         startFreePlay();
-        const feedback = $("feedback");
+        const feedback = UI.displays.feedback;
         feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`; feedback.className = "feedback close";
         return;
     }
@@ -1599,13 +1656,13 @@ function nextRound() {
         level = nextLevel; roundNo = 1; levelStartScore = score;
         showLevelUpScreen(); return;
     }
-    $("round-no").textContent = roundNo;
+    UI.displays.roundNo.textContent = roundNo;
 
     if (lv.freeplay && roundNo === 1) { startFreePlay(); return; }
 
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "Match the target signal."; feedback.className = "feedback";
     startTimer();
     startSignalPlayback();
@@ -1614,7 +1671,7 @@ function nextRound() {
 function showLevelUpScreen() {
     clearInterval(timerInterval);
     stopSignalPlayback();
-    $("lu-title").textContent = `LEVEL ${level + 1}`;
+    UI.displays.luTitle.textContent = `LEVEL ${level + 1}`;
     const lv = LEVELS[level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
     // TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion)
@@ -1622,17 +1679,17 @@ function showLevelUpScreen() {
     const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
     const warmupStr = lv.freeplay ? " Free warmup round to explore." : "";
     const graceStr = lv.grace ? " First round has no time penalty." : "";
-    $("lu-msg").textContent = [paramStr, graceStr, warmupStr].filter(Boolean).join(" ") || "Good luck.";
+    UI.displays.luMsg.textContent = [paramStr, graceStr, warmupStr].filter(Boolean).join(" ") || "Good luck.";
     showScreen("levelup");
     SFX.levelUp();
 }
 
 function continueLevel() {
     showScreen("game");
-    $("round-no").textContent = roundNo;
+    UI.displays.roundNo.textContent = roundNo;
     targetSignal = buildTarget(); invalidateMatchScore();
     applyLevelUI(); resetYours();
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "Match the target signal."; feedback.className = "feedback";
     startTimer();
     startSignalPlayback();
@@ -1640,19 +1697,19 @@ function continueLevel() {
 
 function victory() {
     _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback();
-    const h3 = $("screen-dead")?.querySelector("h3");
+    const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "MIXED SIGNALS MASTERED"; h3.style.color = "var(--green)"; }
-    $("dead-msg").textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
+    UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
     showScreen("dead"); SFX.levelUp();
 }
 
 function gameOver() {
     _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554"); spawnStamp("fail");
-    const h3 = $("screen-dead")?.querySelector("h3");
+    const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
-    $("dead-msg").textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
+    UI.displays.deadMsg.textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
     showScreen("dead"); SFX.fail();
-    const gi = $("game-inner");
+    const gi = UI.gameInner;
     gi.classList.add("shake"); setTimeout(() => gi.classList.remove("shake"), 500);
     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
@@ -1664,11 +1721,11 @@ function goToMenu() {
     if (tutorialActive) {
         tutorialActive = false;
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
-        $("skip-tut").style.display = "none";
+        UI.buttons.skipTut.style.display = "none";
     }
     won = false; freePlayActive = false;
-    const btnFreePlayReady = $("btn-freeplay-ready"); if (btnFreePlayReady) btnFreePlayReady.style.display = "none";
-    const meterRow = $("meter-row"); if (meterRow) meterRow.style.opacity = "1";
+    const btnFreePlayReady = UI.buttons.freeplayReady; if (btnFreePlayReady) btnFreePlayReady.style.display = "none";
+    const meterRow = UI.meterRow; if (meterRow) meterRow.style.opacity = "1";
     renderStartScreen(); showScreen("start");
 }
 
@@ -1677,7 +1734,7 @@ function goToMenu() {
 function startGame() {
     score = levelStartScore; roundNo = 0;
     if (!lsGet("tutorialSeen") && !tutorialActive) { startTutorial(); return; }
-    $("score").textContent = score;
+    UI.displays.score.textContent = score;
     showScreen("game"); startLoop(); nextRound();
 }
 
@@ -1688,11 +1745,11 @@ function startTutorial() {
     showScreen("game"); startLoop();
     targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
     invalidateMatchScore();
-    roundNo = 1; $("round-no").textContent = 1; $("round-total").textContent = 1;
-    $("ctrl-phase").style.opacity = "1"; $("ctrl-dc").style.opacity = "1";
-    $("ctrl-harm").style.display = "none"; $("ctrl-noise").style.display = "none";
-    $("btn-pwm").disabled = false; $("btn-am").disabled = false;
-    $("skip-tut").style.display = "inline-block";
+    roundNo = 1; UI.displays.roundNo.textContent = 1; UI.displays.roundTotal.textContent = 1;
+    UI.controls.phase.style.opacity = "1"; UI.controls.dc.style.opacity = "1";
+    UI.controls.harm.style.display = "none"; UI.controls.noise.style.display = "none";
+    UI.buttons.pwm.disabled = false; UI.buttons.am.disabled = false;
+    UI.buttons.skipTut.style.display = "inline-block";
     resetYours(); recompute(); showTutorialTask();
     startSignalPlayback();
 }
@@ -1701,8 +1758,8 @@ function startTutorial() {
 
 function showTutorialTask() {
     if (tutorialStep >= TUTORIAL_TASKS.length) { endTutorial(); return; }
-    $("feedback").textContent = TUTORIAL_TASKS[tutorialStep].text;
-    $("feedback").className = "feedback";
+    UI.displays.feedback.textContent = TUTORIAL_TASKS[tutorialStep].text;
+    UI.displays.feedback.className = "feedback";
     highlightControl();
 }
 
@@ -1718,7 +1775,7 @@ function showTutorialTask() {
 function lockControl(stepIndex) {
     const id = TUTORIAL_CONTROLS[stepIndex];
     if (!id) return;
-    const el = $(id);
+    const el = document.getElementById(id);
     if (!el) return;
     el.classList.add("tutorial-done");
     el.querySelectorAll("input, button").forEach(i => i.disabled = true);
@@ -1745,17 +1802,17 @@ function highlightControl() {
     document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
     const id = TUTORIAL_CONTROLS[tutorialStep];
     if (id) {
-        $(id)?.classList.add("tutorial-glow");
-        $("feedback")?.classList.add("tutorial-glow-text");
+        document.getElementById(id)?.classList.add("tutorial-glow");
+        UI.displays.feedback?.classList.add("tutorial-glow-text");
     }
 }
 
 function skipTutorial() {
     tutorialActive = false; lsSet("tutorialSeen", "true");
     unlockAllTutorialControls();
-    $("skip-tut").style.display = "none";
+    UI.buttons.skipTut.style.display = "none";
     stopSignalPlayback();
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "Tutorial skipped. Click NEW GAME to start playing.";
     renderStartScreen(); showScreen("start");
 }
@@ -1765,10 +1822,10 @@ function endTutorial() {
     unlockAllTutorialControls();
     stopSignalPlayback();
     flash("var(--green)"); SFX.lock();
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = "TUTORIAL COMPLETE!"; feedback.className = "feedback win";
     setTimeout(() => {
-        $("skip-tut").style.display = "none";
+        UI.buttons.skipTut.style.display = "none";
         renderStartScreen(); showScreen("start");
     }, 1800);
 }
@@ -1777,7 +1834,7 @@ function endTutorial() {
 
 function useHint() {
     if (won || score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
-    score = Math.max(0, score - CONFIG.COST_HINT); $("score").textContent = score;
+    score = Math.max(0, score - CONFIG.COST_HINT); UI.displays.score.textContent = score;
     const lv = LEVELS[level];
     const hints = [
         "type: " + targetSignal.type,
@@ -1787,7 +1844,7 @@ function useHint() {
         ...(lv.dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
         ...(lv.harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
     ];
-    const feedback = $("feedback");
+    const feedback = UI.displays.feedback;
     feedback.textContent = `hint: ${hints[rng(0, hints.length - 1)]}`;
     feedback.className = "feedback close";
     SFX.hint(); spawnStamp("hint");
@@ -1795,7 +1852,7 @@ function useHint() {
 
 function skipRound() {
     if (score < CONFIG.COST_SKIP) { SFX.skipBroke(); spawnStamp("skip_broke"); return; }
-    score = Math.max(0, score - CONFIG.COST_SKIP); $("score").textContent = score;
+    score = Math.max(0, score - CONFIG.COST_SKIP); UI.displays.score.textContent = score;
     SFX.skip(); spawnStamp("skip"); setTimeout(() => nextRound(), 600); /* delay */
 }
 
@@ -1979,7 +2036,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
-initDOM();
+initUI();
+initEvents();
 initCanvas();
 initAudio();
 renderStartScreen();
