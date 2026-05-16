@@ -114,9 +114,19 @@ body {
    ============================================================ */
 
 .screen-logo {
+    position: relative;
     width: 100%;
     padding: 0 10px;
     margin-bottom: 12px;
+}
+
+#logo-scope {
+    position: absolute;
+    top: 25.7%;
+    left: 15%;
+    width: 75%;
+    height: auto;
+    aspect-ratio: 900 / 300;
 }
 
 .logo-svg {
@@ -127,12 +137,6 @@ body {
     margin-inline: auto;
     filter:
         contrast(0.96)
-        saturate(0.92);
-}
-
-.logo-scope-foreign-object {
-    filter:
-        contrast(0.9)
         saturate(0.92);
 }
 

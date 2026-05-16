@@ -1823,8 +1823,6 @@ function initLogoScope() {
     const scale = mobile ? 0.5 : 1;
     canvas.width = W * scale;
     canvas.height = H * scale;
-    canvas.style.width = "900px";
-    canvas.style.height = "300px";
     ctx.scale(scale, scale);
 
     // Prevent duplicate loops
