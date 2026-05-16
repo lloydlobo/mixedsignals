@@ -80,7 +80,8 @@ const LEVELS = [
 /** @type {Signal} */ let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
 
 let score = 0, levelStartScore = 0, level = 0, roundNo = 0,
-    timeLeft = 0, timerInterval = null, animRaf = null, won = false;
+    timeLeft = 0, timerInterval = null, animRaf = null, won = false,
+    _lockAnimStart = 0;
 
 let freePlayActive = false; // true during untimed free-play warmup round
 
@@ -1247,15 +1248,36 @@ function loop(ts) {
     _ctx.clearRect(0, 0, W, H);
 
     const sc = matchScore(), t = smoothstep(sc);
+    const LOCK_DUR = 1950;
+    let lockT = 0;
+    if (_lockAnimStart > 0) {
+        lockT = Math.min((ts - _lockAnimStart) / LOCK_DUR, 1);
+        if (lockT >= 1) _lockAnimStart = 0;
+    }
 
-    if (roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
-    else if (roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
-    else { _ctx.globalAlpha = 0.15 + 0.6 * t; drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
+    if (lockT > 0 && lockT < 1) {
+        const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
-    _ctx.globalAlpha = 0.4 + 0.6 * t;
-    if (roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
-    else if (roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2);
-    else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2);
+        _ctx.globalAlpha = 0.25 * (1 - release);
+        drawWave(targetSignal, "#448855", W, H, scroll, 1.5);
+
+        const flash = Math.max(0, 1 - lockT / 0.35);
+        _ctx.globalAlpha = flash * 0.7;
+        drawWave(yoursSignal, "#66ff88", W, H, scroll, 3 + 2 * flash);
+
+        const settle = Math.min(lockT / 0.25, 1);
+        _ctx.globalAlpha = 0.4 + 0.6 * settle;
+        drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 2);
+    } else {
+        if (roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
+        else if (roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
+        else { _ctx.globalAlpha = 0.15 + 0.6 * t; drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
+
+        _ctx.globalAlpha = 0.4 + 0.6 * t;
+        if (roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
+        else if (roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2);
+        else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2);
+    }
 
     _ctx.globalAlpha = 1;
 
@@ -1321,6 +1343,7 @@ function updateMeter() {
         _wasCloseSfx = false;
         if (tutorialActive) { checkTutorial(); return; }
         won = true; // Don't freeze sliders during tutorial — step checks may not have passed yet
+        _lockAnimStart = performance.now();
         clearInterval(timerInterval);
         const gain = CONFIG.BASE_REWARD + Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE);
         score += gain; $("score").textContent = score; showScorePop(gain);
@@ -1466,7 +1489,7 @@ function startTimer() {
 // ─── LOOP CONTROL ────────────────────────────────────────────────────────────
 
 function startLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } animRaf = requestAnimationFrame(loop); }
-function stopLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
+function stopLoop() { _lockAnimStart = 0; if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
 
 // ─── FREE-PLAY WARMUP ────────────────────────────────────────────────────────
 // An untimed sandbox round before the first round of levels that have
@@ -1532,7 +1555,7 @@ function endFreePlay() {
 // ─── ROUND / LEVEL FLOW ───────────────────────────────────────────────────────
 
 function nextRound() {
-    won = false; roundNo++;
+    won = false; _lockAnimStart = 0; roundNo++;
     if (level >= LEVELS.length) {
         level = LEVELS.length - 1;
         roundNo = 1;
@@ -1589,7 +1612,7 @@ function continueLevel() {
 }
 
 function victory() {
-    clearInterval(timerInterval); stopLoop(); stopSignalPlayback();
+    _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback();
     const h3 = $("screen-dead")?.querySelector("h3");
     if (h3) { h3.textContent = "MIXED SIGNALS MASTERED"; h3.style.color = "var(--green)"; }
     $("dead-msg").textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
@@ -1597,7 +1620,7 @@ function victory() {
 }
 
 function gameOver() {
-    clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554"); spawnStamp("fail");
+    _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554"); spawnStamp("fail");
     const h3 = $("screen-dead")?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
     $("dead-msg").textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
@@ -1631,10 +1654,10 @@ function startGame() {
     showScreen("game"); startLoop(); nextRound();
 }
 
-function restartGame() { score = 0; levelStartScore = 0; level = 0; startGame(); }
+function restartGame() { _lockAnimStart = 0; score = 0; levelStartScore = 0; level = 0; startGame(); }
 
 function startTutorial() {
-    tutorialActive = true; tutorialStep = 0; score = 0;
+    _lockAnimStart = 0; tutorialActive = true; tutorialStep = 0; score = 0;
     showScreen("game"); startLoop();
     targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
     invalidateMatchScore();
@@ -1655,6 +1678,15 @@ function showTutorialTask() {
     $("feedback").className = "feedback";
     highlightControl();
 }
+
+// ─── TUTORIAL STEP LOCKING ─────────────────────────────────────────────────
+// Each completed step locks its control (disabled + dimmed) so the player
+// can't accidentally break a matched parameter while tuning the next one.
+// lockControl() disables interactive children of the step's control element.
+// unlockAllTutorialControls() cleans up on exit (end/skip/restart).
+// When a step's check passes, checkTutorial() locks it, advances, then
+// recurses — cascading through any already-satisfied future steps so the
+// player never has to re-confirm an already-met condition.
 
 function lockControl(stepIndex) {
     const id = TUTORIAL_CONTROLS[stepIndex];
