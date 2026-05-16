@@ -1821,9 +1821,10 @@ function initLogoScope() {
     }
 
     const scale = mobile ? 0.5 : 1;
-    canvas.width = W * scale;
-    canvas.height = H * scale;
-    ctx.scale(scale, scale);
+    const dpr = Math.min(devicePixelRatio || 1, 1.5);
+    canvas.width = Math.round(W * scale * dpr);
+    canvas.height = Math.round(H * scale * dpr);
+    ctx.scale(scale * dpr, scale * dpr);
 
     // Prevent duplicate loops
     if (_logoScopeRAF) {
@@ -1886,39 +1887,19 @@ function initLogoScope() {
 
     /* ---------------- STROKE HELPERS ---------------- */
 
-    function strokeGlow(ctx, buildPath, glowColor, coreColor) {
-        ctx.save();
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        buildPath();
-
-        const widths = [48, 28, 16, 8, 4, 2];
-        const alphas = [0.02, 0.04, 0.10, 0.22, 0.45, 0.80];
-
-        for (let i = 0; i < widths.length; i++) {
-            ctx.globalAlpha = alphas[i];
-            ctx.strokeStyle = glowColor;
-            ctx.lineWidth = widths[i];
-            ctx.stroke();
-        }
-
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = coreColor;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.restore();
-    }
-
-    function drawWavePath(ctx, W, H, t, invert = false) {
+    function drawLogoWave(ctx, W, H, t, color, invert, step) {
         const mid = H * 0.5;
         ctx.beginPath();
-        for (let x = 0; x < W; x++) {
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = color;
+        for (let x = 0; x < W; x += step) {
             const y = mid + (invert ? -signal(x, t) : signal(x, t));
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
+        ctx.stroke();
     }
 
     /* ---------------- RENDER LOOP ---------------- */
@@ -1968,24 +1949,14 @@ function initLogoScope() {
          * Used for wave oscillations (sine/cosine frequency calculations).
          */
         const t = _FRAME_INDEPENDENT ?
-            (_logoElapsedTime * 0.001) // use accumulate time (frame-independent)
-            : (ts * 0.001);
+            (_logoElapsedTime * 0.00045)
+            : (ts * 0.00045);
 
         ctx.clearRect(0, 0, W, H);
 
-        strokeGlow(
-            ctx,
-            () => drawWavePath(ctx, W, H, t, false),
-            COLORS.cream,
-            COLORS.cream
-        );
-
-        strokeGlow(
-            ctx,
-            () => drawWavePath(ctx, W, H, t * 1.05, true),
-            COLORS.coral,
-            COLORS.coral
-        );
+        const step = mobile ? Math.round(1 / scale) : 1;
+        drawLogoWave(ctx, W, H, t, COLORS.cream, false, step);
+        drawLogoWave(ctx, W, H, t * 1.05, COLORS.coral, true, step);
 
         _logoScopeRAF = requestAnimationFrame(draw);
     }
