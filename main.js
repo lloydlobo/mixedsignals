@@ -1393,10 +1393,26 @@ function setType(btn) {
 
 // ─── SIGNAL BUILDERS ─────────────────────────────────────────────────────────
 
+function _pickWeightedType(types) {
+    // Boost PWM/AM in levels where they debut so players actually encounter them
+    const weights = types.map(t => {
+        if (level <= 4) return 1; // before LV5: uniform
+        if (t === "pwm" || t === "am") return level === 4 ? 3 : level === 5 ? 2 : 1;
+        return 1;
+    });
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < types.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return types[i];
+    }
+    return types[types.length - 1];
+}
+
 function buildTarget() {
     const lv = LEVELS[level];
     return {
-        type: lv.types[rng(0, lv.types.length - 1)],
+        type: _pickWeightedType(lv.types),
         freq: rng(1, 6), amp: rng(3, 10),
         phase: lv.phase ? rng(0, 7) * 45 : 0,
         dc: lv.dc ? rng(-3, 3) : 0,
