@@ -1624,6 +1624,31 @@ function startTimer() {
 function startLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } animRaf = requestAnimationFrame(loop); }
 function stopLoop() { _lockAnimStart = 0; if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
 
+// ─── LIFECYCLE ────────────────────────────────────────────────────────────────
+
+function exitLevel() {
+    _lockAnimStart = 0;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    stopLoop();
+    stopSignalPlayback();
+    won = false;
+}
+
+function enterLevel() {
+    showScreen("game");
+    targetSignal = buildTarget();
+    invalidateMatchScore();
+    applyLevelUI();
+    resetYours();
+    const feedback = UI.displays.feedback;
+    feedback.textContent = "Match the target signal.";
+    feedback.className = "feedback";
+    startTimer();
+    startSignalPlayback();
+    startLoop();
+}
+
 // ─── FREE-PLAY WARMUP ────────────────────────────────────────────────────────
 // An untimed sandbox round before the first round of levels that have
 // freeplay:true. No target signal, no score, no timer. Just the player's
@@ -1674,15 +1699,7 @@ function endFreePlay() {
     UI.buttons.freeplayReady.style.display = "none";
     UI.meterRow.style.opacity = "1";
     stopSignalPlayback();
-
-    // Now kick off round 1 properly (nextRound already incremented roundNo to 1)
-    targetSignal = buildTarget(); invalidateMatchScore();
-    applyLevelUI(); resetYours();
-    const feedback = UI.displays.feedback;
-    feedback.textContent = "Match the target signal.";
-    feedback.className = "feedback";
-    startTimer();
-    startSignalPlayback();
+    enterLevel();
 }
 
 // ─── ROUND / LEVEL FLOW ───────────────────────────────────────────────────────
@@ -1709,17 +1726,11 @@ function nextRound() {
 
     if (lv.freeplay && roundNo === 1) { startFreePlay(); return; }
 
-    targetSignal = buildTarget(); invalidateMatchScore();
-    applyLevelUI(); resetYours();
-    const feedback = UI.displays.feedback;
-    feedback.textContent = "Match the target signal."; feedback.className = "feedback";
-    startTimer();
-    startSignalPlayback();
+    enterLevel();
 }
 
 function showLevelUpScreen() {
-    clearInterval(timerInterval);
-    stopSignalPlayback();
+    exitLevel();
     UI.displays.luTitle.textContent = `LEVEL ${level + 1}`;
     const lv = LEVELS[level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
@@ -1734,18 +1745,12 @@ function showLevelUpScreen() {
 }
 
 function continueLevel() {
-    showScreen("game");
     UI.displays.roundNo.textContent = roundNo;
-    targetSignal = buildTarget(); invalidateMatchScore();
-    applyLevelUI(); resetYours();
-    const feedback = UI.displays.feedback;
-    feedback.textContent = "Match the target signal."; feedback.className = "feedback";
-    startTimer();
-    startSignalPlayback();
+    enterLevel();
 }
 
 function victory() {
-    _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback();
+    exitLevel();
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "MIXED SIGNALS MASTERED"; h3.style.color = "var(--green)"; }
     UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
@@ -1753,7 +1758,7 @@ function victory() {
 }
 
 function gameOver() {
-    _lockAnimStart = 0; clearInterval(timerInterval); stopLoop(); stopSignalPlayback(); flash("#ff4554"); spawnStamp("fail");
+    exitLevel(); flash("#ff4554"); spawnStamp("fail");
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
     UI.displays.deadMsg.textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
@@ -1765,8 +1770,7 @@ function gameOver() {
 
 /** Exits gameplay cleanly from any state. */
 function goToMenu() {
-    clearInterval(timerInterval); timerInterval = null;
-    stopLoop(); stopSignalPlayback();
+    exitLevel();
     if (tutorialActive) {
         tutorialActive = false;
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
