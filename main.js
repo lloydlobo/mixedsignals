@@ -1219,6 +1219,12 @@ function setPlaybackMode(mode) {
     _setVol(_chTarget, t);
     _setVol(_chYours, y);
     _updatePlaybackUI();
+
+    const wrap = document.querySelector(".scope-wrap");
+    if (wrap) {
+        wrap.classList.remove("glow-target", "glow-yours", "glow-ab");
+        if (mode !== "off") wrap.classList.add("glow-" + mode);
+    }
 }
 
 /** Update yours channel live while sliders move. Called from recompute(). */
