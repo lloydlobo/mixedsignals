@@ -407,8 +407,8 @@ function pickNextTrack() {
     return BGM_TRACKS[next];
 }
 
-let muted = false;
-let sfxMuted = false;
+let muted = lsGet("bgmMuted") === "true";
+let sfxMuted = lsGet("sfxMuted") === "true";
 let volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
