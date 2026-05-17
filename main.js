@@ -250,6 +250,7 @@ function initEvents() {
             _pointerGate.gain.linearRampToValueAtTime(PB.BEAT_VOL, ac.currentTime + PB.GATE_ATTACK);
             const wrap = document.querySelector(".scope-wrap");
             if (wrap) wrap.classList.add("held");
+            overlay.classList.add("held");
         });
         const closeGate = () => {
             if (!_pointerGate) return;
@@ -259,6 +260,7 @@ function initEvents() {
             _pointerGate.gain.linearRampToValueAtTime(0, ac.currentTime + PB.GATE_RELEASE);
             const wrap = document.querySelector(".scope-wrap");
             if (wrap) wrap.classList.remove("held");
+            overlay.classList.remove("held");
         };
         overlay.addEventListener("pointerup", closeGate);
         overlay.addEventListener("pointerleave", closeGate);
@@ -1664,6 +1666,8 @@ function startTimer() {
         if (urgent) { const now = Date.now(); if (now - _lastUrgentSfx > 500) { SFX.urgent(); _lastUrgentSfx = now; } }
         const wrap = document.querySelector(".scope-wrap");
         if (wrap) wrap.classList.toggle("urgent", urgent);
+        const cv = document.getElementById("c-overlay");
+        if (cv) cv.classList.toggle("urgent", urgent);
         if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
             if (grace) { // Grace timeout: no gameOver.
@@ -1704,6 +1708,8 @@ function enterLevel() {
     feedback.className = "feedback";
     const wrap = document.querySelector(".scope-wrap");
     if (wrap) wrap.classList.remove("urgent");
+    const cv = document.getElementById("c-overlay");
+    if (cv) cv.classList.remove("urgent");
     startTimer();
     startSignalPlayback();
     startLoop();
