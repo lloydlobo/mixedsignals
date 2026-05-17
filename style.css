@@ -29,6 +29,7 @@
     --shadow-md: 0 3px 0 rgba(0,0,0,0.4), 0 5px 12px rgba(0,0,0,0.3);
     --shadow-press: 0 1px 0 rgba(0,0,0,0.4);
 
+    --radius-game: 20px;
     --radius-tile: 8px;
     --radius-sm:   5px;
     --radius-xs:   2px;
@@ -65,7 +66,7 @@ body {
     max-width: 95vw;
     /* padding: 24px 16px 32px; */
     padding: 24px 16px;
-    border-radius: 20px;
+    border-radius: var(--radius-game);
     position: relative;
     user-select: none;
     -webkit-user-select: none;
@@ -915,6 +916,7 @@ input[type=range]::-moz-range-thumb {
     animation: ceremony-fade-in 0.3s ease-out;
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
+    border-radius: var(--radius-game);
 }
 
 .ceremony-card {
@@ -944,12 +946,16 @@ input[type=range]::-moz-range-thumb {
     animation: ceremony-glow-pulse 2s ease-in-out infinite;
 }
 
+/* Try to keep size similar as settings title */
 .ceremony-title {
     font-family: var(--font-ui);
-    font-weight: 900;
-    font-size: clamp(20px, 5vw, 26px);
+    /* font-weight: 900; */
+    text-transform: uppercase;
+    /* font-size: clamp(20px, 5vw, 26px); */
+    font-size: 11px;
     color: var(--cream);
     letter-spacing: 0.02em;
+    letter-spacing: .15em;
 }
 
 .ceremony-desc {
@@ -989,6 +995,7 @@ input[type=range]::-moz-range-thumb {
     animation: ceremony-fade-in 0.3s ease-out;
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
+    border-radius: var(--radius-game);
 }
 
 .settings-card {
