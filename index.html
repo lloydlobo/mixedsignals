@@ -220,10 +220,10 @@
                                     </svg>
                                     Freq
                                 </label>
-                                <span class="slider-val"><b id="lbl-freq">1 Hz</b></span>
+                                <span class="slider-val"><b id="lbl-freq" data-for="freq">1 Hz</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" />
+                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" data-param="freq" data-unit="Hz" />
                             </div>
                         </div>
 
@@ -236,10 +236,10 @@
                                     </svg>
                                     Amp
                                 </label>
-                                <span class="slider-val"><b id="lbl-amp">0.5</b></span>
+                                <span class="slider-val"><b id="lbl-amp" data-for="amp">0.50</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" />
+                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" data-param="amp" />
                             </div>
                         </div>
 
@@ -254,10 +254,10 @@
                                     </svg>
                                     Phase
                                 </label>
-                                <span class="slider-val"><b id="lbl-phase">0&deg;</b></span>
+                                <span class="slider-val"><b id="lbl-phase" data-for="phase">0&deg;</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" />
+                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" data-param="phase" data-unit="°" />
                             </div>
                         </div>
 
@@ -270,10 +270,10 @@
                                     </svg>
                                     DC Off
                                 </label>
-                                <span class="slider-val"><b id="lbl-dc">0.0</b></span>
+                                <span class="slider-val"><b id="lbl-dc" data-for="dc">0.00</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" />
+                                <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" data-param="dc" />
                             </div>
                         </div>
 
@@ -286,10 +286,10 @@
                                     </svg>
                                     Harm
                                 </label>
-                                <span class="slider-val"><b id="lbl-harm">0.0</b></span>
+                                <span class="slider-val"><b id="lbl-harm" data-for="harm">0.00</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" />
+                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" data-param="harm" />
                             </div>
                         </div>
 
@@ -303,10 +303,10 @@
                                     </svg>
                                     Noise
                                 </label>
-                                <span class="slider-val"><b id="lbl-noise">0.0</b></span>
+                                <span class="slider-val"><b id="lbl-noise" data-for="noise">0.00</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0" />
+                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0" data-param="noise" />
                             </div>
                         </div>
                     </div>

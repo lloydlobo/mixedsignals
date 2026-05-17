@@ -218,26 +218,27 @@ function initUI() {
     UI.playback = collect("pb-",   ["target", "yours", "ab"]);
 
     UI.buttons = {
-        am:              document.getElementById("btn-am"),
         continue:        document.getElementById("btn-continue"),
-        continueLevel:   document.getElementById("btn-continue-level"),
+        newGame:         document.getElementById("btn-new-game"),
+        selectLevel:     document.getElementById("btn-select-level"),
+        tutorial:        document.getElementById("btn-tutorial"),
+        retry:           document.getElementById("btn-retry"),
         deadLevelSelect: document.getElementById("btn-dead-level-select"),
-        freeplayReady:   document.getElementById("btn-freeplay-ready"),
-        hint:            document.getElementById("btn-hint"),
+        startOver:       document.getElementById("btn-start-over"),
+        continueLevel:   document.getElementById("btn-continue-level"),
         levelBack:       document.getElementById("btn-level-back"),
+        dismissCeremony: document.getElementById("btn-dismiss-ceremony"),
+        hint:            document.getElementById("btn-hint"),
+        skip:            document.getElementById("btn-skip"),
         menu:            document.getElementById("menu-btn"),
+        skipTut:         document.getElementById("skip-tut"),
+        freeplayReady:   document.getElementById("btn-freeplay-ready"),
         mute:            document.getElementById("mute-btn"),
         sfx:             document.getElementById("sfx-btn"),
-        newGame:         document.getElementById("btn-new-game"),
         pwm:             document.getElementById("btn-pwm"),
-        retry:           document.getElementById("btn-retry"),
-        selectLevel:     document.getElementById("btn-select-level"),
-        skip:            document.getElementById("btn-skip"),
-        skipTut:         document.getElementById("skip-tut"),
-        startOver:       document.getElementById("btn-start-over"),
-        tutorial:        document.getElementById("btn-tutorial"),
+        am:              document.getElementById("btn-am"),
     };
-
+    
     UI.displays = {
         score:      document.getElementById("score"),
         pct:        document.getElementById("pct"),
@@ -267,30 +268,76 @@ function initUI() {
     UI.sliderContainer = document.querySelector(".param-list");
 }
 
+// ─── DISPATCH ──────────────────────────────────────────────────
+
+function dispatch(action) {
+    switch (action.type) {
+        case "SCORE_ADD":
+            Session.score += action.payload;
+            UI.displays.score.textContent = Session.score;
+            break;
+        case "SCORE_SET":
+            Session.score = action.payload;
+            UI.displays.score.textContent = Session.score;
+            break;
+        case "SCORE_DEDUCT":
+            Session.score = Math.max(0, Session.score - action.payload);
+            UI.displays.score.textContent = Session.score;
+            break;
+        case "SCORE_RESET":
+            Session.score = 0;
+            Session.levelStartScore = 0;
+            UI.displays.score.textContent = Session.score;
+            break;
+        case "LEVEL_SET":
+            Session.level = action.payload;
+            break;
+        case "ROUND_NEXT":
+            Round.roundNo++;
+            UI.displays.roundNo.textContent = Round.roundNo;
+            break;
+        case "ROUND_SET":
+            Round.roundNo = action.payload;
+            UI.displays.roundNo.textContent = Round.roundNo;
+            break;
+    }
+}
+
+// ─── BUTTON ACTION TABLE ────────────────────────────────────────
+
+const BUTTON_ACTIONS = {
+    "btn-continue": continueSave,
+    "btn-new-game": restartGame,
+    "btn-select-level": showLevelSelect,
+    "btn-tutorial": startTutorial,
+    "btn-retry": () => { SFX.nav(); startGame(); },
+    "btn-dead-level-select": showLevelSelect,
+    "btn-start-over": restartGame,
+    "btn-continue-level": continueLevel,
+    "btn-level-back": () => { SFX.back(); renderStartScreen(); showScreen("start"); },
+    "btn-dismiss-ceremony": dismissCeremony,
+    "btn-hint": useHint,
+    "btn-skip": skipRound,
+    "menu-btn": goToMenu,
+    "skip-tut": skipTutorial,
+    "btn-freeplay-ready": endFreePlay,
+    "mute-btn": toggleMute,
+    "sfx-btn": toggleSfxMute,
+};
+
 // ─── EVENT BINDING ────────────────────────────────────────────────────────────
 
 function initEvents() {
-    // Screen-transition buttons
-    UI.buttons.continue?.addEventListener("click", continueSave);
-    UI.buttons.newGame?.addEventListener("click", restartGame);
-    UI.buttons.selectLevel?.addEventListener("click", showLevelSelect);
-    UI.buttons.tutorial?.addEventListener("click", startTutorial);
-    UI.buttons.retry?.addEventListener("click", () => { SFX.nav(); startGame(); });
-    UI.buttons.deadLevelSelect?.addEventListener("click", showLevelSelect);
-    UI.buttons.startOver?.addEventListener("click", restartGame);
-    UI.buttons.continueLevel?.addEventListener("click", continueLevel);
-    UI.buttons.levelBack?.addEventListener("click", () => { SFX.back(); renderStartScreen(); showScreen("start"); });
-    document.getElementById("btn-dismiss-ceremony")?.addEventListener("click", dismissCeremony);
-    document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) { SFX.back(); dismissCeremony(); } });
+    Object.entries(BUTTON_ACTIONS).forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("click", fn);
+        UI.buttons[id] = el;
+    });
 
-    // Action buttons
-    UI.buttons.hint?.addEventListener("click", useHint);
-    UI.buttons.skip?.addEventListener("click", skipRound);
-    UI.buttons.menu?.addEventListener("click", goToMenu);
-    UI.buttons.skipTut?.addEventListener("click", skipTutorial);
-    UI.buttons.freeplayReady?.addEventListener("click", endFreePlay);
-    UI.buttons.mute?.addEventListener("click", toggleMute);
-    UI.buttons.sfx?.addEventListener("click", toggleSfxMute);
+    document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) { SFX.back(); dismissCeremony(); }
+    });
 
     // Delegated type button listener (handles all 6 waveform buttons)
     UI.typeButtons?.addEventListener("click", (e) => {
@@ -409,7 +456,9 @@ function renderStartScreen() {
 function continueSave() {
     SFX.confirm();
     const save = loadSave();
-    Session.level = save.highestLevel; Session.levelStartScore = 0; Session.score = 0; Round.roundNo = 0;
+    dispatch({ type: "LEVEL_SET", payload: save.highestLevel });
+    dispatch({ type: "SCORE_RESET" });
+    dispatch({ type: "ROUND_SET", payload: 0 });
     startGame();
 }
 
@@ -446,7 +495,9 @@ function showLevelSelect() {
 
 /** @param {number} selectedLevel 0-indexed */
 function startLevelFromSelect(selectedLevel) {
-    Session.level = selectedLevel; Session.levelStartScore = 0; Session.score = 0; Round.roundNo = 0;
+    dispatch({ type: "LEVEL_SET", payload: selectedLevel });
+    dispatch({ type: "SCORE_RESET" });
+    dispatch({ type: "ROUND_SET", payload: 0 });
     startGame();
 }
 
@@ -456,12 +507,17 @@ function makeRand(seed = 1831565813) {
     let s = seed >>> 0;
     return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
 }
-const rand = makeRand();
+const gameRand = makeRand(1831565813);
+const stampRand = makeRand(0xC0FFEE31);
 
 function rng(lo, hi) {
     if (lo > hi) { const t = lo; lo = hi; hi = t; }
-    return lo + (rand() * (hi - lo + 1)) | 0;
+    return lo + (gameRand() * (hi - lo + 1)) | 0;
 }
+
+const pick = (rng) => (arr) => arr[Math.floor(rng() * arr.length)];
+const gamePick = pick(gameRand);
+const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
 
@@ -474,7 +530,7 @@ const BGM_TRACKS = [
 ];
 function pickNextTrack() {
     let next;
-    do { next = Math.floor(Math.random() * BGM_TRACKS.length); }
+    do { next = Math.floor(stampRand() * BGM_TRACKS.length); }
     while (BGM_TRACKS.length > 1 && next === Session.currentTrackIndex);
     Session.currentTrackIndex = next;
     return BGM_TRACKS[next];
@@ -603,7 +659,7 @@ const _LOCK_VARIANTS = [
     // A: "happy bounce" — ascending C chord, quick and cheerful
     (ac) => {
         [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.13, 0.22 + rng(0, 3)));
+            _warmNote(ac, f, ac.currentTime + t, 0.13, 0.22 + Math.floor(stampRand() * 4)));
     },
 
     // B: "smug little nod" — 3 notes, last one wobbles like it's pleased with itself
@@ -674,7 +730,7 @@ const SFX = {
 
     lock: () => {
         if (Session.sfxMuted) return;
-        _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](actx());
+        stampPick(_LOCK_VARIANTS)(actx());
     },
 
     fail: () => {
@@ -758,20 +814,20 @@ function spawnStamp(type) {
 
     const words = STAMP_WORDS[type];
     if (!words) return;
-    const word = words[Math.floor(rand() * words.length)];
+    const word = stampPick(words);
 
     const el = document.createElement("div");
     el.className = `stamp stamp-${type}`;
     el.textContent = word;
 
     // Random position within safe inner zone (avoid edges)
-    const px = 15 + rand() * 55; // 15–70% from left
-    const py = 15 + rand() * 55; // 15–70% from top
+    const px = 15 + stampRand() * 55; // 15–70% from left
+    const py = 15 + stampRand() * 55; // 15–70% from top
     el.style.left = `${px}%`;
     el.style.top = `${py}%`;
 
     // Slight random rotation: −8° to +8°
-    const deg = (rand() * 16 - 8).toFixed(1);
+    const deg = (stampRand() * 16 - 8).toFixed(1);
     el.style.setProperty("--stamp-rot", `rotate(${deg}deg)`);
 
     layer.appendChild(el);
@@ -1199,26 +1255,23 @@ function fastSin(x) {
 
 // ─── SIGNAL SAMPLING ─────────────────────────────────────────────────────────
 
+const SAMPLERS = Object.freeze({
+    sine:     (x, u, harm) => fastSin(x),
+    square:   (x, u, harm) => fastSin(x) >= 0 ? 1 : -1,
+    sawtooth: (x, u, harm) => 2 * u - 1,
+    triangle: (x, u, harm) => u < 0.5 ? 4 * u - 1 : 3 - 4 * u,
+    pwm:      (x, u, harm) => u < 0.65 ? 1 : -1,
+    am:       (x, u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
+});
+
 function sample(sig, t, addNoise) {
     const { type, freq, phase, amp, harm, noise, dc } = sig;
     const u = (freq * t + phase / 360) % 1;
     const x = u * 6.283185307179586;
-
-    let v;
-    switch (type) {
-        case "sine": v = fastSin(x); break;
-        case "square": v = fastSin(x) >= 0 ? 1 : -1; break;
-        case "sawtooth": v = 2 * u - 1; break;
-        case "triangle": v = u < 0.5 ? 4 * u - 1 : 3 - 4 * u; break;
-        case "pwm": v = u < 0.65 ? 1 : -1; break;
-        case "am": {
-            v = fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5;
-        } break;
-        default: throw new Error(`Unhandled waveform: "${type}"`);
-    }
-
+    if (!SAMPLERS[type]) throw new Error(`Unhandled waveform: "${type}"`);
+    let v = SAMPLERS[type](x, u, harm);
     if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3);
-    if (addNoise && noise) v += (noise * 0.1) * (rand() * 0.8 - 0.4);
+    if (addNoise && noise) v += (noise * 0.1) * (gameRand() * 0.8 - 0.4);
     return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
@@ -1448,7 +1501,7 @@ function updateMeter() {
         Round._lockAnimStart = performance.now();
         clearInterval(timerInterval);
         const gain = CONFIG.BASE_REWARD + Math.ceil(Round.timeLeft * CONFIG.TIME_BONUS_RATE);
-        Session.score += gain; UI.displays.score.textContent = Session.score; showScorePop(gain);
+        dispatch({ type: "SCORE_ADD", payload: gain }); showScorePop(gain);
         fb.textContent = `LOCKED IN +${gain} pts`; fb.className = "feedback win";
         flash("var(--green)"); SFX.lock(); spawnStamp("success");
         if (navigator.vibrate) navigator.vibrate(100);
@@ -1467,28 +1520,32 @@ function updateMeter() {
 
 // ─── INPUT HANDLERS (rAF-throttled) ──────────────────────────────────────────
 
-function recompute() {
-    if (Round.won) return; // NOTE: Freeze sliders on lock-in
-    yoursSignal.freq = +UI.sliders.freq.value; yoursSignal.amp = +UI.sliders.amp.value;
-    yoursSignal.phase = +UI.sliders.phase.value; yoursSignal.dc = +UI.sliders.dc.value;
-    yoursSignal.harm = +UI.sliders.harm.value; yoursSignal.noise = +UI.sliders.noise.value;
-    invalidateMatchScore();
+function syncLabels() {
+    document.querySelectorAll("[data-param]").forEach(el => {
+        const param = el.dataset.param;
+        const unit = el.dataset.unit || "";
+        const raw = +el.value;
+        const label = document.querySelector(`[data-for="${param}"]`);
+        if (!label) return;
+        if (unit === "Hz") {
+            label.textContent = raw + " Hz";
+            el.setAttribute("aria-valuetext", raw + " Hz");
+        } else if (unit === "°") {
+            label.textContent = raw + "°";
+            el.setAttribute("aria-valuetext", raw + "°");
+        } else {
+            label.textContent = (raw / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+            el.setAttribute("aria-valuetext", (raw / 10).toFixed(1));
+        }
+    });
+}
+
+function scheduleRender() {
     if (Round._recomputeScheduled) return;
     Round._recomputeScheduled = true;
     requestAnimationFrame(() => {
         updateMeter();
-        UI.labels.freq.textContent = `${yoursSignal.freq} Hz`;
-        UI.labels.amp.textContent = (yoursSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        UI.labels.phase.textContent = `${yoursSignal.phase}°`;
-        UI.labels.dc.textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        UI.labels.harm.textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        UI.labels.noise.textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-        UI.sliders.freq.setAttribute("aria-valuetext", yoursSignal.freq + " Hz");
-        UI.sliders.amp.setAttribute("aria-valuetext", (yoursSignal.amp / 10).toFixed(1));
-        UI.sliders.phase.setAttribute("aria-valuetext", yoursSignal.phase + "°");
-        UI.sliders.dc.setAttribute("aria-valuetext", (yoursSignal.dc / 10).toFixed(1));
-        UI.sliders.harm.setAttribute("aria-valuetext", (yoursSignal.harm / 10).toFixed(1));
-        UI.sliders.noise.setAttribute("aria-valuetext", (yoursSignal.noise / 10).toFixed(1));
+        syncLabels();
         const now = Date.now();
         if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
         duckTarget();
@@ -1496,6 +1553,12 @@ function recompute() {
         if (Session.tutorialActive) checkTutorial();
         Round._recomputeScheduled = false;
     });
+}
+
+function recompute() {
+    if (Round.won) return;
+    applySignal(readSliders());
+    scheduleRender();
 }
 
 function setType(btn) {
@@ -1523,7 +1586,7 @@ function _pickWeightedType(types, level) {
         return 1;
     });
     const total = weights.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
+    let r = gameRand() * total;
     for (let i = 0; i < types.length; i++) {
         r -= weights[i];
         if (r <= 0) return types[i];
@@ -1539,7 +1602,7 @@ function _pickWeightedParam(values, debutLevel, boost, level) {
             : level === debutLevel + 1 ? Math.max(1, (boost * 0.6) | 0)
             : 1;
     }
-    let r = Math.random() * total;
+    let r = gameRand() * total;
     for (let i = 0; i < values.length; i++) {
         const w = values[i] === 0 ? 1
             : level === debutLevel ? boost
@@ -1556,7 +1619,7 @@ function buildTarget() {
 
     // 40% chance: use a signal archetype (gives each round personality)
     let archetype = null;
-    if (Math.random() < 0.4) {
+    if (gameRand() < 0.4) {
         const isDebut = Session.level in _DEBUT_ARCHETYPES;
         const valid = ARCHETYPES.filter(a =>
             a.levelMin <= Session.level && (!isDebut || _DEBUT_ARCHETYPES[Session.level].includes(a.name))
@@ -1588,6 +1651,19 @@ function buildTarget() {
         harm: lv.harm ? _pickWeightedParam([0,1,2,3,4,5], 5, 3, Session.level) : 0,
         noise: lv.noise ? rng(2, 6) : 0,
     };
+}
+
+function readSliders() {
+    return {
+        freq: +UI.sliders.freq.value, amp: +UI.sliders.amp.value,
+        phase: +UI.sliders.phase.value, dc: +UI.sliders.dc.value,
+        harm: +UI.sliders.harm.value, noise: +UI.sliders.noise.value,
+    };
+}
+
+function applySignal(sig) {
+    Object.assign(yoursSignal, sig);
+    invalidateMatchScore();
 }
 
 function resetYours() {
@@ -1764,10 +1840,10 @@ function endFreePlay() {
 // ─── ROUND / LEVEL FLOW ───────────────────────────────────────────────────────
 
 function nextRound() {
-    Round.won = false; Round._lockAnimStart = 0; Round.roundNo++;
+    Round.won = false; Round._lockAnimStart = 0; dispatch({ type: "ROUND_NEXT" });
     if (Session.level >= LEVELS.length) {
-        Session.level = LEVELS.length - 1;
-        Round.roundNo = 1;
+        dispatch({ type: "LEVEL_SET", payload: LEVELS.length - 1 });
+        dispatch({ type: "ROUND_SET", payload: 1 });
         Session.postGameFreeplay = true;
         startFreePlay();
         const feedback = UI.displays.feedback;
@@ -1779,7 +1855,9 @@ function nextRound() {
         recordLevelComplete(Session.level, Session.score - Session.levelStartScore);
         const nextLevel = Session.level + 1;
         if (nextLevel >= LEVELS.length) { victory(); return; }
-        Session.level = nextLevel; Round.roundNo = 1; Session.levelStartScore = Session.score;
+        dispatch({ type: "LEVEL_SET", payload: nextLevel });
+        dispatch({ type: "ROUND_SET", payload: 1 });
+        Session.levelStartScore = Session.score;
         showLevelUpScreen(); return;
     }
     UI.displays.roundNo.textContent = Round.roundNo;
@@ -1879,21 +1957,21 @@ function goToMenu() {
 // ─── GAME ENTRY POINTS ────────────────────────────────────────────────────────
 
 function startGame() {
-    Session.score = Session.levelStartScore; Round.roundNo = 0;
+    dispatch({ type: "SCORE_SET", payload: Session.levelStartScore });
+    dispatch({ type: "ROUND_SET", payload: 0 });
     if (!lsGet("tutorialSeen") && !Session.tutorialActive) { startTutorial(); return; }
-    UI.displays.score.textContent = Session.score;
     showScreen("game"); startLoop(); nextRound();
 }
 
-function restartGame() { SFX.reset(); Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; Session.postGameFreeplay = false; startGame(); }
+function restartGame() { SFX.reset(); Round._lockAnimStart = 0; dispatch({ type: "SCORE_RESET" }); dispatch({ type: "LEVEL_SET", payload: 0 }); Session.postGameFreeplay = false; startGame(); }
 
 function startTutorial() {
     SFX.nav();
-    Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; Session.score = 0;
+    Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; dispatch({ type: "SCORE_RESET" });
     showScreen("game"); startLoop();
     targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
     invalidateMatchScore();
-    Round.roundNo = 1; UI.displays.roundNo.textContent = 1; UI.displays.roundTotal.textContent = 1;
+    dispatch({ type: "ROUND_SET", payload: 1 }); UI.displays.roundTotal.textContent = 1;
     UI.controls.phase.style.opacity = "1"; UI.controls.dc.style.opacity = "1";
     UI.controls.harm.classList.add("hidden"); UI.controls.noise.classList.add("hidden");
     UI.buttons.pwm.disabled = false; UI.buttons.am.disabled = false;
@@ -1977,7 +2055,7 @@ function endTutorial() {
 
 function useHint() {
     if (Round.won || Session.score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
-    Session.score = Math.max(0, Session.score - CONFIG.COST_HINT); UI.displays.score.textContent = Session.score;
+    dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
     const lv = LEVELS[Session.level];
     const hints = [
         "type: " + targetSignal.type,
@@ -1997,7 +2075,7 @@ function useHint() {
 
 function skipRound() {
     if (Session.score < CONFIG.COST_SKIP) { SFX.skipBroke(); spawnStamp("skip_broke"); return; }
-    Session.score = Math.max(0, Session.score - CONFIG.COST_SKIP); UI.displays.score.textContent = Session.score;
+    dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_SKIP });
     SFX.skip(); spawnStamp("skip"); setTimeout(() => nextRound(), 600); /* delay */
 }
 
@@ -2042,7 +2120,6 @@ function initLogoScope() {
         coral: styles.getPropertyValue('--coral').trim(),
     };
 
-    const logoRand = makeRand(1831565813 ^ 0xC0FFEE);
 
     /* ---------------- SIGNAL CONSTANTS ---------------- */
 
@@ -2074,7 +2151,7 @@ function initLogoScope() {
         return (
             fastSin(x * NOISE_LOW_FREQ + t * NOISE_LOW_SPEED) * NOISE_LOW_AMP +
             fastSin(x * NOISE_HIGH_FREQ - t * NOISE_HIGH_SPEED) * NOISE_HIGH_AMP +
-            (logoRand() - 0.5) * RANDOM_NOISE_AMP
+            (stampRand() - 0.5) * RANDOM_NOISE_AMP
         );
     }
 
