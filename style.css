@@ -235,7 +235,7 @@ body {
         min-height: 100svh;
         min-height: 100dvh;
         border-radius: 0;
-        padding: 16px 12px;
+        padding: 12px 10px;
         transform: none;
         will-change: auto;
         box-shadow: none;
@@ -243,10 +243,18 @@ body {
     }
 
     .action-row {
-        margin-top: 16px;
+        margin-top: 10px;
         transform: none;
         will-change: auto;
     }
+
+    .param-list { gap: 6px; }
+    .ctrl { gap: 2px; }
+    .slider-meta { padding: 0 10px; }
+    .slider-row { padding: 0 10px; }
+    .slider-meta label { font-size: 9px; }
+    .slider-val { font-size: 9px; padding: 2px 6px; }
+    .timer-ring-wrap { top: 4px; right: 6px; }
 }
 
 .sr-only {
