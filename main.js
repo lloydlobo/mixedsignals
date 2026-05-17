@@ -171,7 +171,7 @@ const Session = {
     freePlayActive: false,
     tutorialStep: 0,
     tutorialActive: false,
-    currentTrackIndex: -1,
+
     muted: false,
     sfxMuted: false,
     volume: 0.4,
@@ -430,6 +430,7 @@ function recordLevelComplete(completedLevel, runScore) {
 // ─── START SCREEN ────────────────────────────────────────────────────────────
 
 function renderStartScreen() {
+    transitionBGM(BGM_STATE.MENU);
     const save = loadSave();
 
     const continueBtn = UI.buttons.continue;
@@ -465,6 +466,7 @@ function continueSave() {
 // ─── LEVEL SELECT ─────────────────────────────────────────────────────────────
 
 function showLevelSelect() {
+    transitionBGM(BGM_STATE.MENU);
     SFX.nav();
     const save = loadSave();
     const grid = UI.levelSelectGrid;
@@ -521,19 +523,48 @@ const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
 
-const BGM_TRACKS = [
-    "resources/music/musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
-    "resources/music/slimeyfox-after-hours-arcade-487277.mp3",
-    "resources/music/pietix-art-pop-exp-2-510302.mp3",
-    "resources/music/databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
-    "resources/music/penguinmusic-penguinmusic-modern-chillout-future-calm-12641.mp3",
-];
-function pickNextTrack() {
+const BGM_STATE = {
+    MENU:     "menu",
+    GAMEPLAY: "gameplay",
+    RESULT:   "result",
+};
+
+const BGM_POOL = {
+    menu: [
+        "slimeyfox-after-hours-arcade-487277.mp3",
+        "pietix-art-pop-exp-2-510302.mp3",
+    ],
+    gameplay: [
+        "penguinmusic-penguinmusic-modern-chillout-future-calm-12641.mp3",
+        "databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
+        "musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
+    ],
+    result: null,
+};
+
+const _poolLastIndex = { menu: -1, gameplay: -1, result: -1 };
+let _bgmState = null;
+
+function _pickFromPool(pool, stateKey) {
     let next;
-    do { next = Math.floor(stampRand() * BGM_TRACKS.length); }
-    while (BGM_TRACKS.length > 1 && next === Session.currentTrackIndex);
-    Session.currentTrackIndex = next;
-    return BGM_TRACKS[next];
+    do { next = Math.floor(stampRand() * pool.length); }
+    while (pool.length > 1 && next === _poolLastIndex[stateKey]);
+    _poolLastIndex[stateKey] = next;
+    return pool[next];
+}
+
+function _playFromPool(pool, stateKey) {
+    const audio = UI.audio;
+    const next = _pickFromPool(pool, stateKey);
+    audio.src = "resources/music/" + next;
+    if (!Session.muted) audio.play();
+}
+
+function transitionBGM(state) {
+    if (state === _bgmState) return;
+    _bgmState = state;
+    const pool = BGM_POOL[state] ?? BGM_POOL.menu;
+    _playFromPool(pool, state);
 }
 
 Session.muted = lsGet("bgmMuted") === "true";
@@ -549,14 +580,20 @@ function initAudio() {
     const sfxBtn = UI.buttons.sfx;
     if (sfxBtn) { sfxBtn.textContent = "SFX"; sfxBtn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
     audio.addEventListener("ended", () => {
-        if (!Session.muted) { audio.src = pickNextTrack(); audio.play(); }
+        if (!Session.muted) {
+            const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
+            _playFromPool(pool, _bgmState);
+        }
     });
 }
 
 function startMusic() {
     const audio = UI.audio;
     if (Session.muted || !audio.paused) return;
-    if (!audio.src || audio.ended) audio.src = pickNextTrack();
+    if (!audio.src || audio.ended) {
+        const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
+        audio.src = "resources/music/" + _pickFromPool(pool, _bgmState);
+    }
     audio.play();
 }
 
@@ -1767,6 +1804,7 @@ function exitLevel() {
 }
 
 function enterLevel() {
+    transitionBGM(BGM_STATE.GAMEPLAY);
     showScreen("game");
     targetSignal = buildTarget();
     if (UI.archetypeName) {
@@ -1868,6 +1906,7 @@ function nextRound() {
 }
 
 function showLevelUpScreen() {
+    transitionBGM(BGM_STATE.MENU);
     exitLevel();
     UI.displays.luTitle.textContent = `LEVEL ${Session.level + 1}`;
     const lv = LEVELS[Session.level];
@@ -1921,6 +1960,7 @@ function continueLevel() {
 }
 
 function victory() {
+    transitionBGM(BGM_STATE.RESULT);
     exitLevel();
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "MIXED SIGNALS MASTERED"; h3.style.color = "var(--green)"; }
@@ -1929,6 +1969,7 @@ function victory() {
 }
 
 function gameOver() {
+    transitionBGM(BGM_STATE.RESULT);
     exitLevel(); flash("#ff4554"); spawnStamp("fail");
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
@@ -1966,6 +2007,7 @@ function startGame() {
 function restartGame() { SFX.reset(); Round._lockAnimStart = 0; dispatch({ type: "SCORE_RESET" }); dispatch({ type: "LEVEL_SET", payload: 0 }); Session.postGameFreeplay = false; startGame(); }
 
 function startTutorial() {
+    transitionBGM(BGM_STATE.GAMEPLAY);
     SFX.nav();
     Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; dispatch({ type: "SCORE_RESET" });
     showScreen("game"); startLoop();
