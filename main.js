@@ -407,17 +407,17 @@ function pickNextTrack() {
     return BGM_TRACKS[next];
 }
 
-let muted = lsGet("bgmMuted") === "true";
-let sfxMuted = lsGet("sfxMuted") === "true";
+let muted = false;
+let sfxMuted = false;
 let volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
     const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = muted; audio.volume = volume;
-    btn.textContent = muted ? "🔇" : "🎵";
-    btn.style.color = muted ? "var(--text-dim)" : "";
+    btn.textContent = "BGM";
+    btn.style.color = muted ? "var(--text-dim)" : "var(--blue)";
     const sfxBtn = UI.buttons.sfx;
-    if (sfxBtn) { sfxBtn.textContent = sfxMuted ? "🔇" : "SFX"; sfxBtn.style.color = sfxMuted ? "var(--text-dim)" : ""; }
+    if (sfxBtn) { sfxBtn.textContent = "SFX"; sfxBtn.style.color = sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
     audio.addEventListener("ended", () => {
         if (!muted) { audio.src = pickNextTrack(); audio.play(); }
     });
@@ -441,8 +441,8 @@ function toggleMute() {
     const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = muted;
     lsSet("bgmMuted", String(muted));
-    btn.textContent = muted ? "🔇" : "🎵";
-    btn.style.color = muted ? "var(--text-dim)" : "";
+    btn.textContent = "BGM";
+    btn.style.color = muted ? "var(--text-dim)" : "var(--blue)";
     if (muted) {
         if (!audio.paused) audio.pause();
     } else {
@@ -453,8 +453,8 @@ function toggleMute() {
 function toggleSfxMute() {
     sfxMuted = !sfxMuted;
     const btn = UI.buttons.sfx;
-    btn.textContent = sfxMuted ? "🔇" : "SFX";
-    btn.style.color = sfxMuted ? "var(--text-dim)" : "";
+    btn.textContent = "SFX";
+    btn.style.color = sfxMuted ? "var(--text-dim)" : "var(--blue)";
     lsSet("sfxMuted", String(sfxMuted));
 }
 
