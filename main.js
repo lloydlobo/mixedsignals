@@ -812,16 +812,27 @@ const WAVEFORM_GAIN = Object.freeze({
 let _limiter = null;
 let _beatingMix = null;
 let _pointerGate = null;
+let _tensionFilter = null;
 
 function initBeatingBus() {
     if (_beatingMix) return;
     const ac = actx();
     _beatingMix = ac.createGain();
     _beatingMix.gain.value = 1;
+    _tensionFilter = ac.createBiquadFilter();
+    _tensionFilter.type = "lowpass";
+    _tensionFilter.frequency.value = 3000;
+    _tensionFilter.Q.value = 0.7;
     _pointerGate = ac.createGain();
     _pointerGate.gain.value = 0;
-    _beatingMix.connect(_pointerGate);
+    _beatingMix.connect(_tensionFilter);
+    _tensionFilter.connect(_pointerGate);
     _pointerGate.connect(getLimiter());
+}
+
+function resetTensionFilter() {
+    if (!_tensionFilter) return;
+    _tensionFilter.frequency.setValueAtTime(3000, actx().currentTime);
 }
 
 function getLimiter() {
@@ -1511,6 +1522,7 @@ function applyLevelUI() {
 
 function startTimer() {
     clearInterval(timerInterval);
+    resetTensionFilter();
     const lv = LEVELS[Session.level];
     const grace = lv.grace && Round.roundNo === 1; // grace round: timeout advances, never kills
     const total = Round.timeLeft = lv.time;
@@ -1537,7 +1549,13 @@ function startTimer() {
         el.textContent = Round.timeLeft;
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
         ring.style.stroke = grace ? (lv.graceColor ?? "var(--blue)") : (urgent ? "#e85a4a" : "#f0690a");
-        if (urgent) { const now = Date.now(); if (now - Round._lastUrgentSfx > 500) { SFX.urgent(); Round._lastUrgentSfx = now; } }
+        if (urgent) {
+            const pct = Math.max(0, (Round.timeLeft - 1) / 7);
+            const freq = 150 + pct * 2050;
+            _tensionFilter.frequency.setValueAtTime(freq, actx().currentTime);
+            const now = Date.now();
+            if (now - Round._lastUrgentSfx > 500) { SFX.urgent(); Round._lastUrgentSfx = now; }
+        }
         const wrap = document.querySelector(".scope-wrap");
         if (wrap) wrap.classList.toggle("urgent", urgent);
         const cv = document.getElementById("c-overlay");
@@ -1572,6 +1590,7 @@ function exitLevel() {
         UI.archetypeName.textContent = "";
         UI.archetypeName.classList.add("hidden");
     }
+    resetTensionFilter();
     const meterFill = UI.displays.fill;
     if (meterFill) meterFill.style.background = "";
     const scopeWrap = document.querySelector(".scope-wrap");
