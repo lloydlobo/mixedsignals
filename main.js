@@ -1662,6 +1662,8 @@ function startTimer() {
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
         ring.style.stroke = grace ? "var(--blue)" : (urgent ? "#e85a4a" : "#f0690a");
         if (urgent) { const now = Date.now(); if (now - _lastUrgentSfx > 500) { SFX.urgent(); _lastUrgentSfx = now; } }
+        const wrap = document.querySelector(".scope-wrap");
+        if (wrap) wrap.classList.toggle("urgent", urgent);
         if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
             if (grace) { // Grace timeout: no gameOver.
@@ -1700,6 +1702,8 @@ function enterLevel() {
     const feedback = UI.displays.feedback;
     feedback.textContent = "Match the target signal.";
     feedback.className = "feedback";
+    const wrap = document.querySelector(".scope-wrap");
+    if (wrap) wrap.classList.remove("urgent");
     startTimer();
     startSignalPlayback();
     startLoop();
