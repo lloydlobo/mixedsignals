@@ -2470,11 +2470,13 @@ function mgPeakStart(cfg) {
 function mgNeedleStart(cfg) {
     let started = Date.now();
     let duration = 6000;
-    const baseSpeed = cfg.needleBase;
+    let baseSpeed = cfg.needleBase;
     const speedLimit = cfg.needleLimit;
     const GREEN_LO = 0.33, GREEN_HI = 0.67;
     let stopped = false;
     let needlePos = 0;
+    let tryNo = 0, bestPts = 0, MAX_TRIES = 3;
+    let phaseOffset = Math.random() * Math.PI * 2;
 
     const btn = $mg("mg-btn");
     btn.textContent = "STOP";
@@ -2482,11 +2484,24 @@ function mgNeedleStart(cfg) {
 
     btn.onclick = () => {
         if (stopped || mgDone) return;
-        stopped = true;
         const inZone = needlePos >= GREEN_LO && needlePos <= GREEN_HI;
+        SFX.beep(inZone ? 880 : 220, 0.1, inZone ? 0.15 : 0.1);
         const precision = inZone ? 1 - Math.abs(needlePos - 0.5) / 0.17 : 0;
         const pts = inZone ? Math.round(10 + precision * 20) : 0;
-        mgFinish(pts, inZone ? "LOCKED! +" + pts + " pts" : "MISSED THE ZONE", inZone);
+        if (pts > bestPts) bestPts = pts;
+        tryNo++;
+        if (tryNo >= MAX_TRIES || inZone) {
+            stopped = true;
+            mgFinish(bestPts, bestPts > 0 ? "LOCKED! +" + bestPts + " pts" : "MISSED THE ZONE", bestPts > 0);
+        } else {
+            baseSpeed = Math.min(speedLimit, baseSpeed + 0.15);
+            phaseOffset = Math.random() * Math.PI * 2;
+            started = Date.now();
+            btn.textContent = "STOP";
+            btn.disabled = false;
+            $mg("mg-status").textContent = "TRY " + (tryNo + 1) + " OF " + MAX_TRIES;
+            $mg("mg-status").className = "mg-status amber";
+        }
     };
 
     function tick() {
@@ -2497,7 +2512,7 @@ function mgNeedleStart(cfg) {
         const speed = Math.min(speedLimit, baseSpeed + t * difficultyCurve);
         const fDrift = 0.04;
         const drift = fastSin(t * 0.7) * fDrift;
-        let raw = fastSin(t * (speed + drift) * Math.PI * 2);
+        let raw = fastSin(t * (speed + drift) * Math.PI * 2 + phaseOffset);
         const k = 0.6;
         raw = Math.tanh(raw * (1 + k)) / Math.tanh(1 + k);
         if (Math.random() < 0.5) { raw += 0.03 * fastSin(t * 6); }
@@ -2704,7 +2719,8 @@ function mgNoiseStart(cfg) {
         if (mgDone) return;
         const pn = performance.now();
         const elapsed = Date.now() - startT;
-        noise = Math.min(1, noise + 0.0008);
+        const regen = elapsed < 3000 ? 0 : 0.0001;
+        noise = Math.min(1, noise + regen);
         const timeLeft = Math.max(0, 1 - (elapsed / duration));
         $mg("mg-bar").style.width = (timeLeft * 100) + "%";
         $mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
