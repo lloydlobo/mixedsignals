@@ -126,7 +126,7 @@ const ARCHETYPES = [
 
 let score = 0, levelStartScore = 0, level = 0, roundNo = 0,
     timeLeft = 0, timerInterval = null, animRaf = null, won = false,
-    _lockAnimStart = 0;
+    _lockAnimStart = 0, _lockScrollPos = -1;
 
 let freePlayActive = false; // true during untimed free-play warmup round
 
@@ -1250,23 +1250,35 @@ function loop(ts) {
     const LOCK_DUR = 1950;
     let lockT = 0;
     if (_lockAnimStart > 0) {
+        // Freeze scroll at lock moment for micro-replay effect
+        if (_lockScrollPos < 0) _lockScrollPos = scroll;
         lockT = Math.min((ts - _lockAnimStart) / LOCK_DUR, 1);
-        if (lockT >= 1) _lockAnimStart = 0;
+        if (lockT >= 1) { _lockAnimStart = 0; _lockScrollPos = -1; }
     }
 
+    const repScroll = _lockScrollPos >= 0 ? _lockScrollPos : scroll;
+
     if (lockT > 0 && lockT < 1) {
+        // Radar ring emanates from scope center during lock
+        _ctx.globalAlpha = Math.max(0, 0.25 * (1 - lockT / 0.6));
+        for (let r = 0; r < 3; r++) {
+            const rad = (lockT * W * 0.5 + r * 20) % (W * 0.5);
+            _ctx.beginPath(); _ctx.arc(W * 0.5, H * 0.5, rad, 0, Math.PI * 2);
+            _ctx.strokeStyle = "#66ff88"; _ctx.lineWidth = 1.5;
+            _ctx.stroke();
+        }
         const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
         _ctx.globalAlpha = 0.25 * (1 - release);
-        drawWave(targetSignal, "#448855", W, H, scroll, 1.5);
+        drawWave(targetSignal, "#448855", W, H, repScroll, 1.5);
 
         const flash = Math.max(0, 1 - lockT / 0.35);
         _ctx.globalAlpha = flash * 0.7;
-        drawWave(yoursSignal, "#66ff88", W, H, scroll, 3 + 2 * flash);
+        drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash);
 
         const settle = Math.min(lockT / 0.25, 1);
         _ctx.globalAlpha = 0.4 + 0.6 * settle;
-        drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 2);
+        drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2);
     } else {
         if (roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
         else if (roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
@@ -1538,7 +1550,7 @@ function stopLoop() { _lockAnimStart = 0; if (animRaf !== null) { cancelAnimatio
 // ─── LIFECYCLE ────────────────────────────────────────────────────────────────
 
 function exitLevel() {
-    _lockAnimStart = 0;
+    _lockAnimStart = 0; _lockScrollPos = -1;
     clearInterval(timerInterval);
     timerInterval = null;
     stopLoop();
