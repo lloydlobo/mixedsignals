@@ -469,6 +469,7 @@ const BGM_TRACKS = [
     "resources/music/musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
     "resources/music/slimeyfox-after-hours-arcade-487277.mp3",
     "resources/music/pietix-art-pop-exp-2-510302.mp3",
+    "resources/music/databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
 ];
 function pickNextTrack() {
     let next;
@@ -483,6 +484,7 @@ Session.sfxMuted = lsGet("sfxMuted") === "true";
 Session.volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
+    createMixGraph();
     const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = Session.muted; audio.volume = Session.volume;
     btn.textContent = "BGM";
@@ -581,7 +583,7 @@ function _warmNote(ac, freq, startTime, gain, duration, detune = 4) {
 
         osc.connect(filter);
         filter.connect(env);
-        env.connect(ac.destination);
+        env.connect(MIX.sfx);
         osc.start(t);
         osc.stop(t + duration + 0.02);
     }
@@ -615,7 +617,7 @@ const _LOCK_VARIANTS = [
         g.gain.setValueAtTime(0, ac.currentTime + 0.16);
         g.gain.linearRampToValueAtTime(0.05, ac.currentTime + 0.18);
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.40);
-        o.connect(g); g.connect(ac.destination);
+        o.connect(g); g.connect(MIX.sfx);
         o.start(ac.currentTime + 0.16); o.stop(ac.currentTime + 0.42);
     },
 
@@ -641,7 +643,7 @@ const _LOCK_VARIANTS = [
         g.gain.setValueAtTime(0, ac.currentTime + 0.18);
         g.gain.linearRampToValueAtTime(0.08, ac.currentTime + 0.20);
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.38);
-        o.connect(g); g.connect(ac.destination);
+        o.connect(g); g.connect(MIX.sfx);
         o.start(ac.currentTime + 0.18); o.stop(ac.currentTime + 0.40);
     },
 ];
@@ -661,7 +663,7 @@ function _sfxNote(opts) {
         g.gain.setValueAtTime(opts.gain, ac.currentTime);
     }
     g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + opts.dur);
-    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + opts.dur);
+    o.connect(g); g.connect(MIX.sfx); o.start(); o.stop(ac.currentTime + opts.dur);
 }
 
 const SFX = {
@@ -808,31 +810,119 @@ const WAVEFORM_GAIN = Object.freeze({
     am: 1.334,
 });
 
+// ─────────────────────────────────────────────────────────
+// MIX GRAPH
+// ─────────────────────────────────────────────────────────
+
+const MIX = {
+    target: null,
+    yours: null,
+    sfx: null,
+    bgm: null,
+    mix: null,
+    glue: null,
+    saturator: null,
+    limiter: null,
+    master: null,
+};
+
+let _clarityFilter = null;
+
+function createSaturator(ac) {
+    const shaper = ac.createWaveShaper();
+    const n = 44100;
+    const curve = new Float32Array(n);
+    const k = 15;
+    for (let i = 0; i < n; i++) {
+        const x = i * 2 / n - 1;
+        curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
+    }
+    shaper.curve = curve;
+    shaper.oversample = "4x";
+    return shaper;
+}
+
+function createMixGraph() {
+    if (MIX.master) return;
+    const ac = actx();
+
+    MIX.target = ac.createGain();
+    MIX.yours = ac.createGain();
+    MIX.sfx = ac.createGain();
+    MIX.bgm = ac.createGain();
+    MIX.mix = ac.createGain();
+    MIX.master = ac.createGain();
+
+    MIX.glue = ac.createDynamicsCompressor();
+    MIX.glue.threshold.value = -18;
+    MIX.glue.knee.value = 12;
+    MIX.glue.ratio.value = 2;
+    MIX.glue.attack.value = 0.02;
+    MIX.glue.release.value = 0.15;
+
+    MIX.saturator = createSaturator(ac);
+    MIX.limiter = getLimiter();
+
+    _clarityFilter = ac.createBiquadFilter();
+    _clarityFilter.type = "highshelf";
+    _clarityFilter.frequency.value = 2000;
+    _clarityFilter.gain.value = 0;
+
+    MIX.sfx.connect(MIX.mix);
+    MIX.bgm.connect(MIX.mix);
+
+    MIX.mix.connect(_clarityFilter);
+    _clarityFilter.connect(MIX.glue);
+    MIX.glue.connect(MIX.saturator);
+    MIX.saturator.connect(MIX.limiter);
+    MIX.limiter.connect(MIX.master);
+    MIX.master.connect(ac.destination);
+    MIX.master.gain.value = 1;
+}
+
 // Brickwall limiter catches transients from type switches, AM peaks, and gain overshoot
 let _limiter = null;
-let _beatingMix = null;
 let _pointerGate = null;
 let _tensionFilter = null;
 
 function initBeatingBus() {
-    if (_beatingMix) return;
+    if (_tensionFilter) return;
     const ac = actx();
-    _beatingMix = ac.createGain();
-    _beatingMix.gain.value = 1;
     _tensionFilter = ac.createBiquadFilter();
     _tensionFilter.type = "lowpass";
     _tensionFilter.frequency.value = 3000;
     _tensionFilter.Q.value = 0.7;
     _pointerGate = ac.createGain();
     _pointerGate.gain.value = 0;
-    _beatingMix.connect(_tensionFilter);
+    MIX.target.connect(_tensionFilter);
+    MIX.yours.connect(_tensionFilter);
     _tensionFilter.connect(_pointerGate);
-    _pointerGate.connect(getLimiter());
+    _pointerGate.connect(MIX.mix);
 }
 
 function resetTensionFilter() {
     if (!_tensionFilter) return;
     _tensionFilter.frequency.setValueAtTime(3000, actx().currentTime);
+}
+
+function duckTarget() {
+    if (_pbMode !== "ab") return;
+    const t = actx().currentTime;
+    const g = MIX.target.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0.82, t + 0.02);
+    g.linearRampToValueAtTime(1, t + 0.15);
+}
+
+let _lastClarity = -1;
+
+function updateMixState() {
+    const sc = smoothstep(matchScore());
+    if (Math.abs(sc - _lastClarity) < 0.05) return;
+    _lastClarity = sc;
+    const now = actx().currentTime;
+    _clarityFilter.gain.setTargetAtTime(sc * 6, now, 0.2);
 }
 
 function getLimiter() {
@@ -844,7 +934,7 @@ function getLimiter() {
     c.ratio.value = 20; // effectively a brickwall above threshold
     c.attack.value = 0.001; // 1 ms - fast enough to catch transients
     c.release.value = 0.1; // 100 ms - recover quickly after peak
-    c.connect(ac.destination);
+    c.connect(MIX.master);
     _limiter = c;
     return _limiter;
 }
@@ -963,7 +1053,7 @@ function _buildChannel(ch, sig) {
     ampGain.connect(filter);
     filter.connect(masterGain);
     initBeatingBus();
-    masterGain.connect(_beatingMix);
+    masterGain.connect(sig === targetSignal ? MIX.target : MIX.yours);
 
     // ── start ─────────────────────────────────────────────────────────────────
     osc.start(now);
@@ -1371,6 +1461,7 @@ function updateMeter() {
         fb.textContent = "Match the target signal."; fb.className = "feedback";
         Round._wasCloseSfx = false;
     }
+    updateMixState();
 }
 
 // ─── INPUT HANDLERS (rAF-throttled) ──────────────────────────────────────────
@@ -1399,6 +1490,7 @@ function recompute() {
         UI.sliders.noise.setAttribute("aria-valuetext", (yoursSignal.noise / 10).toFixed(1));
         const now = Date.now();
         if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
+        duckTarget();
         updateYoursPlayback();
         if (Session.tutorialActive) checkTutorial();
         Round._recomputeScheduled = false;
@@ -2094,7 +2186,3 @@ initCanvas();
 initAudio();
 renderStartScreen();
 showScreen("start");
-
-
-// ─── TEST ────────────────────────────────────────────────────────────────────
-
