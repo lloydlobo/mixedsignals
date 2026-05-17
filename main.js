@@ -144,15 +144,23 @@ function initUI() {
     UI.sliders.noise = document.getElementById("sl-noise");
 
     UI.buttons = {};
-    UI.buttons.continue = document.getElementById("btn-continue");
-    UI.buttons.hint = document.getElementById("btn-hint");
-    UI.buttons.skip = document.getElementById("btn-skip");
-    UI.buttons.menu = document.getElementById("menu-btn");
-    UI.buttons.skipTut = document.getElementById("skip-tut");
-    UI.buttons.freeplayReady = document.getElementById("btn-freeplay-ready");
-    UI.buttons.mute = document.getElementById("mute-btn");
-    UI.buttons.pwm = document.getElementById("btn-pwm");
-    UI.buttons.am = document.getElementById("btn-am");
+    UI.buttons.am             = document.getElementById("btn-am");
+    UI.buttons.continue       = document.getElementById("btn-continue");
+    UI.buttons.continueLevel  = document.getElementById("btn-continue-level");
+    UI.buttons.deadLevelSelect = document.getElementById("btn-dead-level-select");
+    UI.buttons.freeplayReady  = document.getElementById("btn-freeplay-ready");
+    UI.buttons.hint           = document.getElementById("btn-hint");
+    UI.buttons.levelBack      = document.getElementById("btn-level-back");
+    UI.buttons.menu           = document.getElementById("menu-btn");
+    UI.buttons.mute           = document.getElementById("mute-btn");
+    UI.buttons.newGame        = document.getElementById("btn-new-game");
+    UI.buttons.pwm            = document.getElementById("btn-pwm");
+    UI.buttons.retry          = document.getElementById("btn-retry");
+    UI.buttons.selectLevel    = document.getElementById("btn-select-level");
+    UI.buttons.skip           = document.getElementById("btn-skip");
+    UI.buttons.skipTut        = document.getElementById("skip-tut");
+    UI.buttons.startOver      = document.getElementById("btn-start-over");
+    UI.buttons.tutorial       = document.getElementById("btn-tutorial");
 
     UI.playback = {};
     UI.playback.target = document.getElementById("pb-target");
@@ -188,20 +196,42 @@ function initUI() {
     UI.meterRow = document.getElementById("meter-row");
     UI.game = document.getElementById("game");
     UI.levelSelectGrid = document.getElementById("level-select-grid");
+    UI.typeButtons = document.getElementById("type-btns");
+    UI.sliderContainer = document.querySelector(".param-list");
 }
 
 // ─── EVENT BINDING ────────────────────────────────────────────────────────────
 
 function initEvents() {
+    // Screen-transition buttons
+    UI.buttons.continue?.addEventListener("click", continueSave);
+    UI.buttons.newGame?.addEventListener("click", restartGame);
+    UI.buttons.selectLevel?.addEventListener("click", showLevelSelect);
+    UI.buttons.tutorial?.addEventListener("click", startTutorial);
+    UI.buttons.retry?.addEventListener("click", startGame);
+    UI.buttons.deadLevelSelect?.addEventListener("click", showLevelSelect);
+    UI.buttons.startOver?.addEventListener("click", restartGame);
+    UI.buttons.continueLevel?.addEventListener("click", continueLevel);
+    UI.buttons.levelBack?.addEventListener("click", () => { renderStartScreen(); showScreen("start"); });
+
+    // Action buttons
     UI.buttons.hint?.addEventListener("click", useHint);
     UI.buttons.skip?.addEventListener("click", skipRound);
     UI.buttons.menu?.addEventListener("click", goToMenu);
     UI.buttons.skipTut?.addEventListener("click", skipTutorial);
     UI.buttons.freeplayReady?.addEventListener("click", endFreePlay);
     UI.buttons.mute?.addEventListener("click", toggleMute);
-    UI.buttons.pwm?.addEventListener("click", () => setType(UI.buttons.pwm));
-    UI.buttons.am?.addEventListener("click", () => setType(UI.buttons.am));
 
+    // Delegated type button listener (handles all 6 waveform buttons)
+    UI.typeButtons?.addEventListener("click", (e) => {
+        const btn = e.target.closest(".type-btn");
+        if (btn) setType(btn);
+    });
+
+    // Delegated slider listener
+    UI.sliderContainer?.addEventListener("input", recompute);
+
+    // Playback toggle buttons
     (["target", "yours", "ab"]).forEach(mode => {
         UI.playback[mode]?.addEventListener("click",
             () => setPlaybackMode(_pbMode === mode ? "off" : mode));
@@ -1467,6 +1497,12 @@ function recompute() {
         UI.labels.dc.textContent = (yoursSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
         UI.labels.harm.textContent = (yoursSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
         UI.labels.noise.textContent = (yoursSignal.noise / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
+        UI.sliders.freq.setAttribute("aria-valuetext", yoursSignal.freq + " Hz");
+        UI.sliders.amp.setAttribute("aria-valuetext", (yoursSignal.amp / 10).toFixed(1));
+        UI.sliders.phase.setAttribute("aria-valuetext", yoursSignal.phase + "°");
+        UI.sliders.dc.setAttribute("aria-valuetext", (yoursSignal.dc / 10).toFixed(1));
+        UI.sliders.harm.setAttribute("aria-valuetext", (yoursSignal.harm / 10).toFixed(1));
+        UI.sliders.noise.setAttribute("aria-valuetext", (yoursSignal.noise / 10).toFixed(1));
         const now = Date.now();
         if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
         updateYoursPlayback();

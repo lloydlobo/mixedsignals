@@ -816,8 +816,13 @@ input[type=range]::-moz-range-thumb {
     /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
     /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
      * will-change: transform to move these to the compositor and prevent blur. */
-    transform: rotate(-0.8deg);
+    /* transform: rotate(-0.8deg); */
     will-change: transform;
+}
+
+.action-row > * {
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .sys-btn {

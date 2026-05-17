@@ -78,15 +78,14 @@
                 </ul>
 
                 <!-- Shown only when save data exists — toggled by renderStartScreen() -->
-                <button class="crt-btn" id="btn-continue" style="display:none"
-                    onclick="continueSave()">CONTINUE</button>
+                <button class="crt-btn" id="btn-continue" style="display:none">CONTINUE</button>
 
-                <button class="crt-btn" id="btn-new-game" onclick="restartGame()">NEW GAME</button>
+                <button class="crt-btn" id="btn-new-game">NEW GAME</button>
 
                 <!-- Level select, disabled until player has unlocked >1 level -->
-                <button class="crt-btn sm" id="btn-select-level" onclick="showLevelSelect()">SELECT LEVEL</button>
+                <button class="crt-btn sm" id="btn-select-level">SELECT LEVEL</button>
 
-                <button class="crt-btn sm" id="btn-tutorial" onclick="startTutorial()">TUTORIAL</button>
+                <button class="crt-btn sm" id="btn-tutorial">TUTORIAL</button>
 
                 <!-- Small unlock status line, populated by renderStartScreen() -->
                 <span id="unlock-msg" style="font-size:10px; color:var(--text-mute);"></span>
@@ -96,16 +95,16 @@
             <div class="screen" id="screen-dead">
                 <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
                 <p id="dead-msg"></p>
-                <button class="crt-btn" id="btn-retry" onclick="startGame()">RETRY LEVEL</button>
-                <button class="crt-btn sm" id="btn-dead-level-select" onclick="showLevelSelect()">LEVEL SELECT</button>
-                <button class="crt-btn sm danger" id="btn-start-over" onclick="restartGame()">START OVER</button>
+                <button class="crt-btn" id="btn-retry">RETRY LEVEL</button>
+                <button class="crt-btn sm" id="btn-dead-level-select">LEVEL SELECT</button>
+                <button class="crt-btn sm danger" id="btn-start-over">START OVER</button>
             </div>
 
             <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelup">
                 <h3 class="orb" id="lu-title">LEVEL 2</h3>
                 <p id="lu-msg"></p>
-                <button class="crt-btn" id="btn-continue-level" onclick="continueLevel()">CONTINUE</button>
+                <button class="crt-btn" id="btn-continue-level">CONTINUE</button>
             </div>
 
             <!-- ━━━ LEVEL SELECT SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -115,7 +114,7 @@
                 <div class="level-select-grid" id="level-select-grid"></div>
                 <!-- FIXED: show screen after rendering (logic similar to last line in goToMenu()) -->
                 <!-- <button class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
-                <button class="crt-btn sm" id="btn-level-back" onclick="renderStartScreen(); showScreen('start')">BACK</button>
+                <button class="crt-btn sm" id="btn-level-back">BACK</button>
             </div>
 
             <!-- ━━━ GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -183,25 +182,25 @@
                 <div class="hardware-grid">
                     <!-- WAVE SELECTOR -->
                     <div class="type-btns" id="type-btns">
-                        <button class="type-btn active" data-t="sine" onclick="setType(this)" aria-label="Sine wave">
+                        <button class="type-btn active" data-t="sine" aria-label="Sine wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
                             </svg>
                             <span>SINE</span>
                         </button>
-                        <button class="type-btn" data-t="square" onclick="setType(this)" aria-label="Square wave">
+                        <button class="type-btn" data-t="square" aria-label="Square wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
                             </svg>
                             <span>SQR</span>
                         </button>
-                        <button class="type-btn" data-t="sawtooth" onclick="setType(this)" aria-label="Sawtooth wave">
+                        <button class="type-btn" data-t="sawtooth" aria-label="Sawtooth wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L12 2 L12 10 L24 2" />
                             </svg>
                             <span>SAW</span>
                         </button>
-                        <button class="type-btn" data-t="triangle" onclick="setType(this)" aria-label="Triangle wave">
+                        <button class="type-btn" data-t="triangle" aria-label="Triangle wave">
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
                             </svg>
@@ -235,8 +234,7 @@
                                 <span class="slider-val"><b id="lbl-freq">1 Hz</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', this.value + ' Hz')" />
+                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" />
                             </div>
                         </div>
 
@@ -252,8 +250,7 @@
                                 <span class="slider-val"><b id="lbl-amp">0.5</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
+                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" />
                             </div>
                         </div>
 
@@ -271,8 +268,7 @@
                                 <span class="slider-val"><b id="lbl-phase">0&deg;</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', this.value + '°')" />
+                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" />
                             </div>
                         </div>
 
@@ -288,8 +284,7 @@
                                 <span class="slider-val"><b id="lbl-dc">0.0</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
+                                <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" />
                             </div>
                         </div>
 
@@ -305,8 +300,7 @@
                                 <span class="slider-val"><b id="lbl-harm">0.0</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
+                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" />
                             </div>
                         </div>
 
@@ -324,8 +318,7 @@
                                 <span class="slider-val"><b id="lbl-noise">0.0</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0"
-                                    oninput="recompute(); this.setAttribute('aria-valuetext', (this.value / 10).toFixed(1))" />
+                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0" />
                             </div>
                         </div>
                     </div>
