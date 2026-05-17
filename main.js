@@ -133,13 +133,49 @@ const _DEBUT_ARCHETYPES = {
 /** @type {Signal} */ let targetSignal = {};
 /** @type {Signal} */ let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
 
-let score = 0, levelStartScore = 0, level = 0, roundNo = 0,
-    timeLeft = 0, timerInterval = null, animRaf = null, won = false,
-    _lockAnimStart = 0, _lockScrollPos = -1;
+// Resource handles (kept as bare lets — no lifecycle dependency)
+let timerInterval = null;
+let animRaf = null;
 
-let freePlayActive = false; // true during untimed free-play warmup round
+/** Per-round state. reset() clears everything except roundNo (managed by nextRound()). */
+const Round = {
+    roundNo: 0,
+    timeLeft: 0,
+    won: false,
+    _lockAnimStart: 0,
+    _lockScrollPos: -1,
+    _lastPct: 0,
+    _recomputeScheduled: false,
+    _setTypeScheduled: false,
+    _lastUrgentSfx: 0,
+    _wasCloseSfx: false,
 
-let tutorialStep = 0, tutorialActive = false;
+    reset() {
+        this.timeLeft = 0;
+        this.won = false;
+        this._lockAnimStart = 0;
+        this._lockScrollPos = -1;
+        this._lastPct = 0;
+        this._recomputeScheduled = false;
+        this._setTypeScheduled = false;
+        this._lastUrgentSfx = 0;
+        this._wasCloseSfx = false;
+    },
+};
+
+/** Session-level state that persists across rounds/levels in one play session. */
+const Session = {
+    score: 0,
+    levelStartScore: 0,
+    level: 0,
+    freePlayActive: false,
+    tutorialStep: 0,
+    tutorialActive: false,
+    currentTrackIndex: -1,
+    muted: false,
+    sfxMuted: false,
+    volume: 0.4,
+};
 
 const TUTORIAL_TASKS = [
     { text: "TUTORIAL: Select TRI waveform", check: () => yoursSignal.type === "triangle" },
@@ -297,7 +333,7 @@ function initEvents() {
         overlay.addEventListener("pointerleave", closeGate);
     }
 
-    document.addEventListener("click", () => { if (!muted) startMusic(); }, { once: true });
+    document.addEventListener("click", () => { if (!Session.muted) startMusic(); }, { once: true });
     window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
 }
 
@@ -366,7 +402,7 @@ function renderStartScreen() {
 
 function continueSave() {
     const save = loadSave();
-    level = save.highestLevel; levelStartScore = 0; score = 0; roundNo = 0;
+    Session.level = save.highestLevel; Session.levelStartScore = 0; Session.score = 0; Round.roundNo = 0;
     startGame();
 }
 
@@ -402,7 +438,7 @@ function showLevelSelect() {
 
 /** @param {number} selectedLevel 0-indexed */
 function startLevelFromSelect(selectedLevel) {
-    level = selectedLevel; levelStartScore = 0; score = 0; roundNo = 0;
+    Session.level = selectedLevel; Session.levelStartScore = 0; Session.score = 0; Round.roundNo = 0;
     startGame();
 }
 
@@ -426,53 +462,51 @@ const BGM_TRACKS = [
     "resources/music/slimeyfox-after-hours-arcade-487277.mp3",
     "resources/music/pietix-art-pop-exp-2-510302.mp3",
 ];
-let currentTrackIndex = -1;
-
 function pickNextTrack() {
     let next;
     do { next = Math.floor(Math.random() * BGM_TRACKS.length); }
-    while (BGM_TRACKS.length > 1 && next === currentTrackIndex);
-    currentTrackIndex = next;
+    while (BGM_TRACKS.length > 1 && next === Session.currentTrackIndex);
+    Session.currentTrackIndex = next;
     return BGM_TRACKS[next];
 }
 
-let muted = lsGet("bgmMuted") === "true";
-let sfxMuted = lsGet("sfxMuted") === "true";
-let volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
+Session.muted = lsGet("bgmMuted") === "true";
+Session.sfxMuted = lsGet("sfxMuted") === "true";
+Session.volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
     const audio = UI.audio, btn = UI.buttons.mute;
-    audio.muted = muted; audio.volume = volume;
+    audio.muted = Session.muted; audio.volume = Session.volume;
     btn.textContent = "BGM";
-    btn.style.color = muted ? "var(--text-dim)" : "var(--blue)";
+    btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
     const sfxBtn = UI.buttons.sfx;
-    if (sfxBtn) { sfxBtn.textContent = "SFX"; sfxBtn.style.color = sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
+    if (sfxBtn) { sfxBtn.textContent = "SFX"; sfxBtn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
     audio.addEventListener("ended", () => {
-        if (!muted) { audio.src = pickNextTrack(); audio.play(); }
+        if (!Session.muted) { audio.src = pickNextTrack(); audio.play(); }
     });
 }
 
 function startMusic() {
     const audio = UI.audio;
-    if (muted || !audio.paused) return;
+    if (Session.muted || !audio.paused) return;
     if (!audio.src || audio.ended) audio.src = pickNextTrack();
     audio.play();
 }
 
 function setVolume(v) {
-    volume = Math.max(0, Math.min(1, v));
-    UI.audio.volume = volume;
-    lsSet("bgmVolume", String(volume));
+    Session.volume = Math.max(0, Math.min(1, v));
+    UI.audio.volume = Session.volume;
+    lsSet("bgmVolume", String(Session.volume));
 }
 
 function toggleMute() {
-    muted = !muted;
+    Session.muted = !Session.muted;
     const audio = UI.audio, btn = UI.buttons.mute;
-    audio.muted = muted;
-    lsSet("bgmMuted", String(muted));
+    audio.muted = Session.muted;
+    lsSet("bgmMuted", String(Session.muted));
     btn.textContent = "BGM";
-    btn.style.color = muted ? "var(--text-dim)" : "var(--blue)";
-    if (muted) {
+    btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
+    if (Session.muted) {
         if (!audio.paused) audio.pause();
     } else {
         if (currentScreen() === "game") startMusic();
@@ -480,11 +514,11 @@ function toggleMute() {
 }
 
 function toggleSfxMute() {
-    sfxMuted = !sfxMuted;
+    Session.sfxMuted = !Session.sfxMuted;
     const btn = UI.buttons.sfx;
     btn.textContent = "SFX";
-    btn.style.color = sfxMuted ? "var(--text-dim)" : "var(--blue)";
-    lsSet("sfxMuted", String(sfxMuted));
+    btn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)";
+    lsSet("sfxMuted", String(Session.sfxMuted));
 }
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
@@ -506,7 +540,7 @@ function actx() {
     return _actx;
 }
 
-let _lastSliderSfx = 0, _lastUrgentSfx = 0, _wasCloseSfx = false;
+let _lastSliderSfx = 0;
 
 // ── SFX helpers ───────────────────────────────────────────────────────────────
 
@@ -603,7 +637,7 @@ const _LOCK_VARIANTS = [
 ];
 
 function _sfxNote(opts) {
-    if (sfxMuted) return;
+    if (Session.sfxMuted) return;
     const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
     o.type = opts.type || "sine";
     o.frequency.value = opts.freq;
@@ -626,12 +660,12 @@ const SFX = {
     slider: () => _sfxNote({ freq: 440 + yoursSignal.freq * 40, gain: 0.06, dur: 0.05 }),
 
     lock: () => {
-        if (sfxMuted) return;
+        if (Session.sfxMuted) return;
         _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](actx());
     },
 
     fail: () => {
-        if (sfxMuted) return;
+        if (Session.sfxMuted) return;
         const ac = actx();
         [[220, 0], [175, 0.11], [130, 0.24]].forEach(([f, t]) =>
             _warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3));
@@ -644,7 +678,7 @@ const SFX = {
     hint: () => _sfxNote({ freq: 660, freqEnd: 880, freqRampTime: 0.12, gainStart: 0, gain: 0.10, dur: 0.22 }),
 
     hintBroke: () => {
-        if (sfxMuted) return;
+        if (Session.sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 660;
         o.frequency.linearRampToValueAtTime(720, ac.currentTime + 0.04);
@@ -656,7 +690,7 @@ const SFX = {
     },
 
     levelUp: () => {
-        if (sfxMuted) return;
+        if (Session.sfxMuted) return;
         const ac = actx();
         [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) =>
             _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
@@ -1157,7 +1191,7 @@ const RENDER = {
 let _elapsedTime = 0;
 
 function getScrollPeriod() {
-    return Math.max(RENDER.SCROLL_MIN_MS, RENDER.SCROLL_BASE_MS - Math.pow(level, RENDER.SCROLL_EASE_EXP) * RENDER.SCROLL_EASE_FACTOR);
+    return Math.max(RENDER.SCROLL_MIN_MS, RENDER.SCROLL_BASE_MS - Math.pow(Session.level, RENDER.SCROLL_EASE_EXP) * RENDER.SCROLL_EASE_FACTOR);
 }
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
@@ -1183,14 +1217,14 @@ function loop(ts) {
     const sc = matchScore(), t = smoothstep(sc);
     const LOCK_DUR = RENDER.LOCK_MS;
     let lockT = 0;
-    if (_lockAnimStart > 0) {
+    if (Round._lockAnimStart > 0) {
         // Freeze scroll at lock moment for micro-replay effect
-        if (_lockScrollPos < 0) _lockScrollPos = scroll;
-        lockT = Math.min((ts - _lockAnimStart) / LOCK_DUR, 1);
-        if (lockT >= 1) { _lockAnimStart = 0; _lockScrollPos = -1; }
+        if (Round._lockScrollPos < 0) Round._lockScrollPos = scroll;
+        lockT = Math.min((ts - Round._lockAnimStart) / LOCK_DUR, 1);
+        if (lockT >= 1) { Round._lockAnimStart = 0; Round._lockScrollPos = -1; }
     }
 
-    const repScroll = _lockScrollPos >= 0 ? _lockScrollPos : scroll;
+    const repScroll = Round._lockScrollPos >= 0 ? Round._lockScrollPos : scroll;
 
     if (lockT > 0 && lockT < 1) {
         // Radar ring emanates from scope center during lock
@@ -1214,13 +1248,13 @@ function loop(ts) {
         _ctx.globalAlpha = 0.4 + 0.6 * settle;
         drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2);
     } else {
-        if (roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
-        else if (roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
+        if (Round.roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
+        else if (Round.roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
         else { _ctx.globalAlpha = 0.15 + 0.6 * t; drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
 
         _ctx.globalAlpha = 0.4 + 0.6 * t;
-        if (roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
-        else if (roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2);
+        if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
+        else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2);
         else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2);
     }
 
@@ -1261,16 +1295,14 @@ function showScorePop(points) {
 
 // ─── METER ───────────────────────────────────────────────────────────────────
 
-let _lastPct = 0;
-
 function updateMeter() {
-    if (won || freePlayActive) return;
+    if (Round.won || Session.freePlayActive) return;
 
     const sc = matchScore();
 
     const pct = Math.round(sc * 100);
-    if (pct !== _lastPct) {
-        _lastPct = pct;
+    if (pct !== Round._lastPct) {
+        Round._lastPct = pct;
 
         UI.displays.pct.textContent = `${pct}%`;
 
@@ -1285,40 +1317,38 @@ function updateMeter() {
     const winPct = winThreshold();
 
     if (pct >= winPct) {
-        _wasCloseSfx = false;
-        if (tutorialActive) { checkTutorial(); return; }
-        won = true; // Don't freeze sliders during tutorial — step checks may not have passed yet
-        _lockAnimStart = performance.now();
+        Round._wasCloseSfx = false;
+        if (Session.tutorialActive) { checkTutorial(); return; }
+        Round.won = true; // Don't freeze sliders during tutorial — step checks may not have passed yet
+        Round._lockAnimStart = performance.now();
         clearInterval(timerInterval);
-        const gain = CONFIG.BASE_REWARD + Math.ceil(timeLeft * CONFIG.TIME_BONUS_RATE);
-        score += gain; UI.displays.score.textContent = score; showScorePop(gain);
+        const gain = CONFIG.BASE_REWARD + Math.ceil(Round.timeLeft * CONFIG.TIME_BONUS_RATE);
+        Session.score += gain; UI.displays.score.textContent = Session.score; showScorePop(gain);
         fb.textContent = `LOCKED IN +${gain} pts`; fb.className = "feedback win";
         flash("var(--green)"); SFX.lock(); spawnStamp("success");
         if (navigator.vibrate) navigator.vibrate(100);
         setTimeout(() => nextRound(), 1800);
     } else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
-        if (tutorialActive) return;
+        if (Session.tutorialActive) return;
         fb.textContent = "Getting close…"; fb.className = "feedback close";
-        if (!_wasCloseSfx) { SFX.close(); _wasCloseSfx = true; }
+        if (!Round._wasCloseSfx) { SFX.close(); Round._wasCloseSfx = true; }
     } else {
-        if (tutorialActive) return;
+        if (Session.tutorialActive) return;
         fb.textContent = "Match the target signal."; fb.className = "feedback";
-        _wasCloseSfx = false;
+        Round._wasCloseSfx = false;
     }
 }
 
 // ─── INPUT HANDLERS (rAF-throttled) ──────────────────────────────────────────
 
-let _recomputeScheduled = false, _setTypeScheduled = false;
-
 function recompute() {
-    if (won) return; // NOTE: Freeze sliders on lock-in
+    if (Round.won) return; // NOTE: Freeze sliders on lock-in
     yoursSignal.freq = +UI.sliders.freq.value; yoursSignal.amp = +UI.sliders.amp.value;
     yoursSignal.phase = +UI.sliders.phase.value; yoursSignal.dc = +UI.sliders.dc.value;
     yoursSignal.harm = +UI.sliders.harm.value; yoursSignal.noise = +UI.sliders.noise.value;
     invalidateMatchScore();
-    if (_recomputeScheduled) return;
-    _recomputeScheduled = true;
+    if (Round._recomputeScheduled) return;
+    Round._recomputeScheduled = true;
     requestAnimationFrame(() => {
         updateMeter();
         UI.labels.freq.textContent = `${yoursSignal.freq} Hz`;
@@ -1336,23 +1366,23 @@ function recompute() {
         const now = Date.now();
         if (now - _lastSliderSfx > 80) { SFX.slider(); _lastSliderSfx = now; }
         updateYoursPlayback();
-        if (tutorialActive) checkTutorial();
-        _recomputeScheduled = false;
+        if (Session.tutorialActive) checkTutorial();
+        Round._recomputeScheduled = false;
     });
 }
 
 function setType(btn) {
-    if (won) return; // NOTE: Freeze waveform type buttons on lock-in
+    if (Round.won) return; // NOTE: Freeze waveform type buttons on lock-in
     document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active"); yoursSignal.type = btn.dataset.t; invalidateMatchScore();
-    if (_setTypeScheduled) return;
-    _setTypeScheduled = true;
+    if (Round._setTypeScheduled) return;
+    Round._setTypeScheduled = true;
     requestAnimationFrame(() => {
         updateMeter(); SFX.tick();
         updateYoursPlayback();
         if (navigator.vibrate) navigator.vibrate(50);
-        if (tutorialActive) checkTutorial();
-        _setTypeScheduled = false;
+        if (Session.tutorialActive) checkTutorial();
+        Round._setTypeScheduled = false;
     });
 }
 
@@ -1395,20 +1425,20 @@ function _pickWeightedParam(values, debutLevel, boost, level) {
 }
 
 function buildTarget() {
-    const lv = LEVELS[level];
+    const lv = LEVELS[Session.level];
 
     // 40% chance: use a signal archetype (gives each round personality)
     let archetype = null;
     if (Math.random() < 0.4) {
-        const isDebut = level in _DEBUT_ARCHETYPES;
+        const isDebut = Session.level in _DEBUT_ARCHETYPES;
         const valid = ARCHETYPES.filter(a =>
-            a.levelMin <= level && (!isDebut || _DEBUT_ARCHETYPES[level].includes(a.name))
+            a.levelMin <= Session.level && (!isDebut || _DEBUT_ARCHETYPES[Session.level].includes(a.name))
         );
         if (valid.length) archetype = valid[rng(0, valid.length - 1)];
     }
 
     if (archetype) {
-        const isDebut = level in _DEBUT_ARCHETYPES && _DEBUT_ARCHETYPES[level].includes(archetype.name);
+        const isDebut = Session.level in _DEBUT_ARCHETYPES && _DEBUT_ARCHETYPES[Session.level].includes(archetype.name);
         // Chaos jitter: on non-debut encounters, the archetype drifts ±1 to feel organic
         const j = () => isDebut ? 0 : rng(-1, 1);
         return {
@@ -1424,11 +1454,11 @@ function buildTarget() {
     }
 
     return {
-        type: _pickWeightedType(lv.types, level),
+        type: _pickWeightedType(lv.types, Session.level),
         freq: rng(1, 6), amp: rng(3, 10),
-        phase: lv.phase ? _pickWeightedParam([0,45,90,135,180,225,270,315], 2, 6, level) : 0,
-        dc: lv.dc ? _pickWeightedParam([-3,-2,-1,0,1,2,3], 3, 3, level) : 0,
-        harm: lv.harm ? _pickWeightedParam([0,1,2,3,4,5], 5, 3, level) : 0,
+        phase: lv.phase ? _pickWeightedParam([0,45,90,135,180,225,270,315], 2, 6, Session.level) : 0,
+        dc: lv.dc ? _pickWeightedParam([-3,-2,-1,0,1,2,3], 3, 3, Session.level) : 0,
+        harm: lv.harm ? _pickWeightedParam([0,1,2,3,4,5], 5, 3, Session.level) : 0,
         noise: lv.noise ? rng(2, 6) : 0,
     };
 }
@@ -1443,8 +1473,8 @@ function resetYours() {
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
 
 function applyLevelUI() {
-    const lv = LEVELS[level];
-    UI.labels.level.textContent = level + 1; UI.displays.roundTotal.textContent = lv.rounds;
+    const lv = LEVELS[Session.level];
+    UI.labels.level.textContent = Session.level + 1; UI.displays.roundTotal.textContent = lv.rounds;
     UI.controls.phase.style.opacity = lv.phase ? "1" : ".3";
     UI.controls.dc.style.opacity = lv.dc ? "1" : ".3";
     UI.controls.harm.classList.toggle("hidden", !lv.harm);
@@ -1458,9 +1488,9 @@ function applyLevelUI() {
 
 function startTimer() {
     clearInterval(timerInterval);
-    const lv = LEVELS[level];
-    const grace = lv.grace && roundNo === 1; // grace round: timeout advances, never kills
-    const total = timeLeft = lv.time;
+    const lv = LEVELS[Session.level];
+    const grace = lv.grace && Round.roundNo === 1; // grace round: timeout advances, never kills
+    const total = Round.timeLeft = lv.time;
     const el = UI.displays.timer, ring = UI.timerRingFill, C = RENDER.TIMER_CIRC;
 
     ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
@@ -1474,24 +1504,24 @@ function startTimer() {
     if (meterFill) meterFill.style.background = graceColor ?? "";
     if (scopeWrap) scopeWrap.classList.toggle("grace-active", grace);
 
-    el.textContent = timeLeft; el.className = "timer-ring-label";
+    el.textContent = Round.timeLeft; el.className = "timer-ring-label";
     if (grace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
 
     timerInterval = setInterval(() => {
-        timeLeft--;
-        ring.style.strokeDashoffset = C * (1 - timeLeft / total);
-        const urgent = !grace && timeLeft <= 8;
-        el.textContent = timeLeft;
+        Round.timeLeft--;
+        ring.style.strokeDashoffset = C * (1 - Round.timeLeft / total);
+        const urgent = !grace && Round.timeLeft <= 8;
+        el.textContent = Round.timeLeft;
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
         ring.style.stroke = grace ? (lv.graceColor ?? "var(--blue)") : (urgent ? "#e85a4a" : "#f0690a");
-        if (urgent) { const now = Date.now(); if (now - _lastUrgentSfx > 500) { SFX.urgent(); _lastUrgentSfx = now; } }
+        if (urgent) { const now = Date.now(); if (now - Round._lastUrgentSfx > 500) { SFX.urgent(); Round._lastUrgentSfx = now; } }
         const wrap = document.querySelector(".scope-wrap");
         if (wrap) wrap.classList.toggle("urgent", urgent);
         const cv = document.getElementById("c-overlay");
         if (cv) cv.classList.toggle("urgent", urgent);
         const tw = document.querySelector(".timer-ring-wrap");
         if (tw) tw.classList.toggle("urgent", urgent);
-        if (timeLeft <= 0 && !won) {
+        if (Round.timeLeft <= 0 && !Round.won) {
             clearInterval(timerInterval);
             if (grace) {
                 UI.displays.feedback.textContent = "Time's up. Now it counts.";
@@ -1505,17 +1535,16 @@ function startTimer() {
 // ─── LOOP CONTROL ────────────────────────────────────────────────────────────
 
 function startLoop() { if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } animRaf = requestAnimationFrame(loop); }
-function stopLoop() { _lockAnimStart = 0; if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
+function stopLoop() { Round._lockAnimStart = 0; if (animRaf !== null) { cancelAnimationFrame(animRaf); animRaf = null; } }
 
 // ─── LIFECYCLE ────────────────────────────────────────────────────────────────
 
 function exitLevel() {
-    _lockAnimStart = 0; _lockScrollPos = -1;
+    Round.reset();
     clearInterval(timerInterval);
     timerInterval = null;
     stopLoop();
     stopSignalPlayback();
-    won = false;
     if (UI.archetypeName) {
         UI.archetypeName.textContent = "";
         UI.archetypeName.classList.add("hidden");
@@ -1552,7 +1581,7 @@ function enterLevel() {
 
 // ─── FREE-PLAY WARMUP ────────────────────────────────────────────────────────
 function startFreePlay() {
-    freePlayActive = true;
+    Session.freePlayActive = true;
     clearInterval(timerInterval);
 
     // Show a neutral target (flat sine) so the scope isn't empty,
@@ -1589,7 +1618,7 @@ function startFreePlay() {
 /** Called by the READY button — ends free-play and starts the real round 1. */
 
 function endFreePlay() {
-    freePlayActive = false;
+    Session.freePlayActive = false;
     UI.buttons.freeplayReady.classList.add("hidden");
     UI.meterRow.style.opacity = "1";
     stopSignalPlayback();
@@ -1599,34 +1628,34 @@ function endFreePlay() {
 // ─── ROUND / LEVEL FLOW ───────────────────────────────────────────────────────
 
 function nextRound() {
-    won = false; _lockAnimStart = 0; roundNo++;
-    if (level >= LEVELS.length) {
-        level = LEVELS.length - 1;
-        roundNo = 1;
+    Round.won = false; Round._lockAnimStart = 0; Round.roundNo++;
+    if (Session.level >= LEVELS.length) {
+        Session.level = LEVELS.length - 1;
+        Round.roundNo = 1;
         startFreePlay();
         const feedback = UI.displays.feedback;
         feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`; feedback.className = "feedback close";
         return;
     }
-    const lv = LEVELS[level];
-    if (roundNo > lv.rounds) {
-        recordLevelComplete(level, score - levelStartScore);
-        const nextLevel = level + 1;
+    const lv = LEVELS[Session.level];
+    if (Round.roundNo > lv.rounds) {
+        recordLevelComplete(Session.level, Session.score - Session.levelStartScore);
+        const nextLevel = Session.level + 1;
         if (nextLevel >= LEVELS.length) { victory(); return; }
-        level = nextLevel; roundNo = 1; levelStartScore = score;
+        Session.level = nextLevel; Round.roundNo = 1; Session.levelStartScore = Session.score;
         showLevelUpScreen(); return;
     }
-    UI.displays.roundNo.textContent = roundNo;
+    UI.displays.roundNo.textContent = Round.roundNo;
 
-    if (lv.freeplay && roundNo === 1) { startFreePlay(); return; }
+    if (lv.freeplay && Round.roundNo === 1) { startFreePlay(); return; }
 
     enterLevel();
 }
 
 function showLevelUpScreen() {
     exitLevel();
-    UI.displays.luTitle.textContent = `LEVEL ${level + 1}`;
-    const lv = LEVELS[level];
+    UI.displays.luTitle.textContent = `LEVEL ${Session.level + 1}`;
+    const lv = LEVELS[Session.level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
     // TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion)
     // Wavy vignette wobbly screen reveal of param
@@ -1639,13 +1668,13 @@ function showLevelUpScreen() {
 }
 
 function hasPendingCeremony() {
-    if (!(level in CEREMONIES)) return false;
+    if (!(Session.level in CEREMONIES)) return false;
     const save = loadSave();
-    return !save.seenCeremonies.includes(level);
+    return !save.seenCeremonies.includes(Session.level);
 }
 
 function showCeremony() {
-    const c = CEREMONIES[level];
+    const c = CEREMONIES[Session.level];
     if (!c) { enterLevel(); return; }
     SFX.levelUp();
     const overlay = document.getElementById("ceremony-overlay");
@@ -1660,13 +1689,13 @@ function dismissCeremony() {
     const overlay = document.getElementById("ceremony-overlay");
     overlay.classList.add("hidden");
     const save = loadSave();
-    if (!save.seenCeremonies.includes(level)) save.seenCeremonies.push(level);
+    if (!save.seenCeremonies.includes(Session.level)) save.seenCeremonies.push(Session.level);
     writeSave(save);
     enterLevel();
 }
 
 function continueLevel() {
-    UI.displays.roundNo.textContent = roundNo;
+    UI.displays.roundNo.textContent = Round.roundNo;
     if (hasPendingCeremony()) {
         showCeremony();
     } else {
@@ -1678,7 +1707,7 @@ function victory() {
     exitLevel();
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "MIXED SIGNALS MASTERED"; h3.style.color = "var(--green)"; }
-    UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${score} pts. Legendary.`;
+    UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
     showScreen("dead"); SFX.levelUp();
 }
 
@@ -1686,7 +1715,7 @@ function gameOver() {
     exitLevel(); flash("#ff4554"); spawnStamp("fail");
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
-    UI.displays.deadMsg.textContent = `Level ${level + 1} · Round ${roundNo} · ${score} pts`;
+    UI.displays.deadMsg.textContent = `Level ${Session.level + 1} · Round ${Round.roundNo} · ${Session.score} pts`;
     showScreen("dead"); SFX.fail();
     const gi = UI.gameInner;
     gi.classList.add("shake"); setTimeout(() => gi.classList.remove("shake"), 500);
@@ -1696,12 +1725,12 @@ function gameOver() {
 /** Exits gameplay cleanly from any state. */
 function goToMenu() {
     exitLevel();
-    if (tutorialActive) {
-        tutorialActive = false;
+    if (Session.tutorialActive) {
+        Session.tutorialActive = false;
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
         UI.buttons.skipTut.classList.add("hidden");
     }
-    won = false; freePlayActive = false;
+    Round.won = false; Session.freePlayActive = false;
     if (UI.buttons.freeplayReady) UI.buttons.freeplayReady.classList.add("hidden");
     if (UI.meterRow) UI.meterRow.style.opacity = "1";
     renderStartScreen(); showScreen("start");
@@ -1710,20 +1739,20 @@ function goToMenu() {
 // ─── GAME ENTRY POINTS ────────────────────────────────────────────────────────
 
 function startGame() {
-    score = levelStartScore; roundNo = 0;
-    if (!lsGet("tutorialSeen") && !tutorialActive) { startTutorial(); return; }
-    UI.displays.score.textContent = score;
+    Session.score = Session.levelStartScore; Round.roundNo = 0;
+    if (!lsGet("tutorialSeen") && !Session.tutorialActive) { startTutorial(); return; }
+    UI.displays.score.textContent = Session.score;
     showScreen("game"); startLoop(); nextRound();
 }
 
-function restartGame() { _lockAnimStart = 0; score = 0; levelStartScore = 0; level = 0; startGame(); }
+function restartGame() { Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; startGame(); }
 
 function startTutorial() {
-    _lockAnimStart = 0; tutorialActive = true; tutorialStep = 0; score = 0;
+    Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; Session.score = 0;
     showScreen("game"); startLoop();
     targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
     invalidateMatchScore();
-    roundNo = 1; UI.displays.roundNo.textContent = 1; UI.displays.roundTotal.textContent = 1;
+    Round.roundNo = 1; UI.displays.roundNo.textContent = 1; UI.displays.roundTotal.textContent = 1;
     UI.controls.phase.style.opacity = "1"; UI.controls.dc.style.opacity = "1";
     UI.controls.harm.classList.add("hidden"); UI.controls.noise.classList.add("hidden");
     UI.buttons.pwm.disabled = false; UI.buttons.am.disabled = false;
@@ -1735,8 +1764,8 @@ function startTutorial() {
 // ─── TUTORIAL ────────────────────────────────────────────────────────────────
 
 function showTutorialTask() {
-    if (tutorialStep >= TUTORIAL_TASKS.length) { endTutorial(); return; }
-    UI.displays.feedback.textContent = TUTORIAL_TASKS[tutorialStep].text;
+    if (Session.tutorialStep >= TUTORIAL_TASKS.length) { endTutorial(); return; }
+    UI.displays.feedback.textContent = TUTORIAL_TASKS[Session.tutorialStep].text;
     UI.displays.feedback.className = "feedback";
     highlightControl();
 }
@@ -1761,10 +1790,10 @@ function unlockAllTutorialControls() {
 }
 
 function checkTutorial() {
-    if (!tutorialActive || tutorialStep >= TUTORIAL_TASKS.length) return;
-    if (TUTORIAL_TASKS[tutorialStep].check()) {
-        lockControl(tutorialStep);
-        tutorialStep++;
+    if (!Session.tutorialActive || Session.tutorialStep >= TUTORIAL_TASKS.length) return;
+    if (TUTORIAL_TASKS[Session.tutorialStep].check()) {
+        lockControl(Session.tutorialStep);
+        Session.tutorialStep++;
         showTutorialTask();
         checkTutorial();
     }
@@ -1772,7 +1801,7 @@ function checkTutorial() {
 
 function highlightControl() {
     document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
-    const id = TUTORIAL_CONTROLS[tutorialStep];
+    const id = TUTORIAL_CONTROLS[Session.tutorialStep];
     if (id) {
         document.getElementById(id)?.classList.add("tutorial-glow");
         UI.displays.feedback?.classList.add("tutorial-glow-text");
@@ -1780,7 +1809,7 @@ function highlightControl() {
 }
 
 function skipTutorial() {
-    tutorialActive = false; lsSet("tutorialSeen", "true");
+    Session.tutorialActive = false; lsSet("tutorialSeen", "true");
     unlockAllTutorialControls();
     UI.buttons.skipTut.classList.add("hidden");
     stopSignalPlayback();
@@ -1790,7 +1819,7 @@ function skipTutorial() {
 }
 
 function endTutorial() {
-    tutorialActive = false; lsSet("tutorialSeen", "true");
+    Session.tutorialActive = false; lsSet("tutorialSeen", "true");
     unlockAllTutorialControls();
     stopSignalPlayback();
     flash("var(--green)"); SFX.lock();
@@ -1805,9 +1834,9 @@ function endTutorial() {
 // ─── HINTS / SKIP ────────────────────────────────────────────────────────────
 
 function useHint() {
-    if (won || score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
-    score = Math.max(0, score - CONFIG.COST_HINT); UI.displays.score.textContent = score;
-    const lv = LEVELS[level];
+    if (Round.won || Session.score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
+    Session.score = Math.max(0, Session.score - CONFIG.COST_HINT); UI.displays.score.textContent = Session.score;
+    const lv = LEVELS[Session.level];
     const hints = [
         "type: " + targetSignal.type,
         "freq: " + targetSignal.freq + " Hz",
@@ -1825,8 +1854,8 @@ function useHint() {
 }
 
 function skipRound() {
-    if (score < CONFIG.COST_SKIP) { SFX.skipBroke(); spawnStamp("skip_broke"); return; }
-    score = Math.max(0, score - CONFIG.COST_SKIP); UI.displays.score.textContent = score;
+    if (Session.score < CONFIG.COST_SKIP) { SFX.skipBroke(); spawnStamp("skip_broke"); return; }
+    Session.score = Math.max(0, Session.score - CONFIG.COST_SKIP); UI.displays.score.textContent = Session.score;
     SFX.skip(); spawnStamp("skip"); setTimeout(() => nextRound(), 600); /* delay */
 }
 
@@ -2020,7 +2049,3 @@ showScreen("start");
 
 // ─── TEST ────────────────────────────────────────────────────────────────────
 
-// At the bottom of main.js — lets test.js import pure functions
-if (typeof module !== "undefined") {
-    module.exports = { sample, matchScore, winThreshold, freqToHz, rng, LEVELS, CONFIG };
-}
