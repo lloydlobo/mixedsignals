@@ -14,6 +14,8 @@
 
 - **Modern Chillout Future Calm**: Music by <a href="https://pixabay.com/users/penguinmusic-24940186/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=12641">Oleksandr Stepanov</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=12641">Pixabay</a>
 
+- **Lazy Day Stylish Futuristic Chill**: Music by <a href="https://pixabay.com/users/penguinmusic-24940186/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=239287">Oleksandr Stepanov</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=239287">Pixabay</a>
+
 ## Built With
 
 This project was developed collaboratively with AI assistants:

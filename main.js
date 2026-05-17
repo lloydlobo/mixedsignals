@@ -193,7 +193,7 @@ const TUTORIAL_CONTROLS = ["type-btns", "ctrl-freq", "ctrl-amp", "ctrl-phase", "
 // ─── SCREEN MANAGEMENT ───────────────────────────────────────────────────────
 
 /**
- * @param {"start"|"dead"|"levelup"|"levelselect"|"game"} screen
+ * @param {"start"|"dead"|"levelup"|"levelselect"|"game"|"minigame"} screen
  */
 function showScreen(screen) {
     UI.game.dataset.screen = screen;
@@ -533,13 +533,14 @@ const BGM_STATE = {
 
 const BGM_POOL = {
     menu: [
-        "slimeyfox-after-hours-arcade-487277.mp3",
         "pietix-art-pop-exp-2-510302.mp3",
+        "slimeyfox-after-hours-arcade-487277.mp3",
+        "musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
     ],
     gameplay: [
         "penguinmusic-penguinmusic-modern-chillout-future-calm-12641.mp3",
         "databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
-        "musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
+        "penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3",
     ],
     result: null,
 };
@@ -1898,7 +1899,7 @@ function nextRound() {
         dispatch({ type: "LEVEL_SET", payload: nextLevel });
         dispatch({ type: "ROUND_SET", payload: 1 });
         Session.levelStartScore = Session.score;
-        showLevelUpScreen(); return;
+        runMiniGame(Session.level, () => { showLevelUpScreen(); }); return;
     }
     UI.displays.roundNo.textContent = Round.roundNo;
 
@@ -2122,6 +2123,583 @@ function skipRound() {
     dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_SKIP });
     SFX.skip(); spawnStamp("skip"); setTimeout(() => nextRound(), 600); /* delay */
 }
+
+// ── MINI-GAME ENGINE ────────────────────────────────────────────
+
+const MINIGAMES = [
+    { id: "peak",   name: "PEAK HIT",      desc: "Tap the button each time the wave crests." },
+    { id: "needle", name: "NEEDLE STOP",   desc: "Stop the needle inside the green zone." },
+    { id: "pulse",  name: "PULSE TAP",     desc: "Tap in sync with the pulse. Match the beat 4 times." },
+    { id: "noise",  name: "NOISE FILTER",  desc: "Mash the button to clear the static before time runs out." },
+];
+
+const MG_DIFFICULTY = [
+    { peakSpeed: 0.003, peakTarget: 3, needleBase: 0.35, needleLimit: 0.9,  pulseWindow: 180, noiseDecay: 0.040 },
+    { peakSpeed: 0.004, peakTarget: 3, needleBase: 0.45, needleLimit: 1.1,  pulseWindow: 150, noiseDecay: 0.035 },
+    { peakSpeed: 0.005, peakTarget: 4, needleBase: 0.55, needleLimit: 1.3,  pulseWindow: 120, noiseDecay: 0.030 },
+    { peakSpeed: 0.006, peakTarget: 4, needleBase: 0.65, needleLimit: 1.5,  pulseWindow: 100, noiseDecay: 0.025 },
+];
+
+let mgRaf = null, mgDone = false, mgOnDone = null, mgBonusPts = 0;
+let mgState = {};
+
+const $mg = id => document.getElementById(id);
+SFX.beep = (freq, dur = 0.08, gain = 0.1, type = "sine") => _sfxNote({ freq, dur, gain, type });
+
+function runMiniGame(completedLevel, onDone) {
+    mgOnDone = onDone;
+    mgDone = false;
+    mgBonusPts = 0;
+    const cfg = MG_DIFFICULTY[Math.min(completedLevel, MG_DIFFICULTY.length - 1)];
+    const mg = MINIGAMES[completedLevel % 4];
+
+    showScreen("minigame");
+    $mg("mg-name").textContent = mg.name;
+    $mg("mg-desc").textContent = mg.desc;
+    $mg("mg-status").textContent = "";
+    $mg("mg-status").className = "mg-status";
+    $mg("mg-bonus-tag").textContent = "";
+    $mg("mg-bar-wrap").style.display = "none";
+    $mg("mg-bar").style.width = "100%";
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "READY";
+    btn.disabled = false;
+    btn.className = "mg-action-btn";
+    btn.onclick = () => mgStart(cfg, mg);
+
+    if (mgRaf) { cancelAnimationFrame(mgRaf); mgRaf = null; }
+    mgDrawIdle(mg);
+}
+
+function mgStart(cfg, mg) {
+    const btn = $mg("mg-btn");
+    btn.textContent = "...";
+    btn.disabled = true;
+
+    let c = 3;
+    $mg("mg-status").textContent = "GET READY · " + c;
+    const iv = setInterval(() => {
+        c--;
+        SFX.beep(c > 0 ? 660 : 880, 0.1, 0.15);
+        if (c > 0) { $mg("mg-status").textContent = "GET READY · " + c; }
+        else {
+            clearInterval(iv);
+            $mg("mg-status").textContent = "GO!";
+            setTimeout(() => mgLaunch(cfg, mg), 120);
+        }
+    }, 600);
+}
+
+function mgLaunch(cfg, mg) {
+    mgDone = false;
+    cancelAnimationFrame(mgRaf);
+    switch (mg.id) {
+        case "peak":   mgPeakStart(cfg); break;
+        case "needle": mgNeedleStart(cfg); break;
+        case "pulse":  mgPulseStart(cfg); break;
+        case "noise":  mgNoiseStart(cfg); break;
+    }
+}
+
+function mgFinish(pts, msg, win) {
+    if (mgDone) return;
+    mgDone = true;
+    cancelAnimationFrame(mgRaf);
+    mgRaf = null;
+
+    mgBonusPts = pts;
+    dispatch({ type: "SCORE_ADD", payload: pts });
+
+    $mg("mg-status").textContent = msg;
+    $mg("mg-status").className = "mg-status " + (win ? "win" : "bad");
+    $mg("mg-bonus-tag").textContent = pts > 0 ? "+" + pts + " pts bonus carried to next level" : "no bonus this time";
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "CONTINUE";
+    btn.disabled = false;
+    btn.className = "mg-action-btn";
+    btn.onclick = () => {
+        if (mgOnDone) mgOnDone();
+    };
+
+    if (win) { flash("#00ffb4"); SFX.lock(); }
+    else { SFX.fail(); }
+}
+
+// ── IDLE DRAW ─────────────────────────────────────
+
+function mgDrawIdle(mg) {
+    const c = $mg("mg-canvas");
+    c.width = c.offsetWidth || 400; c.height = 110;
+    const ctx = c.getContext("2d"), W = c.width, H = c.height;
+    const t = Date.now() * 0.001;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = "rgba(0,255,180,0.06)"; ctx.lineWidth = .5;
+    ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+    ctx.beginPath();
+    for (let x = 0; x < W; x++) {
+        const y = H / 2 - fastSin((x / W) * Math.PI * 4 + t) * H * 0.3;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "#00ffb4"; ctx.lineWidth = 1.5; ctx.stroke();
+    if (!mgDone) mgRaf = requestAnimationFrame(() => mgDrawIdle(mg));
+}
+
+// ── PEAK HIT ──────────────────────────────────────
+
+function mgPeakStart(cfg) {
+    const TARGET_HITS = cfg.peakTarget;
+    let hits = 0, lastPeak = false, startT = Date.now(), duration = 7000;
+    let peakHitThisWindow = false;
+    let missedTimeout = null;
+    mgState = { hits: 0, canHit: false, flashUntil: 0 };
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "HIT"; btn.disabled = false;
+    btn.onclick = () => {
+        if (mgDone || !mgState.canHit) return;
+        hits++; mgState.hits = hits;
+        SFX.beep(880 + hits * 80, 0.1, 0.2);
+        mgState.flashUntil = performance.now() + 80;
+        $mg("mg-status").textContent = "HIT! " + hits + "/" + TARGET_HITS;
+        $mg("mg-status").className = "mg-status win";
+        peakHitThisWindow = true;
+        mgState.canHit = false;
+        if (hits >= TARGET_HITS) { mgFinish(30, "PERFECT TIMING!", true); return; }
+    };
+
+    $mg("mg-bar-wrap").style.display = "block";
+
+    function tick() {
+        if (mgDone) return;
+        const now = Date.now(), elapsed = now - startT;
+        const timeLeft = Math.max(0, (duration - elapsed) / duration);
+        $mg("mg-bar").style.width = (timeLeft * 100) + "%";
+        $mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
+
+        if (elapsed > duration) {
+            const pts = mgState.hits >= TARGET_HITS ? 30 : mgState.hits * 8;
+            mgFinish(pts, mgState.hits >= TARGET_HITS ? "PERFECT!" : "Missed some peaks. +" + (mgState.hits * 8) + " pts", mgState.hits >= TARGET_HITS);
+            return;
+        }
+
+        const c = $mg("mg-canvas");
+        c.width = c.offsetWidth || 400; c.height = 110;
+        const ctx = c.getContext("2d"), W = c.width, H = c.height;
+        const t = now * cfg.peakSpeed;
+        const waveY = fastSin(t);
+        const isPeak = waveY > 0.85;
+
+        ctx.clearRect(0, 0, W, H);
+
+        // flash overlay
+        const pn = performance.now();
+        if (mgState.flashUntil && pn < mgState.flashUntil) {
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.fillStyle = "#00ffb4";
+            ctx.fillRect(0, 0, W, H);
+            ctx.restore();
+        } else {
+            mgState.flashUntil = 0;
+        }
+
+        ctx.strokeStyle = "rgba(0,255,180,0.06)"; ctx.lineWidth = .5;
+        ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+        ctx.fillStyle = "rgba(0,255,180,0.06)";
+        ctx.fillRect(0, 0, W, H * 0.2);
+        ctx.font = "8px Share Tech Mono"; ctx.fillStyle = "rgba(0,255,180,0.4)";
+        ctx.fillText("PEAK ZONE", 4, 12);
+
+        ctx.beginPath();
+        for (let x = 0; x < W; x++) {
+            const wt = (x / W) * Math.PI * 6 + t - Math.PI * 3;
+            const y = H / 2 - fastSin(wt) * H * 0.38;
+            x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = isPeak ? "#ffb830" : "#00ffb4";
+        ctx.lineWidth = isPeak ? 2.5 : 1.5;
+        if (isPeak) { ctx.shadowColor = "#ffb830"; ctx.shadowBlur = 10; }
+        ctx.stroke(); ctx.shadowBlur = 0;
+
+        const dotY = H / 2 - waveY * H * 0.38;
+        ctx.beginPath(); ctx.arc(W * 0.5, dotY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = isPeak ? "#ffb830" : "rgba(0,255,180,0.5)"; ctx.fill();
+
+        mgState.canHit = isPeak;
+
+        // NOW! visible for full peak window
+        if (isPeak && !lastPeak && !mgDone) {
+            peakHitThisWindow = false;
+            if (missedTimeout) { clearTimeout(missedTimeout); missedTimeout = null; }
+            $mg("mg-status").textContent = "NOW!";
+            $mg("mg-status").className = "mg-status amber";
+        }
+        // MISSED when peak closes without a hit
+        if (!isPeak && lastPeak && !mgDone && !peakHitThisWindow && mgState.hits < TARGET_HITS) {
+            $mg("mg-status").textContent = "MISSED";
+            $mg("mg-status").className = "mg-status bad";
+            if (missedTimeout) clearTimeout(missedTimeout);
+            missedTimeout = setTimeout(() => {
+                $mg("mg-status").textContent = "";
+                $mg("mg-status").className = "mg-status";
+                missedTimeout = null;
+            }, 400);
+        }
+
+        lastPeak = isPeak;
+        mgRaf = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+// ── NEEDLE STOP ───────────────────────────────────
+
+function mgNeedleStart(cfg) {
+    let started = Date.now();
+    let duration = 6000;
+    const baseSpeed = cfg.needleBase;
+    const speedLimit = cfg.needleLimit;
+    const GREEN_LO = 0.33, GREEN_HI = 0.67;
+    let stopped = false;
+    let needlePos = 0;
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "STOP";
+    btn.disabled = false;
+
+    btn.onclick = () => {
+        if (stopped || mgDone) return;
+        stopped = true;
+        const inZone = needlePos >= GREEN_LO && needlePos <= GREEN_HI;
+        const precision = inZone ? 1 - Math.abs(needlePos - 0.5) / 0.17 : 0;
+        const pts = inZone ? Math.round(10 + precision * 20) : 0;
+        mgFinish(pts, inZone ? "LOCKED! +" + pts + " pts" : "MISSED THE ZONE", inZone);
+    };
+
+    function tick() {
+        if (stopped || mgDone) return;
+        const now = Date.now();
+        const t = (now - started) * 0.001;
+        const difficultyCurve = 0.1;
+        const speed = Math.min(speedLimit, baseSpeed + t * difficultyCurve);
+        const fDrift = 0.04;
+        const drift = fastSin(t * 0.7) * fDrift;
+        let raw = fastSin(t * (speed + drift) * Math.PI * 2);
+        const k = 0.6;
+        raw = Math.tanh(raw * (1 + k)) / Math.tanh(1 + k);
+        if (Math.random() < 0.5) { raw += 0.03 * fastSin(t * 6); }
+        needlePos = 0.5 + 0.5 * raw;
+
+        const c = $mg("mg-canvas");
+        c.width = c.offsetWidth || 400; c.height = 110;
+        const ctx = c.getContext("2d"), W = c.width, H = c.height;
+        ctx.clearRect(0, 0, W, H);
+
+        const trackY = H * 0.6, trackH = 8;
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, trackY, W, trackH);
+        ctx.fillStyle = "rgba(0,255,180,0.25)";
+        ctx.fillRect(W * GREEN_LO, trackY, W * (GREEN_HI - GREEN_LO), trackH);
+        ctx.strokeStyle = "rgba(0,255,180,0.6)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(W * GREEN_LO, trackY, W * (GREEN_HI - GREEN_LO), trackH);
+
+        ctx.font = "8px Share Tech Mono";
+        ctx.fillStyle = "rgba(0,255,180,0.7)";
+        ctx.fillText("TARGET", W * 0.5 - 18, trackY - 4);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i <= 10; i++) {
+            const x = W * (i / 10);
+            ctx.beginPath(); ctx.moveTo(x, trackY - 4); ctx.lineTo(x, trackY + trackH + 4); ctx.stroke();
+        }
+
+        const nx = W * needlePos;
+        const inZone = needlePos >= GREEN_LO && needlePos <= GREEN_HI;
+
+        ctx.strokeStyle = inZone ? "#ffb830" : "#ff4554";
+        ctx.lineWidth = 2.5;
+        if (inZone) {
+            ctx.shadowColor = "#ffb830";
+            ctx.shadowBlur = 8 + 6 * Math.sin(now * 0.005);
+        }
+        ctx.beginPath(); ctx.moveTo(nx, trackY - 20); ctx.lineTo(nx, trackY + trackH + 6); ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        ctx.beginPath(); ctx.arc(nx, trackY - 22, 5, 0, Math.PI * 2);
+        ctx.fillStyle = inZone ? "#ffb830" : "#ff4554"; ctx.fill();
+
+        const speedPct = Math.min(1, (speed - 0.6) / 0.8);
+        ctx.font = "9px Share Tech Mono";
+        ctx.fillStyle = "rgba(255,69,84," + speedPct.toFixed(2) + ")";
+        ctx.fillText("SPEED: " + speed.toFixed(2) + "x", 4, 16);
+
+        // Precision label
+        if (inZone) {
+            const dist = Math.abs(needlePos - 0.5);
+            if (dist < 0.05) {
+                $mg("mg-status").textContent = "CENTER +30";
+                $mg("mg-status").className = "mg-status win";
+            } else {
+                $mg("mg-status").textContent = "EDGE +12";
+                $mg("mg-status").className = "mg-status amber";
+            }
+        } else {
+            $mg("mg-status").textContent = "";
+            $mg("mg-status").className = "mg-status";
+        }
+
+        if (now - started > duration && !stopped) {
+            stopped = true;
+            mgFinish(0, "TIME'S UP", false);
+            return;
+        }
+
+        mgRaf = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+// ── PULSE TAP ─────────────────────────────────────
+
+function mgPulseStart(cfg) {
+    const BPM = 90, BEAT_MS = 60000 / BPM;
+    const TARGET = 4;
+    const WINDOW = cfg.pulseWindow;
+    let hits = 0, startT = Date.now(), lastBeatT = Date.now(), beatCount = 0;
+    let flashOn = false;
+    let offBeatMsgTimeout = null;
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "TAP"; btn.disabled = false;
+    btn.onclick = () => {
+        if (mgDone) return;
+        const now = Date.now();
+        const sinceBeat = Math.abs(now - lastBeatT);
+        const onBeat = sinceBeat < WINDOW;
+        if (onBeat) {
+            hits++;
+            SFX.beep(660, 0.08, 0.2);
+            $mg("mg-status").textContent = "ON BEAT! " + hits + "/" + TARGET;
+            $mg("mg-status").className = "mg-status win";
+            if (hits >= TARGET) { mgFinish(35, "PERFECT RHYTHM!", true); }
+        } else {
+            if (offBeatMsgTimeout) clearTimeout(offBeatMsgTimeout);
+            if (sinceBeat < BEAT_MS * 0.5) {
+                $mg("mg-status").textContent = "LATE";
+            } else {
+                $mg("mg-status").textContent = "EARLY";
+            }
+            $mg("mg-status").className = "mg-status bad";
+            SFX.beep(220, 0.1, 0.1, "sawtooth");
+            offBeatMsgTimeout = setTimeout(() => {
+                if (!mgDone) {
+                    $mg("mg-status").textContent = "";
+                    $mg("mg-status").className = "mg-status";
+                }
+            }, 300);
+        }
+    };
+
+    function tick() {
+        if (mgDone) return;
+        const now = Date.now(), elapsed = now - startT;
+        if (elapsed > 10000 && !mgDone) {
+            mgFinish(hits * 8, "Time's up. +" + (hits * 8) + " pts", false);
+            return;
+        }
+        const sinceLastBeat = now - lastBeatT;
+        if (sinceLastBeat >= BEAT_MS) {
+            lastBeatT = now; beatCount++;
+            SFX.beep(440, 0.05, 0.08);
+            flashOn = true;
+            setTimeout(() => { flashOn = false; }, 80);
+        }
+        const beatPhase = (sinceLastBeat / BEAT_MS);
+        const inWindow = sinceLastBeat < WINDOW || sinceLastBeat > (BEAT_MS - WINDOW);
+
+        const c = $mg("mg-canvas");
+        c.width = c.offsetWidth || 400; c.height = 110;
+        const ctx = c.getContext("2d"), W = c.width, H = c.height;
+        ctx.clearRect(0, 0, W, H);
+
+        // Contracting ring
+        const ring = Math.max(0, (1 - beatPhase) * W * 0.45);
+        const alpha = Math.max(0, 1 - beatPhase);
+        ctx.strokeStyle = "rgba(0,255,180," + (alpha * 0.5).toFixed(2) + ")";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(W / 2, H / 2, ring, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.strokeStyle = inWindow ? "rgba(255,184,48,0.5)" : "rgba(90,112,96,0.2)";
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(W / 2, H / 2, 30, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.beginPath(); ctx.arc(W / 2, H / 2, flashOn ? 14 : 8, 0, Math.PI * 2);
+        ctx.fillStyle = flashOn ? "#ffb830" : "rgba(0,255,180,0.6)";
+        if (flashOn) { ctx.shadowColor = "#ffb830"; ctx.shadowBlur = 20; }
+        ctx.fill(); ctx.shadowBlur = 0;
+
+        for (let i = 0; i < TARGET; i++) {
+            ctx.beginPath(); ctx.arc(W / 2 - ((TARGET - 1) * 14) + i * 28, H - 20, 5, 0, Math.PI * 2);
+            ctx.fillStyle = i < hits ? "#00ffb4" : "#1a2020"; ctx.fill();
+            ctx.strokeStyle = i < hits ? "#00ffb4" : "#333"; ctx.lineWidth = 1; ctx.stroke();
+        }
+
+        ctx.font = "9px Share Tech Mono"; ctx.fillStyle = "rgba(90,112,96,0.6)";
+        ctx.fillText("BPM: " + BPM, 4, 14);
+
+        mgRaf = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+// ── NOISE FILTER ──────────────────────────────────
+
+function mgNoiseStart(cfg) {
+    let noise = 1.0, startT = Date.now(), duration = 6500, mashes = 0;
+    const DECAY = cfg.noiseDecay;
+    let bursts = [];
+    let shakeUntil = 0;
+    let noiseCleared = false;
+
+    const btn = $mg("mg-btn");
+    btn.textContent = "CLEAR"; btn.disabled = false;
+    btn.onclick = () => {
+        if (mgDone) return;
+        noise = Math.max(0, noise - DECAY);
+        mashes++;
+        SFX.beep(200 + mashes * 10, 0.04, 0.08, "square");
+
+        const c = $mg("mg-canvas");
+        const W = c.offsetWidth || 400;
+        bursts.push({ x: Math.random() * W, y: Math.random() * 110, start: performance.now() });
+        shakeUntil = performance.now() + 100;
+
+        if (noise < 0.1 && !noiseCleared) {
+            noiseCleared = true;
+            mgState._noiseFlashUntil = performance.now() + 120;
+            SFX.beep(1047, 0.15, 0.25);
+        }
+
+        if (noise <= 0.05) { mgFinish(40, "SIGNAL CLEAR!", true); }
+    };
+
+    $mg("mg-bar-wrap").style.display = "block";
+
+    function tick() {
+        if (mgDone) return;
+        const pn = performance.now();
+        const elapsed = Date.now() - startT;
+        noise = Math.min(1, noise + 0.0008);
+        const timeLeft = Math.max(0, 1 - (elapsed / duration));
+        $mg("mg-bar").style.width = (timeLeft * 100) + "%";
+        $mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
+
+        if (elapsed > duration && !mgDone) {
+            const pts = noise < 0.3 ? 20 : noise < 0.6 ? 10 : 0;
+            mgFinish(pts, noise < 0.15 ? "Mostly clear. +" + pts + " pts" : "Static remains. +" + pts + " pts", noise < 0.3);
+            return;
+        }
+
+        const c = $mg("mg-canvas");
+        c.width = c.offsetWidth || 400; c.height = 110;
+        const ctx = c.getContext("2d"), W = c.width, H = c.height;
+        const shaking = pn < shakeUntil;
+
+        ctx.save();
+        if (shaking) { ctx.translate(2 * (Math.random() - 0.5), 2 * (Math.random() - 0.5)); }
+
+        ctx.clearRect(-5, -5, W + 10, H + 10);
+
+        // Clean sine with emergent opacity/lineWidth
+        const cleanAlpha = noise < 0.5 ? (0.3 + (1 - noise * 2) * 0.7) : 0;
+        const cleanLineWidth = noise < 0.5 ? (1.5 + (1 - noise * 2) * 1.5) : 0;
+        if (cleanAlpha > 0.01) {
+            ctx.globalAlpha = cleanAlpha;
+            ctx.beginPath();
+            const t = Date.now() * 0.002;
+            for (let x = 0; x < W; x++) {
+                const y = H / 2 - fastSin((x / W) * Math.PI * 4 + t) * H * 0.35;
+                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = "#00ffb4";
+            ctx.lineWidth = cleanLineWidth;
+            ctx.shadowColor = "#00ffb4";
+            ctx.shadowBlur = cleanLineWidth * 4;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+        }
+
+        // Noise layer
+        if (noise > 0.05) {
+            ctx.globalAlpha = noise;
+            for (let x = 0; x < W; x += 2) {
+                const amp = (Math.random() - 0.5) * H * 0.7 * noise;
+                const y = H / 2 + amp;
+                ctx.beginPath(); ctx.moveTo(x, H / 2); ctx.lineTo(x, y);
+                ctx.strokeStyle = "hsl(" + (140 + Math.random() * 40) + ",60%," + (40 + Math.random() * 20) + "%)";
+                ctx.lineWidth = 1.5; ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Visual bursts
+        const burstAge = 250;
+        const n2 = performance.now();
+        bursts = bursts.filter(b => n2 - b.start < burstAge);
+        for (const b of bursts) {
+            const age = (n2 - b.start) / burstAge;
+            ctx.globalAlpha = 1 - age;
+            ctx.strokeStyle = "#00ffb4";
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const dx = Math.cos(angle) * 18;
+                const dy = Math.sin(angle) * 18;
+                ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + dx, b.y + dy); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // One-shot noise cleared flash
+        if (mgState._noiseFlashUntil && n2 < mgState._noiseFlashUntil) {
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            ctx.fillStyle = "#00ffb4";
+            ctx.fillRect(0, 0, W, H);
+            ctx.restore();
+        } else {
+            mgState._noiseFlashUntil = 0;
+        }
+
+        ctx.restore();
+
+        const pct = Math.round(noise * 100);
+        ctx.font = "9px Share Tech Mono";
+        ctx.fillStyle = noise > 0.5 ? "rgba(255,69,84,0.7)" : "rgba(0,255,180,0.6)";
+        ctx.fillText("NOISE: " + pct + "%", 4, 14);
+
+        $mg("mg-status").textContent = noise < 0.15 ? "Almost clear!" : noise < 0.4 ? "Keep going..." : "Mash harder!";
+        $mg("mg-status").className = "mg-status" + (noise < 0.15 ? " win" : noise < 0.4 ? " amber" : "");
+
+        mgRaf = requestAnimationFrame(tick);
+    }
+    tick();
+}
+
+// ── TEST SHORTCUT ─────────────────────────────────
+
+window._testMG = (i) => {
+    runMiniGame(i, () => {
+        showScreen("start");
+    });
+};
+
+// ── WAVE LIBRARY ──────────────────────────────────────────────
 
 // ─── LOGO OSCILLOSCOPE ───────────────────────────────────────────────────────
 
