@@ -1316,9 +1316,20 @@ const _FRAME_INDEPENDENT = true;
 
 // `elapsedTime` grows smoothly regardless of frame rate
 // When frames skip or stutter, dt compensates (clamped at dtMax)
-// Dividing by SCROLL_PERIOD now gives consistent scroll speed across all frame rates
-const SCROLL_PERIOD = 2000;
+// Dividing by getScrollPeriod() now gives consistent scroll speed across all frame rates
+// Scroll gets faster each level (shorter period) — harder levels scroll quicker.
 let _elapsedTime = 0;
+
+const PHI = (1 + Math.sqrt(5)) / 2;
+
+const _SCROLL_BASE_MS = 3500;
+const _SCROLL_MIN_MS = 2000;
+const _SCROLL_EASE_EXP = PHI;
+const _SCROLL_EASE_FACTOR = 60;
+
+function getScrollPeriod() {
+    return Math.max(_SCROLL_MIN_MS, _SCROLL_BASE_MS - Math.pow(level, _SCROLL_EASE_EXP) * _SCROLL_EASE_FACTOR);
+}
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
 
@@ -1354,9 +1365,10 @@ function loop(ts) {
      * Example: _elapsedTime = 4000ms → 4000/2000 = 2.0 → 2.0 % 1 = 0.0 (loops)
      * Used for horizontal wave scrolling position.
      */
+    const period = getScrollPeriod();
     const scroll = _FRAME_INDEPENDENT ?
-        (_elapsedTime / SCROLL_PERIOD) % 1 // use accumulate time
-        : (ts / SCROLL_PERIOD) % 1;
+        (_elapsedTime / period) % 1
+        : (ts / period) % 1;
 
     const W = _canvasW, H = 120;
     if (_canvas.width !== W || _canvas.height !== H) { _canvas.width = W; _canvas.height = H; }
