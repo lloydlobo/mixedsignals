@@ -5,6 +5,11 @@ All notable changes to Mixed Signals.
 ## [Unreleased]
 
 ### Features
+- Signal archetypes: 10 authored named presets (heartbeat, sonar, reactor, bell, thump, etc.) appear as targets with 40% chance, shown in scope badge
+- Grace theme system: per-level accent color (blue, amber, coral, green, dim) tints meter fill and scope-wrap during safe rounds
+- Micro replay: freeze-frame scroll capture on lock with expanding radar ring emanations from scope center
+- Debut-archetype filter and weighted parameter selection for new mechanics on introduction levels
+- Chaos jitter (±1) on archetype re-encounters for organic variation
 - Redesign sound effects with warm analog-feel audio, melodic lock variants, and consistent stamp feedback
 - Implement stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
 - Enhance stamp layer styling and animation for improved visual feedback
@@ -12,9 +17,17 @@ All notable changes to Mixed Signals.
 - Improve tutorial clarity with updated messaging, glow effects, and better text contrast
 
 ### Fixes
+- Show "CONTINUE (FREEPLAY)" instead of "CONTINUE (LV 8)" after all levels beaten
+- Show "∞" for level label during post-game freeplay instead of max-level number
 - Stop signal playback when level up screen is displayed
 - Prevent slider adjustments after game lock-in
 - Prevent sliders from freezing during tutorial when winning
+
+### Refactoring
+- Deduplicate initUI DOM lookups with collect() helper (~35 LoC saved)
+- Consolidate render constants (scroll, timing, lock duration, timer circumference) into RENDER namespace
+- Streamline sound effects with shared _sfxNote() config helper and extract makeRand() factory
+- Migrate bare module-level globals into Round/Session lifecycle objects with documented reset() boundaries
 
 ## [0.5.0] - 2026-05-11
 
