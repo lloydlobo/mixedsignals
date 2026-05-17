@@ -1286,7 +1286,8 @@ const _FRAME_INDEPENDENT = true;
 
 // `elapsedTime` grows smoothly regardless of frame rate
 // When frames skip or stutter, dt compensates (clamped at dtMax)
-// Dividing by 4200 now gives consistent scroll speed across all frame rates
+// Dividing by SCROLL_PERIOD now gives consistent scroll speed across all frame rates
+const SCROLL_PERIOD = 2000;
 let _elapsedTime = 0;
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
@@ -1319,13 +1320,13 @@ function loop(ts) {
     _elapsedTime += dt;
 
     /**
-     * Normalized scroll position [0, 1). Wraps every 4200ms.
-     * Example: _elapsedTime = 8400ms → 8400/4200 = 2.0 → 2.0 % 1 = 0.0 (loops)
+     * Normalized scroll position [0, 1). Wraps every SCROLL_PERIOD ms.
+     * Example: _elapsedTime = 4000ms → 4000/2000 = 2.0 → 2.0 % 1 = 0.0 (loops)
      * Used for horizontal wave scrolling position.
      */
     const scroll = _FRAME_INDEPENDENT ?
-        (_elapsedTime / 4200) % 1 // use accumulate time
-        : (ts / 4200) % 1;
+        (_elapsedTime / SCROLL_PERIOD) % 1 // use accumulate time
+        : (ts / SCROLL_PERIOD) % 1;
 
     const W = _canvasW, H = 120;
     if (_canvas.width !== W || _canvas.height !== H) { _canvas.width = W; _canvas.height = H; }
@@ -1845,6 +1846,8 @@ function useHint() {
         ...(lv.harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
     ];
     const feedback = UI.displays.feedback;
+    // FUTURE: Maybe stack/flex row hints as they are gathered. No need to spam
+    // the hint button and waste `score` currency
     feedback.textContent = `hint: ${hints[rng(0, hints.length - 1)]}`;
     feedback.className = "feedback close";
     SFX.hint(); spawnStamp("hint");
