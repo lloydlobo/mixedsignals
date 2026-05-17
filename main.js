@@ -248,6 +248,8 @@ function initEvents() {
             _pointerGate.gain.cancelScheduledValues(ac.currentTime);
             _pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
             _pointerGate.gain.linearRampToValueAtTime(PB.BEAT_VOL, ac.currentTime + PB.GATE_ATTACK);
+            const wrap = document.querySelector(".scope-wrap");
+            if (wrap) wrap.classList.add("held");
         });
         const closeGate = () => {
             if (!_pointerGate) return;
@@ -255,6 +257,8 @@ function initEvents() {
             _pointerGate.gain.cancelScheduledValues(ac.currentTime);
             _pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
             _pointerGate.gain.linearRampToValueAtTime(0, ac.currentTime + PB.GATE_RELEASE);
+            const wrap = document.querySelector(".scope-wrap");
+            if (wrap) wrap.classList.remove("held");
         };
         overlay.addEventListener("pointerup", closeGate);
         overlay.addEventListener("pointerleave", closeGate);
