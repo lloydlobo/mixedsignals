@@ -10,6 +10,10 @@
 
 - **IDM Electronic Science Technology - Drumless Ambient Loop**: Music by <a href="https://pixabay.com/users/musinova-47643763/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=483365">Musinova</a> from <a href="https://pixabay.com/music//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=483365">Pixabay</a>
 
+- **Neon Nebula - Ambient Electronic Background**: Music by <a href="https://pixabay.com/users/databend-53307304/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=439364">Databend</a> from <a href="https://pixabay.com/music//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=439364">Pixabay</a>
+
+- **Modern Chillout Future Calm**: Music by <a href="https://pixabay.com/users/penguinmusic-24940186/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=12641">Oleksandr Stepanov</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=12641">Pixabay</a>
+
 ## Built With
 
 This project was developed collaboratively with AI assistants:
