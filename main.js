@@ -175,6 +175,7 @@ const Session = {
     muted: false,
     sfxMuted: false,
     volume: 0.4,
+    postGameFreeplay: false,
 };
 
 const TUTORIAL_TASKS = [
@@ -388,7 +389,12 @@ function renderStartScreen() {
     if (continueBtn) {
         const hasProgress = save.highestLevel > 0 || save.bestScores[0] > 0;
         continueBtn.classList.toggle("hidden", !hasProgress);
-        if (hasProgress) continueBtn.textContent = `CONTINUE (LV ${save.highestLevel + 1})`;
+        if (hasProgress) {
+            const nextLv = save.highestLevel + 1;
+            continueBtn.textContent = nextLv > LEVELS.length
+                ? "CONTINUE (FREEPLAY)"
+                : `CONTINUE (LV ${nextLv})`;
+        }
     }
 
     const unlockMsg = UI.displays.unlockMsg;
@@ -1474,7 +1480,7 @@ function resetYours() {
 
 function applyLevelUI() {
     const lv = LEVELS[Session.level];
-    UI.labels.level.textContent = Session.level + 1; UI.displays.roundTotal.textContent = lv.rounds;
+    UI.labels.level.textContent = Session.postGameFreeplay ? "∞" : Session.level + 1; UI.displays.roundTotal.textContent = lv.rounds;
     UI.controls.phase.style.opacity = lv.phase ? "1" : ".3";
     UI.controls.dc.style.opacity = lv.dc ? "1" : ".3";
     UI.controls.harm.classList.toggle("hidden", !lv.harm);
@@ -1632,6 +1638,7 @@ function nextRound() {
     if (Session.level >= LEVELS.length) {
         Session.level = LEVELS.length - 1;
         Round.roundNo = 1;
+        Session.postGameFreeplay = true;
         startFreePlay();
         const feedback = UI.displays.feedback;
         feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`; feedback.className = "feedback close";
@@ -1730,7 +1737,7 @@ function goToMenu() {
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
         UI.buttons.skipTut.classList.add("hidden");
     }
-    Round.won = false; Session.freePlayActive = false;
+    Round.won = false; Session.freePlayActive = false; Session.postGameFreeplay = false;
     if (UI.buttons.freeplayReady) UI.buttons.freeplayReady.classList.add("hidden");
     if (UI.meterRow) UI.meterRow.style.opacity = "1";
     renderStartScreen(); showScreen("start");
@@ -1745,7 +1752,7 @@ function startGame() {
     showScreen("game"); startLoop(); nextRound();
 }
 
-function restartGame() { Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; startGame(); }
+function restartGame() { Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; Session.postGameFreeplay = false; startGame(); }
 
 function startTutorial() {
     Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; Session.score = 0;
