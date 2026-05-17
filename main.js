@@ -237,6 +237,27 @@ function initEvents() {
             () => setPlaybackMode(_pbMode === mode ? "off" : mode));
     });
 
+    // Pointer gate for beating audio — touch/hold scope to hear the mix
+    const overlay = UI.canvas;
+    if (overlay) {
+        overlay.addEventListener("pointerdown", () => {
+            if (!_pointerGate) return;
+            const ac = actx();
+            _pointerGate.gain.cancelScheduledValues(ac.currentTime);
+            _pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
+            _pointerGate.gain.linearRampToValueAtTime(PB.BEAT_VOL, ac.currentTime + PB.GATE_ATTACK);
+        });
+        const closeGate = () => {
+            if (!_pointerGate) return;
+            const ac = actx();
+            _pointerGate.gain.cancelScheduledValues(ac.currentTime);
+            _pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
+            _pointerGate.gain.linearRampToValueAtTime(0, ac.currentTime + PB.GATE_RELEASE);
+        };
+        overlay.addEventListener("pointerup", closeGate);
+        overlay.addEventListener("pointerleave", closeGate);
+    }
+
     document.addEventListener("click", () => { if (!muted) startMusic(); }, { once: true });
     window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
 }
@@ -775,14 +796,17 @@ function spawnStamp(type) {
 
 /** @typedef {"off"|"target"|"yours"|"ab"} PlaybackMode */
 /** @type {PlaybackMode} */
-let _pbMode = "off";
+let _pbMode = "ab";
 let _playbackActive = false;
 
 const PB = {
-    TARGET_VOL: 0.25 * 0.5, // default: 0.25
-    YOURS_VOL: 0.28 * 0.5, // default: 0.28
-    FADE: 0.04,  // s — fade in/out to prevent clicks
-    TC: 0.02,  // s — AudioParam smoothing time constant
+    TARGET_VOL: 0.25 * 0.5,
+    YOURS_VOL: 0.28 * 0.5,
+    FADE: 0.04,
+    TC: 0.02,
+    BEAT_VOL: 0.15,
+    GATE_ATTACK: 0.05,
+    GATE_RELEASE: 0.3,
 };
 
 // ─── WAVEFORM LOUDNESS NORMALISATION ────────────────────────────────────────
@@ -820,6 +844,19 @@ const WAVEFORM_GAIN = Object.freeze({
 // AM modulation peaks, and any gain overshoot during parameter changes.
 // Settings are transparent at normal levels — only engages on peaks.
 let _limiter = null;
+let _beatingMix = null;
+let _pointerGate = null;
+
+function initBeatingBus() {
+    if (_beatingMix) return;
+    const ac = actx();
+    _beatingMix = ac.createGain();
+    _beatingMix.gain.value = 1;
+    _pointerGate = ac.createGain();
+    _pointerGate.gain.value = 0;
+    _beatingMix.connect(_pointerGate);
+    _pointerGate.connect(getLimiter());
+}
 
 function getLimiter() {
     if (_limiter) return _limiter;
@@ -1049,15 +1086,15 @@ function _buildChannel(ch, sig) {
     // Sine passes through almost unchanged; triangle barely touched.
     const filter = ac.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 1800;
+    filter.frequency.value = 800;
     filter.Q.value = 0.5; // gentle slope, no resonance
 
     // ── connect ───────────────────────────────────────────────────────────────
     (isAM ? carGain : osc).connect(ampGain);
     ampGain.connect(filter);
     filter.connect(masterGain);
-    masterGain.connect(ac.destination);
-    masterGain.connect(getLimiter()); // ← limiter, not destination directly
+    initBeatingBus();
+    masterGain.connect(_beatingMix);
 
     // ── start ─────────────────────────────────────────────────────────────────
     osc.start(now);
