@@ -18,6 +18,7 @@
  * @property {number} dc
  * @property {number} harm
  * @property {number} noise
+ * @property {string} [archetype]
  *
  * @typedef {Object} Level
  * @property {number}     rounds
@@ -100,6 +101,22 @@ const CEREMONIES = {
         desc: "Harmonics layer overtones above the fundamental. Each adds texture and body to the wave.",
     },
 };
+
+// ─── SIGNAL ARCHETYPES ──────────────────────────────────────────────────────
+// Authored named signal presets that appear as targets, adding personality.
+// levelMin = minimum 0-indexed level where this archetype can appear.
+const ARCHETYPES = [
+    { name: "Heartbeat",   type: "square",   freq: 2, amp: 8,  phase: 0,   dc: 0, harm: 0, levelMin: 0 },
+    { name: "Sonar",       type: "sine",     freq: 5, amp: 9,  phase: 0,   dc: 0, harm: 0, levelMin: 0 },
+    { name: "Bell",        type: "sine",     freq: 7, amp: 5,  phase: 0,   dc: 0, harm: 0, levelMin: 0 },
+    { name: "Thump",       type: "square",   freq: 1, amp: 10, phase: 0,   dc: 0, harm: 0, levelMin: 0 },
+    { name: "Reactor",     type: "sawtooth", freq: 1, amp: 10, phase: 0,   dc: 0, harm: 0, levelMin: 1 },
+    { name: "Phase Shift", type: "triangle", freq: 3, amp: 7,  phase: 180, dc: 0, harm: 0, levelMin: 2 },
+    { name: "Subsonic",    type: "sine",     freq: 1, amp: 9,  phase: 0,   dc: -3, harm: 0, levelMin: 3 },
+    { name: "Wobble",      type: "am",       freq: 3, amp: 5,  phase: 0,   dc: 0, harm: 0, levelMin: 4 },
+    { name: "Glitch",      type: "pwm",      freq: 4, amp: 6,  phase: 180, dc: 0, harm: 0, levelMin: 4 },
+    { name: "Drone",       type: "sawtooth", freq: 2, amp: 4,  phase: 0,   dc: 0, harm: 4, levelMin: 5 },
+];
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 
@@ -213,6 +230,7 @@ function initUI() {
     UI.gameInner = document.getElementById("game-inner");
     UI.timerRingFill = document.getElementById("timer-ring-fill");
     UI.meterRow = document.getElementById("meter-row");
+    UI.archetypeName = document.getElementById("archetype-name");
     UI.game = document.getElementById("game");
     UI.levelSelectGrid = document.getElementById("level-select-grid");
     UI.typeButtons = document.getElementById("type-btns");
@@ -1411,6 +1429,27 @@ function _pickWeightedType(types) {
 
 function buildTarget() {
     const lv = LEVELS[level];
+
+    // 40% chance: use a signal archetype (gives each round personality)
+    let archetype = null;
+    if (Math.random() < 0.4) {
+        const valid = ARCHETYPES.filter(a => a.levelMin <= level);
+        if (valid.length) archetype = valid[rng(0, valid.length - 1)];
+    }
+
+    if (archetype) {
+        return {
+            type: archetype.type,
+            freq: archetype.freq,
+            amp: archetype.amp,
+            phase: archetype.phase,
+            dc: archetype.dc,
+            harm: archetype.harm,
+            noise: lv.noise ? rng(2, 6) : 0,
+            archetype: archetype.name,
+        };
+    }
+
     return {
         type: _pickWeightedType(lv.types),
         freq: rng(1, 6), amp: rng(3, 10),
@@ -1497,11 +1536,19 @@ function exitLevel() {
     stopLoop();
     stopSignalPlayback();
     won = false;
+    if (UI.archetypeName) {
+        UI.archetypeName.textContent = "";
+        UI.archetypeName.classList.add("hidden");
+    }
 }
 
 function enterLevel() {
     showScreen("game");
     targetSignal = buildTarget();
+    if (UI.archetypeName) {
+        UI.archetypeName.textContent = targetSignal.archetype ?? "";
+        UI.archetypeName.classList.toggle("hidden", !targetSignal.archetype);
+    }
     invalidateMatchScore();
     applyLevelUI();
     resetYours();
