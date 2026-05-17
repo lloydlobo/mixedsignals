@@ -12,12 +12,12 @@
  * @typedef {"sine"|"square"|"sawtooth"|"triangle"|"pwm"|"am"} Waveform
  * @typedef {Object} Signal
  * @property {Waveform} type
- * @property {number} freq   Hz
- * @property {number} amp    linear gain
- * @property {number} phase  degrees
- * @property {number} dc     DC offset
- * @property {number} harm   harmonic amount (See also https://scienceworld.wolfram.com/physics/HarmonicWaves.html)
- * @property {number} noise  0–1
+ * @property {number} freq
+ * @property {number} amp
+ * @property {number} phase
+ * @property {number} dc
+ * @property {number} harm
+ * @property {number} noise
  *
  * @typedef {Object} Level
  * @property {number}     rounds
@@ -87,12 +87,6 @@ let freePlayActive = false; // true during untimed free-play warmup round
 
 let tutorialStep = 0, tutorialActive = false;
 
-// - See also https://scienceworld.wolfram.com/physics/Frequency.html
-// - See also https://scienceworld.wolfram.com/physics/Amplitude.html
-// - See also https://scienceworld.wolfram.com/physics/PhaseAngle.html
-// - See also https://scienceworld.wolfram.com/physics/Harmonic.html
-// - DC offset is a signal bias / baseline shift (constant DC component),
-//   not usually considered a fundamental wave property in classical wave physics.
 const TUTORIAL_TASKS = [
     { text: "TUTORIAL: Select TRI waveform", check: () => yoursSignal.type === "triangle" },
     { text: "TUTORIAL: Set frequency to 5 Hz", check: () => yoursSignal.freq === 5 },
@@ -106,9 +100,6 @@ const TUTORIAL_TASKS = [
 const TUTORIAL_CONTROLS = ["type-btns", "ctrl-freq", "ctrl-amp", "ctrl-phase", "ctrl-dc", "meter-row"];
 
 // ─── SCREEN MANAGEMENT ───────────────────────────────────────────────────────
-// Single source of truth: data-screen on #game.
-// CSS does all the show/hide — JS only sets one attribute.
-// Add a screen: one <div id="screen-foo">, one CSS rule. Nothing else to touch.
 
 /**
  * @param {"start"|"dead"|"levelup"|"levelselect"|"game"} screen
@@ -319,7 +310,7 @@ function renderStartScreen() {
     const continueBtn = UI.buttons.continue;
     if (continueBtn) {
         const hasProgress = save.highestLevel > 0 || save.bestScores[0] > 0;
-        continueBtn.style.display = hasProgress ? "inline-block" : "none";
+        continueBtn.classList.toggle("hidden", !hasProgress);
         if (hasProgress) continueBtn.textContent = `CONTINUE (LV ${save.highestLevel + 1})`;
     }
 
@@ -466,48 +457,20 @@ function toggleSfxMute() {
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
 
-/**
- * A singleton factory for the AudioContext.
- * 
- * Manages a persistent AudioContext instance, ensuring it is lazily initialized
- * and resumed if it was suspended by the browser's autoplay policy.
- * 
- * Fallback for cross-browser AudioContext support.
- * 
- * @returns {AudioContext} The active AudioContext instance.
- */
-// const AudioCtx = window.AudioContext || window.webkitAudioContext;
 const AudioCtx = (() => {
     try {
-        const audioCtx = (window.AudioContext || window.webkitAudioContext);
-        // ... rest of audio setup
-        return audioCtx;
+        return (window.AudioContext || window.webkitAudioContext);
     } catch (err) {
         console.warn(`Audio context unavailable (private browsing?):`, err);
-        // no bgm-toggle element — warn is sufficient
         return null;
     }
 })()
 
-/**
- * Internal singleton instance of the AudioContext.
- * @type {AudioContext|null}
- * @private
- */
 let _actx = null;
 
-/**
- * Returns a global AudioContext instance, initializing it if necessary.
- * 
- * This function implements the Singleton pattern to ensure only one context 
- * is created. It also attempts to resume the context if it is in a 'suspended' 
- * state, which is a common requirement for bypassing browser autoplay restrictions.
- * 
- * @returns {AudioContext} The initialized and active AudioContext.
- */
 function actx() {
-    if (!_actx) _actx = new AudioCtx(); // Lazy initialization
-    if (_actx.state === "suspended") _actx.resume(); // Check for suspended state (common in Chrome/Safari until a user gesture occurs)
+    if (!_actx) _actx = new AudioCtx();
+    if (_actx.state === "suspended") _actx.resume();
     return _actx;
 }
 
@@ -515,21 +478,9 @@ let _lastSliderSfx = 0, _lastUrgentSfx = 0, _wasCloseSfx = false;
 
 // ── SFX helpers ───────────────────────────────────────────────────────────────
 
-/**
- * Play a warm triangle note with a soft attack and a detuned twin for thickness.
- * The twin oscillator slightly above the fundamental gives a gentle chorus warmth.
- * @param {AudioContext} ac
- * @param {number} freq      Fundamental frequency in Hz
- * @param {number} startTime AudioContext time to begin
- * @param {number} gain      Peak gain (before envelope)
- * @param {number} duration  Total note duration in seconds
- * @param {number} [detune=4] Detune amount for the twin oscillator in Hz
- */
-
 function _warmNote(ac, freq, startTime, gain, duration, detune = 4) {
     const t = startTime;
-    // const attack = 0.012;
-    const attack = 0.008; // 8ms soft attack — removes the click of instant-on oscillators
+    const attack = 0.008;
 
     const filterOpen = 1800;   // Hz — where the filter "opens" to
     const filterClosed = 400;  // Hz — dark starting point
@@ -787,27 +738,6 @@ function spawnStamp(type) {
 }
 
 // ─── SIGNAL PLAYBACK ─────────────────────────────────────────────────────────
-//
-// Simple Web Audio native-node graph. Zero JS sample loops.
-//
-// Graph (standard):
-//   OscillatorNode → GainNode(amp) → GainNode(master) → destination
-//
-// Graph (AM):
-//   carrier Osc ─→ carGain ←─ modGain ←─ modOsc
-//                     ↓
-//                  GainNode(amp) → GainNode(master) → destination
-//
-// FREQUENCY: gameplay 1–6 maps exponentially to 110–880 Hz (A2–A5, 3 octaves).
-//   f=1→110Hz  f=2→175Hz  f=3→277Hz  f=4→440Hz  f=5→698Hz  f=6→880Hz
-//   Each step is a recognisable musical interval — trains pitch/frequency intuition.
-//
-// PARAM UPDATES: setTargetAtTime(v, now, 0.02) on all AudioParams.
-//   20 ms time constant kills slider zipper noise without perceptible lag.
-//   Type changes require a full rebuild (OscillatorNode.type is not an AudioParam).
-//
-// MODES: ▶TARGET  ▶YOURS  ⇄A/B
-//   Both graphs stay running; master gain switches which is audible.
 
 /** @typedef {"off"|"target"|"yours"|"ab"} PlaybackMode */
 /** @type {PlaybackMode} */
@@ -824,27 +754,7 @@ const PB = {
     GATE_RELEASE: 0.3,
 };
 
-// ─── WAVEFORM LOUDNESS NORMALISATION ────────────────────────────────────────
-// Different waveform shapes have different RMS energy at the same peak amplitude.
-// Without compensation, switching from sine → square feels like a volume jump.
-//
-// Reference: sine RMS = peak × 0.7071
-// Each coefficient = sine_RMS / waveform_RMS, so all types output equal loudness.
-//
-//   sine:     RMS = 0.7071  → coeff = 1.000  (reference)
-//   square:   RMS = 1.0000  → coeff = 0.707  (loudest raw — needs most attenuation)
-//   sawtooth: RMS = 0.5774  → coeff = 1.225
-//   triangle: RMS = 0.5774  → coeff = 1.225
-//   pwm:      RMS ≈ 0.8062  → coeff = 0.877  (65% duty cycle)
-//   am:       RMS ≈ 0.5303  → coeff = 1.334  (carrier × (1 + 0.5 mod) / 2)
-//
-// Applied at ampGain so the compensation is transparent to the sig.amp control.
-// The limiter below catches any residual peaks from harmonics or AM modulation.
-
-/**
- * The compensation table normalizes each waveform to sine's RMS so switching
- * types stays at equal perceived loudness.
- */
+// RMS loudness normalisation per waveform type (reference: sine = 1.0)
 const WAVEFORM_GAIN = Object.freeze({
     sine: 1.000,
     square: 0.707,
@@ -854,10 +764,7 @@ const WAVEFORM_GAIN = Object.freeze({
     am: 1.334,
 });
 
-// Shared DynamicsCompressorNode — one instance, both channels feed into it.
-// Acts as a brickwall safety net: catches transients from type switches,
-// AM modulation peaks, and any gain overshoot during parameter changes.
-// Settings are transparent at normal levels — only engages on peaks.
+// Brickwall limiter catches transients from type switches, AM peaks, and gain overshoot
 let _limiter = null;
 let _beatingMix = null;
 let _pointerGate = null;
@@ -887,95 +794,16 @@ function getLimiter() {
     return _limiter;
 }
 
-let freqToHz;
+// Musical octave tuning: 1→8 spans one octave (A2→A3)
+// Equal logarithmic spacing — each step multiplies by ~1.104
+const AUDIO_MIN_HZ = 110, AUDIO_MAX_HZ = 220;
+const FREQ_MIN = 1, FREQ_MAX = 8;
+const INV_FREQ_RANGE = 1 / (FREQ_MAX - FREQ_MIN);
+const AUDIO_EXP_FACTOR = Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
 
-const enableMusicalTuning = true;
-if (enableMusicalTuning) {
-    // ======================================================
-    // MUSICAL OCTAVE TUNING
-    // 1 → 8 spans exactly one octave
-    // A2 → A3
-    // ======================================================
-    // Step, Frequency (Hz), Note
-    // 1,    110.00 Hz,      Starting Pitch (A2)
-    // 2,    121.45 Hz,
-    // 3,    134.09 Hz,
-    // 4,    148.05 Hz,
-    // 5,    163.46 Hz,
-    // 6,    180.47 Hz,
-    // 7,    199.26 Hz,
-    // 8,    220.00 Hz,      Octave Peak (A3)
-    const AUDIO_MIN_HZ = 110;
-    const AUDIO_MAX_HZ = 220;
-
-    const FREQ_MIN = 1;
-    const FREQ_MAX = 8;
-
-    // ------------------------------------------------------
-    // Precomputed constants
-    // ------------------------------------------------------
-
-    const INV_FREQ_RANGE =
-        1 / (FREQ_MAX - FREQ_MIN);
-
-    const AUDIO_EXP_FACTOR =
-        Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
-
-    // ------------------------------------------------------
-    // Gameplay freq → musical Hz
-    // ------------------------------------------------------
-
-    // Equal logarithmic spacing
-    // Meaning each step multiplies by the same ratio.
-    // That ratio is:
-    //      (220/110) ^ (1/7) => 1.10409
-    // So every slider movement increases frequency by ~10.4%.
-    // 
-    // That’s why it feels smooth and consistent.
-    //
-    // Even though values are discrete.
-    //
-    // Because:
-    //
-    // - logarithmic spacing mimics physical/audio perception
-    // - each step feels proportional
-    // - no giant jumps
-    // - no dead tiny differences
-    //
-    // This is far better than linear Hz stepping
-    const _freqToHz = (freq) => {
-        const hz = AUDIO_MIN_HZ * Math.exp(
-            ((freq - FREQ_MIN) *
-                INV_FREQ_RANGE) *
-            AUDIO_EXP_FACTOR
-        );
-        return hz;
-    }
-    freqToHz = _freqToHz;
-} else {
-    const FREQ_MIN = 1;
-    const FREQ_MAX = 7;
-
-    const AUDIO_MIN_HZ = 110; // A2
-    const AUDIO_MAX_HZ = 220; // A3 (1 octave spread)
-
-    const INV_FREQ_RANGE = 1 / (FREQ_MAX - FREQ_MIN);
-    const AUDIO_EXP_FACTOR = Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
-
-    /**
-     * Gameplay freq → audio Hz, Logarithmic interpolation
-     * @param {*} freq   Gameplay freq
-     * @returns {number} Audible Hz
-     */
-    const _freqToHz = (freq) => {
-        return AUDIO_MIN_HZ * Math.exp(
-            ((freq - FREQ_MIN) *
-                INV_FREQ_RANGE) *
-            AUDIO_EXP_FACTOR
-        );
-    }
-    freqToHz = _freqToHz;
-}
+const freqToHz = (freq) => AUDIO_MIN_HZ * Math.exp(
+    ((freq - FREQ_MIN) * INV_FREQ_RANGE) * AUDIO_EXP_FACTOR
+);
 
 /**
  * @typedef {Object} Channel
@@ -1051,58 +879,27 @@ function _buildChannel(ch, sig) {
         osc.connect(carGain);
     }
 
-    // ── amp + master ──────────────────────────────────────────────────────────
-    // ampGain: sig.amp control × per-waveform RMS normalisation coefficient.
-    // This keeps perceived loudness equal across all waveform types.
     const normCoeff = WAVEFORM_GAIN[sig.type] ?? 1.0;
     const ampGain = ac.createGain();
     ampGain.gain.value = sig.amp * 0.1 * normCoeff;
-    //                              ↑    ↑
-    //                         scale   compensation
-    //                                 (from WAVEFORM_GAIN)
-
-    // Examples:
-    // sine:   0.5 * 0.1 * 1.000 = 0.05
-    // square: 0.5 * 0.1 * 0.707 = 0.03535 ← Quieter, balances the raw square loudness
-    // am:     0.5 * 0.1 * 1.334 = 0.0667  ← Louder, balances the quiet AM
 
     // masterGain: mute/unmute this channel (mode switching).
     // Feeds into the shared limiter, not directly to destination.
     const masterGain = ac.createGain();
     masterGain.gain.setValueAtTime(0, now); // start silent — mode sets volume
 
-    // Tuning knobs once you hear it:
-    //
-    // |Want                      | Change                             |
-    // |--------------------------|------------------------------------|
-    // |Warmer / more muffled     | filter.frequency.value → 1200–1800 |
-    // |Brighter but still smooth | → 3000–4000                        |
-    // |More wobble/alive         | vibratoGain.gain.value → 4–6       |
-    // |Less wobble               | → 0.5–1                            |
-    // |Thicker/chorus-y          | vibratoLfo.frequency.value → 3–4   |
-    //
-    // Start with these defaults and tune by ear. The filter alone will make the
-    // biggest difference — square and sawtooth will go from buzzy → rounded
-    // immediately.
-
-    // ── vibrato ───────────────────────────────────────────────────────────────
-    // Subtle LFO wobbles pitch ±2 Hz at 5 Hz — imperceptible as effect,
-    // but removes the "frozen" quality of a pure digital oscillator.
     const vibratoLfo = ac.createOscillator();
     vibratoLfo.type = "square";
-    vibratoLfo.frequency.value = 2; // 3 Hz wobble rate
+    vibratoLfo.frequency.value = 2;
     const vibratoGain = ac.createGain();
-    vibratoGain.gain.value = 0.5; // ±2 Hz depth
+    vibratoGain.gain.value = 0.5;
     vibratoLfo.connect(vibratoGain);
-    vibratoGain.connect(osc.frequency); // modulates carrier pitch
+    vibratoGain.connect(osc.frequency);
 
-    // ── filter ────────────────────────────────────────────────────────────────
-    // Low-pass at 2400 Hz softens harsh upper harmonics on square/sawtooth.
-    // Sine passes through almost unchanged; triangle barely touched.
     const filter = ac.createBiquadFilter();
     filter.type = "lowpass";
     filter.frequency.value = 800;
-    filter.Q.value = 0.5; // gentle slope, no resonance
+    filter.Q.value = 0.5;
 
     // ── connect ───────────────────────────────────────────────────────────────
     (isAM ? carGain : osc).connect(ampGain);
@@ -1314,18 +1111,9 @@ function matchScore() {
     return _cachedMatchScore;
 }
 
-// Noise as tolerance band
-//
-// winThreshold() replaces the hardcoded CONFIG.WIN_PERCENTAGE in updateMeter().
-// It computes: max(75, 95 - noise × 1.8). At max noise (6 units) the threshold
-// drops to ~84%. At zero noise it's exactly 95% as before.
-//
-// The noise slider is permanently hidden via applyLevelUI() — one comment line.
-// The ctrl-noise element stays in the HTML for future use. The target still has
-// noise (it affects visuals and audio texture), but players never need to match
-// it — they just need to get close enough despite it.
-//
-// The 1.8 pts per unit constant is in CONFIG.NOISE_TOLERANCE_PER_UNIT — tunable without touching logic.
+// Noise widens the win threshold: noisy targets are easier to lock in.
+// The noise slider is hidden — players can't match it, they just need to
+// get close enough despite it.
 
 /**
  * Win threshold for the current round, accounting for noise tolerance.
@@ -1391,29 +1179,6 @@ function getScrollPeriod() {
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
 
-/*
- * Current Rendering Bottlenecks
- *
- * Area                         Technique                               Pain Point
- * ---------------------------------------------------------------------------------------------
- * Logo scope (900×300)         shadowBlur: 16–20 on every frame       Notorious perf hog —
- *                                                                     triggers software fallback
- *                                                                     on many browsers
- *
- * Main wave canvas (320×120)   lineTo per pixel,                      Trivial — no bottleneck
- *                              globalAlpha compositing
- *
- * Convergence animation        globalAlpha fade + overlay             Fine — no bottleneck
- *
- * Noise/static effect          CSS steps(1) animation                 Fine
- */
-
-/**
- * Loop is callback `FrameRequestCallback` for requestAnimationFrame
- * @link [MDN Reference](https://developer.mozilla.org/docs/Web/API/DedicatedWorkerGlobalScope/requestAnimationFrame)
- * @param {DOMHighResTimeStamp} ts
- * @returns {void}
- */
 function loop(ts) {
     const dt = Math.min(ts - _lastTime, _DT_MAX);
     _elapsedTime += dt;
@@ -1624,10 +1389,9 @@ function applyLevelUI() {
     UI.labels.level.textContent = level + 1; UI.displays.roundTotal.textContent = lv.rounds;
     UI.controls.phase.style.opacity = lv.phase ? "1" : ".3";
     UI.controls.dc.style.opacity = lv.dc ? "1" : ".3";
-    UI.controls.harm.style.display = lv.harm ? "" : "none";
+    UI.controls.harm.classList.toggle("hidden", !lv.harm);
     // Noise is atmosphere (tolerance band), not a puzzle param — always hidden
-    //     UI.controls.noise.style.display = lv.noise ? "" : "none";
-    UI.controls.noise.style.display = "none";
+    UI.controls.noise.classList.add("hidden");
     UI.buttons.pwm.disabled = !lv.types.includes("pwm");
     UI.buttons.am.disabled = !lv.types.includes("am");
 }
@@ -1637,20 +1401,12 @@ function applyLevelUI() {
 function startTimer() {
     clearInterval(timerInterval);
     const lv = LEVELS[level];
-    // Grace period
-    // startTimer() now reads lv.grace && roundNo === 1. When true: the timer ring turns blue instead of orange (visual signal to the player that this round is safe), the urgent SFX never fires, and on timeout it calls nextRound() after a 1.2s pause with the message "Time's up. Now it counts." — not gameOver().
-    // Grace is on levels 3, 4, 5, 6, 7 — every level that introduces a new parameter. Level 2 doesn't get it because it only adds waveform shapes, which players already understand the control for.
-    // showLevelUpScreen() now dynamically generates its message from the level config — it lists the new params, whether there's a grace round, and whether there's a warmup. Players arrive knowing what's coming.
-    const grace = lv.grace && roundNo === 1; // grace round: timeout advance, never kills
+    const grace = lv.grace && roundNo === 1; // grace round: timeout advances, never kills
     const total = timeLeft = lv.time;
     const el = UI.displays.timer, ring = UI.timerRingFill, C = 125.6; // C = 2π × r=20
 
     ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
     ring.style.stroke = grace ? "var(--blue)" : "#f0690a"; // blue ring = safe round
-    const enableExpensiveSynchronousLayoutOnMobile = false;
-    if (enableExpensiveSynchronousLayoutOnMobile) {
-        ring.getBoundingClientRect(); // force reflow
-    }
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
 
     el.textContent = timeLeft; el.className = "timer-ring-label";
@@ -1672,10 +1428,8 @@ function startTimer() {
         if (tw) tw.classList.toggle("urgent", urgent);
         if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
-            if (grace) { // Grace timeout: no gameOver.
+            if (grace) {
                 UI.displays.feedback.textContent = "Time's up. Now it counts.";
-                const enableAdvanceToNextRound = false;
-                if (enableAdvanceToNextRound) setTimeout(() => nextRound(), 1200);
             } else {
                 gameOver();
             }
@@ -1720,14 +1474,6 @@ function enterLevel() {
 }
 
 // ─── FREE-PLAY WARMUP ────────────────────────────────────────────────────────
-// An untimed sandbox round before the first round of levels that have
-// freeplay:true. No target signal, no score, no timer. Just the player's
-// signal and the controls. A "READY →" button starts the real round.
-
-/**
- * Starts the free-play warmup for the current level.
- * Called from nextRound() when level.freeplay && roundNo === 1.
- */
 function startFreePlay() {
     freePlayActive = true;
     clearInterval(timerInterval);
@@ -1753,7 +1499,7 @@ function startFreePlay() {
     const feedback = UI.displays.feedback;
     feedback.textContent = "Free explore — try the controls. Hit READY when done.";
     feedback.className = "feedback close";
-    UI.buttons.freeplayReady.style.display = "inline-block";
+    UI.buttons.freeplayReady.classList.remove("hidden");
     UI.meterRow.style.opacity = "0.2"; // meter meaningless during warmup
 
     // Start yours playback so they can hear their own signal.
@@ -1764,9 +1510,10 @@ function startFreePlay() {
 }
 
 /** Called by the READY button — ends free-play and starts the real round 1. */
+
 function endFreePlay() {
     freePlayActive = false;
-    UI.buttons.freeplayReady.style.display = "none";
+    UI.buttons.freeplayReady.classList.add("hidden");
     UI.meterRow.style.opacity = "1";
     stopSignalPlayback();
     enterLevel();
@@ -1844,11 +1591,11 @@ function goToMenu() {
     if (tutorialActive) {
         tutorialActive = false;
         document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
-        UI.buttons.skipTut.style.display = "none";
+        UI.buttons.skipTut.classList.add("hidden");
     }
     won = false; freePlayActive = false;
-    const btnFreePlayReady = UI.buttons.freeplayReady; if (btnFreePlayReady) btnFreePlayReady.style.display = "none";
-    const meterRow = UI.meterRow; if (meterRow) meterRow.style.opacity = "1";
+    if (UI.buttons.freeplayReady) UI.buttons.freeplayReady.classList.add("hidden");
+    if (UI.meterRow) UI.meterRow.style.opacity = "1";
     renderStartScreen(); showScreen("start");
 }
 
@@ -1870,9 +1617,9 @@ function startTutorial() {
     invalidateMatchScore();
     roundNo = 1; UI.displays.roundNo.textContent = 1; UI.displays.roundTotal.textContent = 1;
     UI.controls.phase.style.opacity = "1"; UI.controls.dc.style.opacity = "1";
-    UI.controls.harm.style.display = "none"; UI.controls.noise.style.display = "none";
+    UI.controls.harm.classList.add("hidden"); UI.controls.noise.classList.add("hidden");
     UI.buttons.pwm.disabled = false; UI.buttons.am.disabled = false;
-    UI.buttons.skipTut.style.display = "inline-block";
+    UI.buttons.skipTut.classList.remove("hidden");
     resetYours(); recompute(); showTutorialTask();
     startSignalPlayback();
 }
@@ -1886,14 +1633,8 @@ function showTutorialTask() {
     highlightControl();
 }
 
-// ─── TUTORIAL STEP LOCKING ─────────────────────────────────────────────────
-// Each completed step locks its control (disabled + dimmed) so the player
-// can't accidentally break a matched parameter while tuning the next one.
-// lockControl() disables interactive children of the step's control element.
-// unlockAllTutorialControls() cleans up on exit (end/skip/restart).
-// When a step's check passes, checkTutorial() locks it, advances, then
-// recurses — cascading through any already-satisfied future steps so the
-// player never has to re-confirm an already-met condition.
+// Each completed step locks its control so the player can't accidentally
+// break a matched parameter while tuning the next one.
 
 function lockControl(stepIndex) {
     const id = TUTORIAL_CONTROLS[stepIndex];
@@ -1933,7 +1674,7 @@ function highlightControl() {
 function skipTutorial() {
     tutorialActive = false; lsSet("tutorialSeen", "true");
     unlockAllTutorialControls();
-    UI.buttons.skipTut.style.display = "none";
+    UI.buttons.skipTut.classList.add("hidden");
     stopSignalPlayback();
     const feedback = UI.displays.feedback;
     feedback.textContent = "Tutorial skipped. Click NEW GAME to start playing.";
@@ -1948,7 +1689,7 @@ function endTutorial() {
     const feedback = UI.displays.feedback;
     feedback.textContent = "TUTORIAL COMPLETE!"; feedback.className = "feedback win";
     setTimeout(() => {
-        UI.buttons.skipTut.style.display = "none";
+        UI.buttons.skipTut.classList.add("hidden");
         renderStartScreen(); showScreen("start");
     }, 1800);
 }

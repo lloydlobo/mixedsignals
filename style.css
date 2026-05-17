@@ -38,17 +38,6 @@
     --font-mono:  'Share Tech Mono', monospace;
 }
 
-/* PERF: Stop Using Shadow/Glow Effects
-
-If CSS uses:
-- box-shadow
-- filter: blur
-- backdrop-filter
-- text-shadow
-
-- those often cost more than JS.
-- Especially on Android.
-- The biggest mobile killers are often CSS compositing. */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -81,16 +70,10 @@ body {
     user-select: none;
     -webkit-user-select: none;
 
-    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
-    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
-     * will-change: transform to move these to the compositor and prevent blur. */
     transform: rotate(-0.5deg);
     will-change: transform;
     box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
 }
-
-/* No power LED — Threes is clean */
-#game::before, #game::after { display: none; }
 
 /* TE: matte finish (z-index: -1 (applies only to outer shell) */
 #game::after {
@@ -166,9 +149,7 @@ body {
     /* font-family: var(--font-mono); */
     font-family: var(--font-ui);
     font-weight: 900;
-    letter-spacing: 2px;
     letter-spacing: 10px;
-    /* letter-spacing: 0.02em; */
     text-transform: uppercase;
 }
 
@@ -189,21 +170,6 @@ body {
 /* ============================================================
    WAVEFORMS
    ============================================================ */
-
-/* Removed in favor of animated logo canvas inside foreign object. (TEMP COMMIT) */
-/* <path class="logo-wave-cream"...> */
-/* <path class="logo-wave-orange"...> */
-.logo-wave-cream,
-.logo-wave-orange {
-    fill: none;
-    stroke-width: 7;
-    stroke-linecap: round;
-    opacity: 0.78;
-    display: none;
-}
-
-.logo-wave-cream { stroke: var(--cream); }
-.logo-wave-orange { stroke: var(--coral); }
 
 /* ============================================================
    TAGLINE
@@ -264,6 +230,8 @@ body {
     clip: rect(0,0,0,0);
 }
 
+.hidden { display: none !important; }
+
 .start-copy-list {
     margin: 0 0 20px;
     padding: 0;
@@ -272,7 +240,6 @@ body {
     gap: 8px;
     text-align: center;
     font-family: var(--font-mono);
-    /* font-size: 12px; */
     letter-spacing: 0.5px;
     text-transform: uppercase;
     color: var(--text-dim);
@@ -291,8 +258,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* FIXED: #game handles the overall padding, else this makes it seem bloated */
-    /* padding: 2rem 1rem; */
+    
     text-align: center;
     gap: 1.2rem;
     min-height: 320px;
@@ -363,8 +329,6 @@ body {
    ============================================================ */
 
 #screen-game { display: none; }
-/* #screen-game.active { display: block; } */
-
 /* ============================================================
    LCD / SCREEN AREA
    ============================================================ */
@@ -386,9 +350,6 @@ body {
     isolation: isolate;
 }
 
-/* No scanlines — not CRT */
-#game-lcd::before, #game-lcd::after { display: none; }
-
 /* ============================================================
    TOP BAR
    ============================================================ */
@@ -407,7 +368,7 @@ body {
     background: var(--surface);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18);
     border-radius: var(--radius-sm);
-    /* border-radius: var(--radius-xs); */
+
     padding: 3px 8px;
     font-size: 10px;
     font-weight: 700;
@@ -418,8 +379,6 @@ body {
 
 .chip b { color: var(--cream); font-weight: 800; }
 
-/* .chip.level-chip { background: var(--amber); color: #fff; } */
-/* .chip.level-chip b { color: #fff; } */
 .chip.level-chip b { color: var(--amber); }
 
 .topbar-end-wrap {
@@ -502,11 +461,9 @@ body {
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 }
 
-/* Remove “system UI” feeling */
-.meter-track {
-    /* softer contrast */
-    background: #3a342c; 
-}
+    .meter-track {
+        background: #3a342c;
+    }
 
 .meter-fill {
     height: 100%;
@@ -539,14 +496,11 @@ body {
     margin-bottom: 12px;
     position: relative;
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
-    /* subtle inset panel feel */
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18);
 }
 
-/* Remove “system UI” feeling */
 .scope-wrap {
-    /* blend into bg */
-    background: #211d18; 
+    background: #211d18;
 }
 
 .scope-wrap.glow-target { animation: pulse-blue 2s ease-in-out infinite; }
@@ -623,11 +577,7 @@ canvas.scope {
             transparent,
             transparent 11px,
             rgba(255, 255, 255, 0.04) 12px),
-            /* picking this one when waves use a thinner line width - need more contrast */
         var(--bg);
-        /* i like this too - natural led glow && add subtle scope-wrap background (for more depth) */
-        /* var(--surface); */
-        /* #14110e; */
 
     /* Add edge clipping (very TE) */
     /* Waveform should feel “contained,” not floating. */
@@ -717,9 +667,7 @@ canvas.scope {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* DEBUG: bounds match the Oscilloscope (led display) edges */
-    /* border: 2px solid var(--amber); */
-    /* border-radius: var(--radius-sm); */
+
 }
 
 .ctrl { display: flex; flex-direction: column; gap: 4px; }
@@ -847,10 +795,6 @@ input[type=range]::-moz-range-thumb {
     justify-content: center;
     gap: clamp(2px, min(2dvw, 2ch), 10px);
 
-    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
-    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
-     * will-change: transform to move these to the compositor and prevent blur. */
-    /* transform: rotate(-0.8deg); */
     will-change: transform;
 }
 
@@ -925,14 +869,12 @@ input[type=range]::-moz-range-thumb {
 }
  
 .credits-title {
-    font-family: var(--font-ui);
     font-family: var(--font-mono);
     font-weight: 700;
     font-size: 10px;
     color: var(--text-mute);
     cursor: pointer;
     padding: 4px 10px;
-    border-radius: var(--radius-sm);
     border-radius: 20px;
     transition: all .15s;
 }
@@ -1114,10 +1056,6 @@ b {
     position: absolute;
     inset: 0;
 
-    /* Optional here */
-    /* CSS transform: rotate(-0.5deg) on #game and rotate(-0.8deg) on .action-row */
-    /* Charming! But creates sub-pixel rendering on non-Retina displays. Add
-     * will-change: transform to move these to the compositor and prevent blur. */
     will-change: transform;
     transform: rotate(-90deg);
 }
@@ -1178,10 +1116,6 @@ b {
 
 .timer-ring-label.urgent { color: var(--red); }
 
-/* Everything hidden by default */
-.screen { display: none; }
-#screen-game { display: none; }
-
 /* Show whichever screen matches the data attribute */
 #game[data-screen="start"]       #screen-start       { display: flex; }
 #game[data-screen="dead"]        #screen-dead        { display: flex; }
@@ -1234,7 +1168,6 @@ b {
 }
  
 #pb-yours.active {
-    background: rgba(245, 239, 224, 0.12);  /* cream tint — matches yours wave color */
     background: rgb(232, 96, 74, 0.12); /* coral tint — matches yours wave color */
     border-color: var(--coral);
     color: var(--coral);

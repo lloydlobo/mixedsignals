@@ -79,7 +79,7 @@
                 </ul>
 
                 <!-- Shown only when save data exists — toggled by renderStartScreen() -->
-                <button class="crt-btn" id="btn-continue" style="display:none">CONTINUE</button>
+                <button class="crt-btn hidden" id="btn-continue">CONTINUE</button>
 
                 <button class="crt-btn" id="btn-new-game">NEW GAME</button>
 
@@ -89,7 +89,7 @@
                 <button class="crt-btn sm" id="btn-tutorial">TUTORIAL</button>
 
                 <!-- Small unlock status line, populated by renderStartScreen() -->
-                <span id="unlock-msg" style="font-size:10px; color:var(--text-mute);"></span>
+                <span id="unlock-msg"></span>
             </div>
 
             <!-- ━━━ DEAD/VICTORY SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -137,11 +137,6 @@
                             <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
                             <div class="chip">score <b id="score">0</b></div>
                             <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
-                            <!-- <div class="topbar-end-wrap">
-                                <div class="chip" style="padding: 0;">
-                                    <div class="timer" id="timer">30</div>
-                                </div>
-                            </div> -->
                         </div>
 
                         <div id="meter-row" class="meter-row">
@@ -154,12 +149,6 @@
                         <div class="scope-wrap">
                             <div class="scope-label">
                                 <span>oscilloscope</span>
-                                <!-- NOTE: Disabled for now due to alternating color theme during each round -->
-                                <!-- <span>
-                                        <span class="pip" style="background: rgba(200,190,170,0.35);"></span>target
-                                    &nbsp;
-                                        <span class="pip" style="background: var(--cream);"></span>yours
-                                    </span> -->
                             </div>
                             <canvas class="scope" id="c-overlay" height="120"></canvas>
                         </div>
@@ -207,15 +196,13 @@
                             </svg>
                             <span>TRI</span>
                         </button>
-                        <button class="type-btn" data-t="pwm" id="btn-pwm" aria-label="PWM wave"
-                            disabled>
+                        <button class="type-btn" data-t="pwm" id="btn-pwm" aria-label="PWM wave" disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
                             </svg>
                             <span>PWM</span>
                         </button>
-                        <button class="type-btn" data-t="am" id="btn-am" aria-label="AM wave"
-                            disabled>
+                        <button class="type-btn" data-t="am" id="btn-am" aria-label="AM wave" disabled>
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
                             </svg>
@@ -289,7 +276,7 @@
                             </div>
                         </div>
 
-                        <div class="ctrl" id="ctrl-harm" style="display: none;">
+                            <div class="ctrl hidden" id="ctrl-harm">
                             <div class="slider-meta">
                                 <label for="sl-harm">
                                     <svg class="param-glyph" viewBox="0 0 12 12">
@@ -305,9 +292,8 @@
                             </div>
                         </div>
 
-                        <!-- NOTE: The noise slider is permanently hidden via applyLevelUI() — one comment line.
-                             The ctrl-noise element stays in the HTML for future use. -->
-                        <div class="ctrl" id="ctrl-noise" style="display: none;">
+                <!-- Ctrl-noise stays in HTML for future use -->
+                        <div class="ctrl hidden" id="ctrl-noise">
                             <div class="slider-meta">
                                 <label for="sl-noise">
                                     <svg class="param-glyph" viewBox="0 0 12 12">
@@ -328,11 +314,11 @@
 
                 <!-- ━━━ MENU BUTTON IN ACTION ROW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
                 <div class="action-row">
-                    <button class="sys-btn" style="color: var(--amber)" id="btn-hint">HINT</button>
-                    <button class="sys-btn" style="color: var(--red)" id="btn-skip">SKIP</button>
-                    <button class="sys-btn" style="color: var(--text-dim)" id="menu-btn">MENU</button>
-                    <button class="sys-btn" style="color: var(--green); display: none;" id="skip-tut">SKIP TUT</button>
-                    <button class="sys-btn" id="btn-freeplay-ready" style="color: var(--green); display: none;">READY</button>
+                    <button class="sys-btn" id="btn-hint" style="color: var(--amber)">HINT</button>
+                    <button class="sys-btn" id="btn-skip" style="color: var(--red)">SKIP</button>
+                    <button class="sys-btn" id="menu-btn" style="color: var(--text-dim)">MENU</button>
+                    <button class="sys-btn hidden" id="skip-tut" style="color: var(--green)">SKIP TUT</button>
+                    <button class="sys-btn hidden" id="btn-freeplay-ready" style="color: var(--green)">READY</button>
                     <button class="sys-btn" id="mute-btn"
                         title="Toggle audio" aria-label="Toggle mute">BGM</button>
                     <button class="sys-btn" id="sfx-btn"
