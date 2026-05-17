@@ -470,6 +470,7 @@ const BGM_TRACKS = [
     "resources/music/slimeyfox-after-hours-arcade-487277.mp3",
     "resources/music/pietix-art-pop-exp-2-510302.mp3",
     "resources/music/databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
+    "resources/music/penguinmusic-penguinmusic-modern-chillout-future-calm-12641.mp3",
 ];
 function pickNextTrack() {
     let next;
@@ -832,7 +833,7 @@ function createSaturator(ac) {
     const shaper = ac.createWaveShaper();
     const n = 44100;
     const curve = new Float32Array(n);
-    const k = 15;
+    const k = 2.5;
     for (let i = 0; i < n; i++) {
         const x = i * 2 / n - 1;
         curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
