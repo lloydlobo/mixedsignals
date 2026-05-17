@@ -119,6 +119,15 @@ const ARCHETYPES = [
     { name: "Drone",       type: "sawtooth", freq: 2, amp: 4,  phase: 0,   dc: 0, harm: 4, levelMin: 5 },
 ];
 
+// On debut levels, only archetypes that exercise the new param appear —
+// prevents dilution of _pickWeightedParam's non-zero boost.
+const _DEBUT_ARCHETYPES = {
+    2: ["Phase Shift"],
+    3: ["Subsonic"],
+    4: ["Wobble", "Glitch"],
+    5: ["Drone"],
+};
+
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 
 /** @type {Signal} */ let targetSignal = {};
@@ -1424,7 +1433,7 @@ function setType(btn) {
 
 // ─── SIGNAL BUILDERS ─────────────────────────────────────────────────────────
 
-function _pickWeightedType(types) {
+function _pickWeightedType(types, level) {
     // Boost PWM/AM in levels where they debut so players actually encounter them
     const weights = types.map(t => {
         if (level <= 4) return 1; // before LV5: uniform
@@ -1440,21 +1449,47 @@ function _pickWeightedType(types) {
     return types[types.length - 1];
 }
 
+function _pickWeightedParam(values, debutLevel, boost, level) {
+    let total = 0;
+    for (let i = 0; i < values.length; i++) {
+        total += values[i] === 0 ? 1
+            : level === debutLevel ? boost
+            : level === debutLevel + 1 ? Math.max(1, (boost * 0.6) | 0)
+            : 1;
+    }
+    let r = Math.random() * total;
+    for (let i = 0; i < values.length; i++) {
+        const w = values[i] === 0 ? 1
+            : level === debutLevel ? boost
+            : level === debutLevel + 1 ? Math.max(1, (boost * 0.6) | 0)
+            : 1;
+        r -= w;
+        if (r <= 0) return values[i];
+    }
+    return values[values.length - 1];
+}
+
 function buildTarget() {
     const lv = LEVELS[level];
 
     // 40% chance: use a signal archetype (gives each round personality)
     let archetype = null;
     if (Math.random() < 0.4) {
-        const valid = ARCHETYPES.filter(a => a.levelMin <= level);
+        const isDebut = level in _DEBUT_ARCHETYPES;
+        const valid = ARCHETYPES.filter(a =>
+            a.levelMin <= level && (!isDebut || _DEBUT_ARCHETYPES[level].includes(a.name))
+        );
         if (valid.length) archetype = valid[rng(0, valid.length - 1)];
     }
 
     if (archetype) {
+        const isDebut = level in _DEBUT_ARCHETYPES && _DEBUT_ARCHETYPES[level].includes(archetype.name);
+        // Chaos jitter: on non-debut encounters, the archetype drifts ±1 to feel organic
+        const j = () => isDebut ? 0 : rng(-1, 1);
         return {
             type: archetype.type,
-            freq: archetype.freq,
-            amp: archetype.amp,
+            freq: Math.max(1, Math.min(8, archetype.freq + j())),
+            amp: Math.max(1, Math.min(10, archetype.amp + j())),
             phase: archetype.phase,
             dc: archetype.dc,
             harm: archetype.harm,
@@ -1464,11 +1499,11 @@ function buildTarget() {
     }
 
     return {
-        type: _pickWeightedType(lv.types),
+        type: _pickWeightedType(lv.types, level),
         freq: rng(1, 6), amp: rng(3, 10),
-        phase: lv.phase ? rng(0, 7) * 45 : 0,
-        dc: lv.dc ? rng(-3, 3) : 0,
-        harm: lv.harm ? rng(0, 5) : 0,
+        phase: lv.phase ? _pickWeightedParam([0,45,90,135,180,225,270,315], 2, 6, level) : 0,
+        dc: lv.dc ? _pickWeightedParam([-3,-2,-1,0,1,2,3], 3, 3, level) : 0,
+        harm: lv.harm ? _pickWeightedParam([0,1,2,3,4,5], 5, 3, level) : 0,
         noise: lv.noise ? rng(2, 6) : 0,
     };
 }
