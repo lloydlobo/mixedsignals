@@ -275,13 +275,13 @@ function initEvents() {
     UI.buttons.newGame?.addEventListener("click", restartGame);
     UI.buttons.selectLevel?.addEventListener("click", showLevelSelect);
     UI.buttons.tutorial?.addEventListener("click", startTutorial);
-    UI.buttons.retry?.addEventListener("click", startGame);
+    UI.buttons.retry?.addEventListener("click", () => { SFX.nav(); startGame(); });
     UI.buttons.deadLevelSelect?.addEventListener("click", showLevelSelect);
     UI.buttons.startOver?.addEventListener("click", restartGame);
     UI.buttons.continueLevel?.addEventListener("click", continueLevel);
-    UI.buttons.levelBack?.addEventListener("click", () => { renderStartScreen(); showScreen("start"); });
+    UI.buttons.levelBack?.addEventListener("click", () => { SFX.back(); renderStartScreen(); showScreen("start"); });
     document.getElementById("btn-dismiss-ceremony")?.addEventListener("click", dismissCeremony);
-    document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) dismissCeremony(); });
+    document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) { SFX.back(); dismissCeremony(); } });
 
     // Action buttons
     UI.buttons.hint?.addEventListener("click", useHint);
@@ -407,6 +407,7 @@ function renderStartScreen() {
 }
 
 function continueSave() {
+    SFX.confirm();
     const save = loadSave();
     Session.level = save.highestLevel; Session.levelStartScore = 0; Session.score = 0; Round.roundNo = 0;
     startGame();
@@ -415,6 +416,7 @@ function continueSave() {
 // ─── LEVEL SELECT ─────────────────────────────────────────────────────────────
 
 function showLevelSelect() {
+    SFX.nav();
     const save = loadSave();
     const grid = UI.levelSelectGrid;
     grid.innerHTML = "";
@@ -508,6 +510,7 @@ function setVolume(v) {
 function toggleMute() {
     Session.muted = !Session.muted;
     const audio = UI.audio, btn = UI.buttons.mute;
+    SFX.toggle(!Session.muted);
     audio.muted = Session.muted;
     lsSet("bgmMuted", String(Session.muted));
     btn.textContent = "BGM";
@@ -522,6 +525,7 @@ function toggleMute() {
 function toggleSfxMute() {
     Session.sfxMuted = !Session.sfxMuted;
     const btn = UI.buttons.sfx;
+    SFX.toggle(!Session.sfxMuted);
     btn.textContent = "SFX";
     btn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)";
     lsSet("sfxMuted", String(Session.sfxMuted));
@@ -701,6 +705,19 @@ const SFX = {
         [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) =>
             _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
     },
+
+    nav: () => _sfxNote({ freq: 660, gain: 0.08, dur: 0.04 }),
+
+    back: () => _sfxNote({ freq: 600, freqEnd: 480, freqRampTime: 0.06, gain: 0.07, dur: 0.10 }),
+
+    confirm: () => _sfxNote({ freq: 520, freqEnd: 740, freqRampTime: 0.07, gain: 0.09, dur: 0.10 }),
+
+    reset: () => {
+        _sfxNote({ freq: 880, gain: 0.10, dur: 0.05 });
+        setTimeout(() => _sfxNote({ freq: 1100, gain: 0.08, dur: 0.05 }), 60);
+    },
+
+    toggle: (on) => _sfxNote({ type: "triangle", freq: on ? 660 : 400, gain: 0.06, dur: 0.04 }),
 
     urgent: () => _sfxNote({ type: "square", freq: 330, gain: 0.07, dur: 0.09 }),
 
@@ -1624,6 +1641,7 @@ function startFreePlay() {
 /** Called by the READY button — ends free-play and starts the real round 1. */
 
 function endFreePlay() {
+    SFX.confirm();
     Session.freePlayActive = false;
     UI.buttons.freeplayReady.classList.add("hidden");
     UI.meterRow.style.opacity = "1";
@@ -1693,6 +1711,7 @@ function showCeremony() {
 }
 
 function dismissCeremony() {
+    SFX.back();
     const overlay = document.getElementById("ceremony-overlay");
     overlay.classList.add("hidden");
     const save = loadSave();
@@ -1702,6 +1721,7 @@ function dismissCeremony() {
 }
 
 function continueLevel() {
+    SFX.nav();
     UI.displays.roundNo.textContent = Round.roundNo;
     if (hasPendingCeremony()) {
         showCeremony();
@@ -1731,6 +1751,7 @@ function gameOver() {
 
 /** Exits gameplay cleanly from any state. */
 function goToMenu() {
+    SFX.back();
     exitLevel();
     if (Session.tutorialActive) {
         Session.tutorialActive = false;
@@ -1752,9 +1773,10 @@ function startGame() {
     showScreen("game"); startLoop(); nextRound();
 }
 
-function restartGame() { Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; Session.postGameFreeplay = false; startGame(); }
+function restartGame() { SFX.reset(); Round._lockAnimStart = 0; Session.score = 0; Session.levelStartScore = 0; Session.level = 0; Session.postGameFreeplay = false; startGame(); }
 
 function startTutorial() {
+    SFX.nav();
     Round._lockAnimStart = 0; Session.tutorialActive = true; Session.tutorialStep = 0; Session.score = 0;
     showScreen("game"); startLoop();
     targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
@@ -1816,6 +1838,7 @@ function highlightControl() {
 }
 
 function skipTutorial() {
+    SFX.back();
     Session.tutorialActive = false; lsSet("tutorialSeen", "true");
     unlockAllTutorialControls();
     UI.buttons.skipTut.classList.add("hidden");
