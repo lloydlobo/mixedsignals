@@ -430,7 +430,9 @@ function recordLevelComplete(completedLevel, runScore) {
 // ─── START SCREEN ────────────────────────────────────────────────────────────
 
 function renderStartScreen() {
-    transitionBGM(BGM_STATE.MENU);
+    // ✗ transitionBGM(BGM_STATE.MENU); — music must NOT play on page load;
+    //   player must interact first (click/tab+enter) per browser autoplay policy.
+    //   Re-enable once a user-gesture gate is in place.
     const save = loadSave();
 
     const continueBtn = UI.buttons.continue;
