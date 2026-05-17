@@ -30,6 +30,7 @@
  * @property {boolean}    noise
  * @property {boolean}    [grace] round 1 never triggers gameOver on timeout — advances instead
  * @property {boolean}    [freeplay] round 1 preceded by untimed free-play warmup
+ * @property {string}     [graceColor] CSS color for grace round accent theme
  *
  * @typedef {Object} SaveData
  * @property {number}   highestLevel    0-indexed
@@ -65,15 +66,15 @@ const LEVELS = [
     { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false, freeplay: true },
     { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
     // LV3 — grace: phase is new, give players one round to discover it
-    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false, grace: true },
+    { rounds: 5, time: 30, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: false, harm: false, noise: false, grace: true, graceColor: "var(--blue)" },
     // LV4 — grace: DC offset is new
-    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false, grace: true },
+    { rounds: 5, time: 28, types: ["sine", "square", "sawtooth", "triangle"], phase: true, dc: true, harm: false, noise: false, grace: true, graceColor: "var(--amber)" },
     // LV5 — grace: PWM and AM are new
-    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false, grace: true },
+    { rounds: 5, time: 26, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: false, noise: false, grace: true, graceColor: "var(--coral)" },
     // LV6 — grace + freeplay: harmonics need exploration time most of all
-    { rounds: 5, time: 36, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false, grace: true, freeplay: true },
+    { rounds: 5, time: 36, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: false, grace: true, freeplay: true, graceColor: "var(--green)" },
     // LV7 — noise as atmosphere (tolerance band), not a slider to match
-    { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true },
+    { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true, graceColor: "var(--text-dim)" },
 ];
 
 // ─── CEREMONIES ──────────────────────────────────────────────────────────────
@@ -1491,8 +1492,15 @@ function startTimer() {
     const el = UI.displays.timer, ring = UI.timerRingFill, C = 125.6; // C = 2π × r=20
 
     ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
-    ring.style.stroke = grace ? "var(--blue)" : "#f0690a"; // blue ring = safe round
+    const graceColor = grace ? (lv.graceColor ?? "var(--blue)") : null;
+    ring.style.stroke = graceColor ?? "#f0690a";
     ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
+
+    // Grace theme: tint meter + scope-wrap to match the new param
+    const meterFill = UI.displays.fill;
+    const scopeWrap = document.querySelector(".scope-wrap");
+    if (meterFill) meterFill.style.background = graceColor ?? "";
+    if (scopeWrap) scopeWrap.classList.toggle("grace-active", grace);
 
     el.textContent = timeLeft; el.className = "timer-ring-label";
     if (grace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
@@ -1503,7 +1511,7 @@ function startTimer() {
         const urgent = !grace && timeLeft <= 8;
         el.textContent = timeLeft;
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
-        ring.style.stroke = grace ? "var(--blue)" : (urgent ? "#e85a4a" : "#f0690a");
+        ring.style.stroke = grace ? (lv.graceColor ?? "var(--blue)") : (urgent ? "#e85a4a" : "#f0690a");
         if (urgent) { const now = Date.now(); if (now - _lastUrgentSfx > 500) { SFX.urgent(); _lastUrgentSfx = now; } }
         const wrap = document.querySelector(".scope-wrap");
         if (wrap) wrap.classList.toggle("urgent", urgent);
@@ -1540,6 +1548,10 @@ function exitLevel() {
         UI.archetypeName.textContent = "";
         UI.archetypeName.classList.add("hidden");
     }
+    const meterFill = UI.displays.fill;
+    if (meterFill) meterFill.style.background = "";
+    const scopeWrap = document.querySelector(".scope-wrap");
+    if (scopeWrap) scopeWrap.classList.remove("grace-active");
 }
 
 function enterLevel() {

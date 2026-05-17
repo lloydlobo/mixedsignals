@@ -509,6 +509,11 @@ body {
 .scope-wrap.glow-target.held { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--blue) 18%, transparent); }
 .scope-wrap.glow-yours.held  { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--coral) 18%, transparent); }
 .scope-wrap.glow-ab.held     { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--green) 18%, transparent); }
+.scope-wrap.grace-active {
+    box-shadow: inset 0 0 20px 4px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
 .scope-wrap.urgent.glow-target,
 .scope-wrap.urgent.glow-yours,
 .scope-wrap.urgent.glow-ab { animation-duration: 0.5s; }
