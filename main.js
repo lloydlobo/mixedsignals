@@ -425,20 +425,11 @@ function startLevelFromSelect(selectedLevel) {
 
 // ─── PRNG (Xorshift32) ───────────────────────────────────────────────────────
 
-const rand = (() => {
-    let s = 1831565813 >>> 0;
-    return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
-})();
-
 function makeRand(seed = 1831565813) {
     let s = seed >>> 0;
-    return () => {
-        s ^= s << 13;
-        s ^= s >>> 17;
-        s ^= s << 5;
-        return (s >>> 0) / 4294967296;
-    };
+    return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
 }
+const rand = makeRand();
 
 function rng(lo, hi) {
     if (lo > hi) { const t = lo; lo = hi; hi = t; }
@@ -628,33 +619,34 @@ const _LOCK_VARIANTS = [
     },
 ];
 
+function _sfxNote(opts) {
+    if (sfxMuted) return;
+    const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
+    o.type = opts.type || "sine";
+    o.frequency.value = opts.freq;
+    if (opts.freqEnd !== undefined) {
+        o.frequency.linearRampToValueAtTime(opts.freqEnd, ac.currentTime + (opts.freqRampTime ?? opts.dur));
+    }
+    if (opts.gainStart !== undefined) {
+        g.gain.setValueAtTime(opts.gainStart, ac.currentTime);
+        g.gain.linearRampToValueAtTime(opts.gain, ac.currentTime + (opts.attack || 0.008));
+    } else {
+        g.gain.setValueAtTime(opts.gain, ac.currentTime);
+    }
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + opts.dur);
+    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + opts.dur);
+}
+
 const SFX = {
-    tick: (pitch = 880) => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = pitch;
-        g.gain.setValueAtTime(0.12, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.06);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.06);
-    },
+    tick: (pitch = 880) => _sfxNote({ freq: pitch, gain: 0.12, dur: 0.06 }),
 
-    slider: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = 440 + yoursSignal.freq * 40;
-        g.gain.setValueAtTime(0.06, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.04);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.05);
-    },
+    slider: () => _sfxNote({ freq: 440 + yoursSignal.freq * 40, gain: 0.06, dur: 0.05 }),
 
-    // Randomly picks one of five warm melodic variations so wins don't sound identical
     lock: () => {
         if (sfxMuted) return;
-        const ac = actx();
-        _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](ac);
+        _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](actx());
     },
 
-    // Warm descending triangle cascade — losing but not brutal
     fail: () => {
         if (sfxMuted) return;
         const ac = actx();
@@ -662,42 +654,12 @@ const SFX = {
             _warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3));
     },
 
-    // Tired shrug — single triangle note gliding down, short and dismissive. "bwop"
-    skip: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "triangle"; o.frequency.value = 330;
-        o.frequency.linearRampToValueAtTime(200, ac.currentTime + 0.12);
-        g.gain.setValueAtTime(0, ac.currentTime);
-        g.gain.linearRampToValueAtTime(0.12, ac.currentTime + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.20);
-    },
+    skip: () => _sfxNote({ type: "triangle", freq: 330, freqEnd: 200, freqRampTime: 0.12, gainStart: 0, gain: 0.12, dur: 0.20 }),
 
-    // Broke-skip: sawtooth like fail but shorter, quieter, single note — a dull thud, not a cascade.
-    // "You tried to skip but the machine shrugged."
-    skipBroke: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sawtooth"; o.frequency.value = 180;
-        g.gain.setValueAtTime(0.08, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.14);
-    },
+    skipBroke: () => _sfxNote({ type: "sawtooth", freq: 180, gain: 0.08, dur: 0.14 }),
 
-    // Sine sweep up — helpful, bright, curious
-    hint: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = 660;
-        o.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.12);
-        g.gain.setValueAtTime(0, ac.currentTime);
-        g.gain.linearRampToValueAtTime(0.10, ac.currentTime + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.20);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.22);
-    },
+    hint: () => _sfxNote({ freq: 660, freqEnd: 880, freqRampTime: 0.12, gainStart: 0, gain: 0.10, dur: 0.22 }),
 
-    // Deflated balloon — sine goes up then immediately flops down. Cute, not mean. "bwip"
     hintBroke: () => {
         if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
@@ -717,25 +679,9 @@ const SFX = {
             _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
     },
 
-    urgent: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "square"; o.frequency.value = 330;
-        g.gain.setValueAtTime(0.07, ac.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.09);
-    },
+    urgent: () => _sfxNote({ type: "square", freq: 330, gain: 0.07, dur: 0.09 }),
 
-    close: () => {
-        if (sfxMuted) return;
-        const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = 330;
-        o.frequency.linearRampToValueAtTime(440, ac.currentTime + 0.15);
-        g.gain.setValueAtTime(0, ac.currentTime);
-        g.gain.linearRampToValueAtTime(0.05, ac.currentTime + 0.008);
-        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.22);
-        o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.24);
-    },
+    close: () => _sfxNote({ freq: 330, freqEnd: 440, freqRampTime: 0.15, gainStart: 0, gain: 0.05, dur: 0.24 }),
 };
 
 // ─── STAMP SYSTEM ─────────────────────────────────────────────────────────────
@@ -887,6 +833,20 @@ const _chYours = _emptyChannel();
 
 // ── channel lifecycle ─────────────────────────────────────────────────────────
 
+function _fadeOutChannel(ch) {
+    if (!ch.masterGain) return;
+    const ac = actx();
+    const now = ac.currentTime;
+    ch.masterGain.gain.setValueAtTime(ch.masterGain.gain.value, now);
+    ch.masterGain.gain.linearRampToValueAtTime(0, now + PB.FADE);
+    const snap = { ...ch };
+    setTimeout(() => {
+        [snap.osc, snap.modOsc, snap.vibratoLfo].forEach(n => { try { n?.stop(); } catch {} });
+        [snap.carGain, snap.modGain, snap.ampGain, snap.filter, snap.masterGain, snap.vibratoGain, snap.vibratoLfo]
+            .forEach(n => { try { n?.disconnect(); } catch {} });
+    }, (PB.FADE + 0.05) * 1000);
+}
+
 /**
  * Builds a fresh audio graph for the channel and starts it silently.
  * Fades out and tears down any existing graph first.
@@ -894,22 +854,10 @@ const _chYours = _emptyChannel();
  * @param {Signal}  sig
  */
 function _buildChannel(ch, sig) {
+    _fadeOutChannel(ch);
+
     const ac = actx();
     const now = ac.currentTime;
-
-    // Fade out old master then tear down after fade
-    if (ch.masterGain) {
-        ch.masterGain.gain.setValueAtTime(ch.masterGain.gain.value, now);
-        ch.masterGain.gain.linearRampToValueAtTime(0, now + PB.FADE);
-        const old = { ...ch };
-        setTimeout(() => {
-            try { old.osc?.stop(); } catch { }
-            try { old.modOsc?.stop(); } catch { }
-            [old.carGain, old.modGain, old.ampGain, old.masterGain]
-                .forEach(n => { try { n?.disconnect(); } catch { } });
-        }, (PB.FADE + 0.05) * 1000);
-    }
-
     const hz = freqToHz(sig.freq);
     const isAM = sig.type === "am";
     const isPWM = sig.type === "pwm";
@@ -1017,20 +965,7 @@ function _updateChannel(ch, sig) {
  * @param {Channel} ch
  */
 function _destroyChannel(ch) {
-    if (!ch.masterGain) return;
-    const ac = actx();
-    const now = ac.currentTime;
-    ch.masterGain.gain.setValueAtTime(ch.masterGain.gain.value, now);
-    ch.masterGain.gain.linearRampToValueAtTime(0, now + PB.FADE);
-    const snap = { ...ch };
-    setTimeout(() => {
-        try { snap.osc?.stop(); } catch (err) { console.warn(err); }
-        try { snap.modOsc?.stop(); } catch (err) { console.warn(err); }
-        [snap.carGain, snap.modGain, snap.ampGain, snap.filter, snap.masterGain, snap.vibratoGain]
-            .forEach(n => { try { n?.disconnect(); } catch (err) { console.warn(err); } });
-        try { snap.vibratoLfo?.stop(); } catch (err) { console.warn(err) };
-        try { snap.vibratoLfo?.disconnect(); } catch (err) { console.warn(err) };
-    }, (PB.FADE + 0.05) * 1000);
+    _fadeOutChannel(ch);
     Object.assign(ch, _emptyChannel());
 }
 
