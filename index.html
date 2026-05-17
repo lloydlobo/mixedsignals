@@ -14,6 +14,7 @@
     <div id="game">
         <div class="flash-overlay" id="flash"></div>
         <audio id="bgm-audio" preload="none"></audio>
+        <button class="settings-gear" id="btn-settings" aria-label="Settings">⚙</button>
 
         <div id="game-inner">
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
@@ -336,11 +337,42 @@
                     <button class="sys-btn" id="menu-btn" style="color: var(--text-dim)">MENU</button>
                     <button class="sys-btn hidden" id="skip-tut" style="color: var(--green)">SKIP TUT</button>
                     <button class="sys-btn hidden" id="btn-freeplay-ready" style="color: var(--green)">READY</button>
-                    <button class="sys-btn" id="mute-btn"
-                        title="Toggle audio" aria-label="Toggle mute">BGM</button>
-                    <button class="sys-btn" id="sfx-btn"
-                        title="Toggle SFX" aria-label="Toggle sound effects">SFX</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- ━━━ SETTINGS OVERLAY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <div class="settings-overlay hidden" id="settings-overlay">
+            <div class="settings-card" id="settings-card">
+                <h3 class="settings-heading">Settings</h3>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">Audio</div>
+                    <div class="settings-row">
+                        <span>BGM</span>
+                        <button class="settings-toggle" id="stg-bgm">ON</button>
+                        <input type="range" class="settings-slider" id="stg-bgm-vol" min="0" max="100" value="40">
+                    </div>
+                    <div class="settings-row">
+                        <span>SFX</span>
+                        <button class="settings-toggle" id="stg-sfx">ON</button>
+                        <input type="range" class="settings-slider" id="stg-sfx-vol" min="0" max="100" value="40">
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">Gameplay</div>
+                    <div class="settings-row">
+                        <span>Ceremonies</span>
+                        <button class="settings-toggle" id="stg-ceremonies">ON</button>
+                    </div>
+                    <div class="settings-row">
+                        <span>Screen shake</span>
+                        <button class="settings-toggle" id="stg-shake">ON</button>
+                    </div>
+                </div>
+
+                <button class="crt-btn" id="btn-close-settings">BACK</button>
             </div>
         </div>
 

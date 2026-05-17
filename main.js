@@ -36,6 +36,13 @@
  * @property {number}   highestLevel    0-indexed
  * @property {number[]} bestScores      per level
  * @property {number[]} seenCeremonies  level indices where ceremony was shown
+ * @property {Object}   [settings]
+ * @property {boolean}  settings.bgmMuted
+ * @property {boolean}  settings.sfxMuted
+ * @property {number}   settings.bgmVolume
+ * @property {number}   settings.sfxVolume
+ * @property {boolean}  settings.ceremonies
+ * @property {boolean}  settings.screenShake
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -175,6 +182,7 @@ const Session = {
     muted: false,
     sfxMuted: false,
     volume: 0.4,
+    screenShake: true,
     postGameFreeplay: false,
 };
 
@@ -233,8 +241,6 @@ function initUI() {
         menu:            document.getElementById("menu-btn"),
         skipTut:         document.getElementById("skip-tut"),
         freeplayReady:   document.getElementById("btn-freeplay-ready"),
-        mute:            document.getElementById("mute-btn"),
-        sfx:             document.getElementById("sfx-btn"),
         pwm:             document.getElementById("btn-pwm"),
         am:              document.getElementById("btn-am"),
     };
@@ -321,8 +327,8 @@ const BUTTON_ACTIONS = {
     "menu-btn": goToMenu,
     "skip-tut": skipTutorial,
     "btn-freeplay-ready": endFreePlay,
-    "mute-btn": toggleMute,
-    "sfx-btn": toggleSfxMute,
+    "btn-settings": showSettings,
+    "btn-close-settings": closeSettings,
 };
 
 // ─── EVENT BINDING ────────────────────────────────────────────────────────────
@@ -338,6 +344,12 @@ function initEvents() {
     document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => {
         if (e.target === e.currentTarget) { SFX.back(); dismissCeremony(); }
     });
+
+    document.getElementById("settings-overlay")?.addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) { SFX.back(); closeSettings(); }
+    });
+
+    initSettingsOverlay();
 
     // Delegated type button listener (handles all 6 waveform buttons)
     UI.typeButtons?.addEventListener("click", (e) => {
@@ -398,7 +410,8 @@ function lsSet(key, value) {
 
 const SAVE_KEY = "mixedSignalsSave";
 
-function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [] }; }
+function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() }; }
+const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true });
 
 /** @returns {SaveData} */
 function loadSave() {
@@ -409,6 +422,20 @@ function loadSave() {
         if (typeof d.highestLevel !== "number" || !Array.isArray(d.bestScores)) return freshSave();
         while (d.bestScores.length < LEVELS.length) d.bestScores.push(0);
         if (!Array.isArray(d.seenCeremonies)) d.seenCeremonies = [];
+        // Migrate settings — construct from old lsGet keys if missing
+        if (!d.settings) {
+            d.settings = {
+                bgmMuted:    lsGet("bgmMuted") === "true",
+                sfxMuted:    lsGet("sfxMuted") === "true",
+                bgmVolume:   parseFloat(lsGet("bgmVolume") ?? "0.4"),
+                sfxVolume:   0.4,
+                ceremonies:  true,
+                screenShake: true,
+            };
+            // Clear old keys after migration
+            try { localStorage.removeItem("bgmMuted"); localStorage.removeItem("sfxMuted"); localStorage.removeItem("bgmVolume"); } catch {}
+            writeSave(d);
+        }
         return d;
     } catch { return freshSave(); }
 }
@@ -570,16 +597,19 @@ function transitionBGM(state) {
     _playFromPool(pool, state);
 }
 
-Session.muted = lsGet("bgmMuted") === "true";
-Session.sfxMuted = lsGet("sfxMuted") === "true";
-Session.volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
+// Load settings from save
+const _initSettings = loadSave().settings;
+Session.muted = _initSettings.bgmMuted;
+Session.sfxMuted = _initSettings.sfxMuted;
+Session.volume = _initSettings.bgmVolume;
+Session.screenShake = _initSettings.screenShake;
+Session.ceremonies = _initSettings.ceremonies;
 
 function initAudio() {
     createMixGraph();
     const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = Session.muted; audio.volume = Session.volume;
-    btn.textContent = "BGM";
-    btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
+    if (btn) { btn.textContent = "BGM"; btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)"; }
     const sfxBtn = UI.buttons.sfx;
     if (sfxBtn) { sfxBtn.textContent = "SFX"; sfxBtn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
     audio.addEventListener("ended", () => {
@@ -611,9 +641,12 @@ function toggleMute() {
     const audio = UI.audio, btn = UI.buttons.mute;
     SFX.toggle(!Session.muted);
     audio.muted = Session.muted;
-    lsSet("bgmMuted", String(Session.muted));
-    btn.textContent = "BGM";
-    btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
+    const save = loadSave();
+    save.settings.bgmMuted = Session.muted;
+    writeSave(save);
+    if (btn) { btn.textContent = "BGM"; btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)"; }
+    const stg = document.getElementById("stg-bgm");
+    if (stg) { stg.textContent = Session.muted ? "OFF" : "ON"; stg.classList.toggle("on", !Session.muted); }
     if (Session.muted) {
         if (!audio.paused) audio.pause();
     } else {
@@ -625,9 +658,12 @@ function toggleSfxMute() {
     Session.sfxMuted = !Session.sfxMuted;
     const btn = UI.buttons.sfx;
     SFX.toggle(!Session.sfxMuted);
-    btn.textContent = "SFX";
-    btn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)";
-    lsSet("sfxMuted", String(Session.sfxMuted));
+    const save = loadSave();
+    save.settings.sfxMuted = Session.sfxMuted;
+    writeSave(save);
+    if (btn) { btn.textContent = "SFX"; btn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)"; }
+    const stg = document.getElementById("stg-sfx");
+    if (stg) { stg.textContent = Session.sfxMuted ? "OFF" : "ON"; stg.classList.toggle("on", !Session.sfxMuted); }
 }
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
@@ -1508,7 +1544,9 @@ function showScorePop(points) {
     scoreEl.parentElement.appendChild(pop);
     setTimeout(() => pop.remove(), 800);
     const gi = UI.gameInner;
-    gi.classList.add("shake-light"); setTimeout(() => gi.classList.remove("shake-light"), 300);
+    if (Session.screenShake) {
+        gi.classList.add("shake-light"); setTimeout(() => gi.classList.remove("shake-light"), 300);
+    }
 }
 
 // ─── METER ───────────────────────────────────────────────────────────────────
@@ -1925,9 +1963,7 @@ function showLevelUpScreen() {
 }
 
 function hasPendingCeremony() {
-    if (!(Session.level in CEREMONIES)) return false;
-    const save = loadSave();
-    return !save.seenCeremonies.includes(Session.level);
+    return Session.ceremonies && (Session.level in CEREMONIES);
 }
 
 function showCeremony() {
@@ -1946,10 +1982,83 @@ function dismissCeremony() {
     SFX.back();
     const overlay = document.getElementById("ceremony-overlay");
     overlay.classList.add("hidden");
-    const save = loadSave();
-    if (!save.seenCeremonies.includes(Session.level)) save.seenCeremonies.push(Session.level);
-    writeSave(save);
     enterLevel();
+}
+
+// ─── SETTINGS OVERLAY ─────────────────────────────────────────────────────────
+
+function showSettings() {
+    SFX.nav();
+    const overlay = document.getElementById("settings-overlay");
+    renderSettings();
+    overlay.classList.remove("hidden");
+}
+
+function closeSettings() {
+    SFX.back();
+    document.getElementById("settings-overlay").classList.add("hidden");
+}
+
+function renderSettings() {
+    const save = loadSave();
+    const s = save.settings;
+    const sync = (id, on) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = on ? "ON" : "OFF";
+        el.classList.toggle("on", on);
+    };
+    sync("stg-bgm", !s.bgmMuted);
+    sync("stg-sfx", !s.sfxMuted);
+    sync("stg-ceremonies", s.ceremonies);
+    sync("stg-shake", s.screenShake);
+    const bgmVol = document.getElementById("stg-bgm-vol");
+    if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
+    const sfxVol = document.getElementById("stg-sfx-vol");
+    if (sfxVol) sfxVol.value = Math.round(s.sfxVolume * 100);
+}
+
+function toggleSetting(key, sessionKey) {
+    const save = loadSave();
+    save.settings[key] = !save.settings[key];
+    writeSave(save);
+    if (sessionKey) Session[sessionKey] = save.settings[key];
+    renderSettings();
+}
+
+function onSettingsVolChange(key, sessionKey, slider) {
+    const val = parseInt(slider.value) / 100;
+    const save = loadSave();
+    save.settings[key] = val;
+    writeSave(save);
+    if (sessionKey) Session[sessionKey] = val;
+    if (key === "bgmVolume") { Session.volume = val; UI.audio.volume = val; }
+    if (key === "sfxVolume") Session.sfxVolume = val; // sfx gain not wired yet
+}
+
+function initSettingsOverlay() {
+    document.getElementById("stg-bgm")?.addEventListener("click", () => { SFX.toggle(true); toggleMute(); });
+    document.getElementById("stg-sfx")?.addEventListener("click", () => { SFX.toggle(true); toggleSfxMute(); });
+
+    const bindToggle = (id, key, sessionKey) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("click", () => {
+            SFX.toggle(true);
+            toggleSetting(key, sessionKey);
+        });
+    };
+    bindToggle("stg-ceremonies", "ceremonies", "ceremonies");
+    bindToggle("stg-shake", "screenShake", "screenShake");
+
+    const bindSlider = (id, key, sessionKey) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener("input", () => onSettingsVolChange(key, sessionKey, el));
+        el.addEventListener("change", () => onSettingsVolChange(key, sessionKey, el));
+    };
+    bindSlider("stg-bgm-vol", "bgmVolume", "volume");
+    bindSlider("stg-sfx-vol", "sfxVolume", null);
 }
 
 function continueLevel() {
@@ -1979,8 +2088,10 @@ function gameOver() {
     UI.displays.deadMsg.textContent = `Level ${Session.level + 1} · Round ${Round.roundNo} · ${Session.score} pts`;
     showScreen("dead"); SFX.fail();
     const gi = UI.gameInner;
-    gi.classList.add("shake"); setTimeout(() => gi.classList.remove("shake"), 500);
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    if (Session.screenShake) {
+        gi.classList.add("shake"); setTimeout(() => gi.classList.remove("shake"), 500);
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    }
 }
 
 /** Exits gameplay cleanly from any state. */

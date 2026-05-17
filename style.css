@@ -90,6 +90,32 @@ body {
 }
 #game-inner { position: relative; }
 
+/* ── SETTINGS GEAR ─────────────────────────────────────────────────────────── */
+.settings-gear {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 100;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--text-mute);
+    transition: color .15s, background .15s;
+    user-select: none;
+}
+.settings-gear:hover {
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+}
+.settings-gear:active {
+    color: var(--cream);
+    transform: translateY(1px);
+}
+
 .orb { font-family: var(--font-ui); font-weight: 900; }
 
 /* ============================================================
@@ -950,10 +976,152 @@ input[type=range]::-moz-range-thumb {
     50%      { box-shadow: 0 0 18px currentColor; opacity: 1; }
 }
 
+/* ── SETTINGS OVERLAY ────────────────────────────────────────────────────────── */
+
+.settings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    animation: ceremony-fade-in 0.3s ease-out;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.settings-card {
+    background: var(--bg2);
+    border-radius: var(--radius-tile);
+    padding: 32px 28px 24px;
+    max-width: 380px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    animation: ceremony-card-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.settings-heading {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.settings-section-title {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text-mute);
+    border-bottom: 1px solid var(--surface);
+    padding-bottom: 4px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: var(--font-ui);
+}
+
+.settings-row > span:first-child {
+    flex: 1;
+    font-weight: 600;
+}
+
+/* Toggle pill — same ON/OFF color language as BGM/SFX buttons */
+.settings-toggle {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    background: var(--surface2);
+    color: var(--text-dim);
+    box-shadow: var(--shadow-sm);
+    transition: color .1s, background .1s, box-shadow .1s, transform .07s;
+    user-select: none;
+    min-width: 48px;
+}
+.settings-toggle.on {
+    color: var(--blue);
+    background: rgba(91, 141, 217, 0.12);
+}
+.settings-toggle:active {
+    transform: translateY(2px);
+    box-shadow: none;
+}
+
+/* Slider — narrower variant for settings rows */
+.settings-slider {
+    width: 80px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    touch-action: pan-x;
+    background: var(--surface);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.45);
+}
+.settings-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.45);
+}
+.settings-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin-top: -7px;
+    border-radius: var(--radius-tile);
+    background: #e8e0cc;
+    border: none;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+}
+.settings-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.45);
+}
+.settings-slider::-moz-range-thumb {
+    width: 20px; height: 20px;
+    border-radius: var(--radius-tile);
+    background: #e8e0cc;
+    border: none;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+}
+
+/* ── RESPONSIVE: smaller gear on narrow screens ─────────────────────────────── */
+@media (max-width: 520px) {
+    .settings-gear { top: 4px; right: 4px; font-size: 16px; }
+    .settings-slider { width: 60px; }
+}
+
 /* ============================================================
    CREDITS
    ============================================================ */
- 
+
 .credits-wrap { position: fixed; bottom: 8px; right: 5px; z-index: 1010; }
 
 @media (max-width: 640px) {
