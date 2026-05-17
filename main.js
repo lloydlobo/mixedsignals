@@ -171,79 +171,62 @@ function currentScreen() {
 const UI = {};
 
 function initUI() {
-    UI.labels = {};
-    UI.labels.freq = document.getElementById("lbl-freq");
-    UI.labels.amp = document.getElementById("lbl-amp");
-    UI.labels.phase = document.getElementById("lbl-phase");
-    UI.labels.dc = document.getElementById("lbl-dc");
-    UI.labels.harm = document.getElementById("lbl-harm");
-    UI.labels.noise = document.getElementById("lbl-noise");
-    UI.labels.level = document.getElementById("lbl-level");
+    function collect(prefix, names) {
+        return Object.fromEntries(names.map(n => [n, document.getElementById(`${prefix}${n}`)]));
+    }
 
-    UI.sliders = {};
-    UI.sliders.freq = document.getElementById("sl-freq");
-    UI.sliders.amp = document.getElementById("sl-amp");
-    UI.sliders.phase = document.getElementById("sl-phase");
-    UI.sliders.dc = document.getElementById("sl-dc");
-    UI.sliders.harm = document.getElementById("sl-harm");
-    UI.sliders.noise = document.getElementById("sl-noise");
+    UI.labels   = collect("lbl-",  ["freq", "amp", "phase", "dc", "harm", "noise", "level"]);
+    UI.sliders  = collect("sl-",   ["freq", "amp", "phase", "dc", "harm", "noise"]);
+    UI.controls = collect("ctrl-", ["phase", "dc", "harm", "noise"]);
+    UI.playback = collect("pb-",   ["target", "yours", "ab"]);
 
-    UI.buttons = {};
-    UI.buttons.am             = document.getElementById("btn-am");
-    UI.buttons.continue       = document.getElementById("btn-continue");
-    UI.buttons.continueLevel  = document.getElementById("btn-continue-level");
-    UI.buttons.deadLevelSelect = document.getElementById("btn-dead-level-select");
-    UI.buttons.freeplayReady  = document.getElementById("btn-freeplay-ready");
-    UI.buttons.hint           = document.getElementById("btn-hint");
-    UI.buttons.levelBack      = document.getElementById("btn-level-back");
-    UI.buttons.menu           = document.getElementById("menu-btn");
-    UI.buttons.mute           = document.getElementById("mute-btn");
-    UI.buttons.sfx            = document.getElementById("sfx-btn");
-    UI.buttons.newGame        = document.getElementById("btn-new-game");
-    UI.buttons.pwm            = document.getElementById("btn-pwm");
-    UI.buttons.retry          = document.getElementById("btn-retry");
-    UI.buttons.selectLevel    = document.getElementById("btn-select-level");
-    UI.buttons.skip           = document.getElementById("btn-skip");
-    UI.buttons.skipTut        = document.getElementById("skip-tut");
-    UI.buttons.startOver      = document.getElementById("btn-start-over");
-    UI.buttons.tutorial       = document.getElementById("btn-tutorial");
+    UI.buttons = {
+        am:              document.getElementById("btn-am"),
+        continue:        document.getElementById("btn-continue"),
+        continueLevel:   document.getElementById("btn-continue-level"),
+        deadLevelSelect: document.getElementById("btn-dead-level-select"),
+        freeplayReady:   document.getElementById("btn-freeplay-ready"),
+        hint:            document.getElementById("btn-hint"),
+        levelBack:       document.getElementById("btn-level-back"),
+        menu:            document.getElementById("menu-btn"),
+        mute:            document.getElementById("mute-btn"),
+        sfx:             document.getElementById("sfx-btn"),
+        newGame:         document.getElementById("btn-new-game"),
+        pwm:             document.getElementById("btn-pwm"),
+        retry:           document.getElementById("btn-retry"),
+        selectLevel:     document.getElementById("btn-select-level"),
+        skip:            document.getElementById("btn-skip"),
+        skipTut:         document.getElementById("skip-tut"),
+        startOver:       document.getElementById("btn-start-over"),
+        tutorial:        document.getElementById("btn-tutorial"),
+    };
 
-    UI.playback = {};
-    UI.playback.target = document.getElementById("pb-target");
-    UI.playback.yours = document.getElementById("pb-yours");
-    UI.playback.ab = document.getElementById("pb-ab");
+    UI.displays = {
+        score:      document.getElementById("score"),
+        pct:        document.getElementById("pct"),
+        feedback:   document.getElementById("feedback"),
+        timer:      document.getElementById("timer"),
+        roundNo:    document.getElementById("round-no"),
+        roundTotal: document.getElementById("round-total"),
+        fill:       document.getElementById("fill"),
+        flash:      document.getElementById("flash"),
+        deadMsg:    document.getElementById("dead-msg"),
+        luTitle:    document.getElementById("lu-title"),
+        luMsg:      document.getElementById("lu-msg"),
+        unlockMsg:  document.getElementById("unlock-msg"),
+        screenDead: document.getElementById("screen-dead"),
+    };
 
-    UI.displays = {};
-    UI.displays.score = document.getElementById("score");
-    UI.displays.pct = document.getElementById("pct");
-    UI.displays.feedback = document.getElementById("feedback");
-    UI.displays.timer = document.getElementById("timer");
-    UI.displays.roundNo = document.getElementById("round-no");
-    UI.displays.roundTotal = document.getElementById("round-total");
-    UI.displays.fill = document.getElementById("fill");
-    UI.displays.flash = document.getElementById("flash");
-    UI.displays.deadMsg = document.getElementById("dead-msg");
-    UI.displays.luTitle = document.getElementById("lu-title");
-    UI.displays.luMsg = document.getElementById("lu-msg");
-    UI.displays.unlockMsg = document.getElementById("unlock-msg");
-    UI.displays.screenDead = document.getElementById("screen-dead");
-
-    UI.controls = {};
-    UI.controls.phase = document.getElementById("ctrl-phase");
-    UI.controls.dc = document.getElementById("ctrl-dc");
-    UI.controls.harm = document.getElementById("ctrl-harm");
-    UI.controls.noise = document.getElementById("ctrl-noise");
-
-    UI.canvas = document.getElementById("c-overlay");
-    UI.audio = document.getElementById("bgm-audio");
-    UI.stampLayer = document.getElementById("stamp-layer");
-    UI.gameInner = document.getElementById("game-inner");
-    UI.timerRingFill = document.getElementById("timer-ring-fill");
-    UI.meterRow = document.getElementById("meter-row");
-    UI.archetypeName = document.getElementById("archetype-name");
-    UI.game = document.getElementById("game");
+    UI.canvas          = document.getElementById("c-overlay");
+    UI.audio           = document.getElementById("bgm-audio");
+    UI.stampLayer      = document.getElementById("stamp-layer");
+    UI.gameInner       = document.getElementById("game-inner");
+    UI.timerRingFill   = document.getElementById("timer-ring-fill");
+    UI.meterRow        = document.getElementById("meter-row");
+    UI.archetypeName   = document.getElementById("archetype-name");
+    UI.game            = document.getElementById("game");
     UI.levelSelectGrid = document.getElementById("level-select-grid");
-    UI.typeButtons = document.getElementById("type-btns");
+    UI.typeButtons     = document.getElementById("type-btns");
     UI.sliderContainer = document.querySelector(".param-list");
 }
 
@@ -1149,31 +1132,38 @@ function initCanvas() {
  * 
  * Ensures crisp scroll animation, tight timing precision, and handles frame stutters gracefully.
  */
-const _DT_MAX = 15.0;
-
-const _FRAME_INDEPENDENT = true;
-
-// `elapsedTime` grows smoothly regardless of frame rate
-// When frames skip or stutter, dt compensates (clamped at dtMax)
-// Dividing by getScrollPeriod() now gives consistent scroll speed across all frame rates
-// Scroll gets faster each level (shorter period) — harder levels scroll quicker.
-let _elapsedTime = 0;
-
 const PHI = (1 + Math.sqrt(5)) / 2;
 
-const _SCROLL_BASE_MS = 3500;
-const _SCROLL_MIN_MS = 2000;
-const _SCROLL_EASE_EXP = PHI;
-const _SCROLL_EASE_FACTOR = 60;
+// ─── RENDER CONSTANTS ────────────────────────────────────────────────────────
+// DT_MAX: frame-time ceiling — clamps big jumps on tab-switch / stutter.
+// SCROLL_*: wave scroll speed, eased per level (higher level → shorter period → faster).
+// LOCK_MS: duration of the lock-in animation (rings + flash + settle).
+// TIMER_CIRC: SVG stroke-dashoffset circumference (2π × r=20 ≈ 125.6).
+// LOGO_SPEED: logo oscilloscope time scaling factor.
+const RENDER = {
+    DT_MAX:             15.0,
+    FRAME_INDEPENDENT:  true,
+    SCROLL_BASE_MS:     3500,
+    SCROLL_MIN_MS:      2000,
+    SCROLL_EASE_EXP:    PHI,
+    SCROLL_EASE_FACTOR: 60,
+    LOCK_MS:            1950,
+    TIMER_CIRC:         125.6,
+    LOGO_SPEED:         0.00045,
+};
+
+// `elapsedTime` grows smoothly regardless of frame rate.
+// Dividing by getScrollPeriod() gives consistent scroll speed across all frame rates.
+let _elapsedTime = 0;
 
 function getScrollPeriod() {
-    return Math.max(_SCROLL_MIN_MS, _SCROLL_BASE_MS - Math.pow(level, _SCROLL_EASE_EXP) * _SCROLL_EASE_FACTOR);
+    return Math.max(RENDER.SCROLL_MIN_MS, RENDER.SCROLL_BASE_MS - Math.pow(level, RENDER.SCROLL_EASE_EXP) * RENDER.SCROLL_EASE_FACTOR);
 }
 
 /** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
 
 function loop(ts) {
-    const dt = Math.min(ts - _lastTime, _DT_MAX);
+    const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
     _elapsedTime += dt;
 
     /**
@@ -1182,7 +1172,7 @@ function loop(ts) {
      * Used for horizontal wave scrolling position.
      */
     const period = getScrollPeriod();
-    const scroll = _FRAME_INDEPENDENT ?
+    const scroll = RENDER.FRAME_INDEPENDENT ?
         (_elapsedTime / period) % 1
         : (ts / period) % 1;
 
@@ -1191,7 +1181,7 @@ function loop(ts) {
     _ctx.clearRect(0, 0, W, H);
 
     const sc = matchScore(), t = smoothstep(sc);
-    const LOCK_DUR = 1950;
+    const LOCK_DUR = RENDER.LOCK_MS;
     let lockT = 0;
     if (_lockAnimStart > 0) {
         // Freeze scroll at lock moment for micro-replay effect
@@ -1471,7 +1461,7 @@ function startTimer() {
     const lv = LEVELS[level];
     const grace = lv.grace && roundNo === 1; // grace round: timeout advances, never kills
     const total = timeLeft = lv.time;
-    const el = UI.displays.timer, ring = UI.timerRingFill, C = 125.6; // C = 2π × r=20
+    const el = UI.displays.timer, ring = UI.timerRingFill, C = RENDER.TIMER_CIRC;
 
     ring.style.transition = "none"; ring.style.strokeDashoffset = "0";
     const graceColor = grace ? (lv.graceColor ?? "var(--blue)") : null;
@@ -1952,7 +1942,7 @@ function initLogoScope() {
     window.addEventListener('blur', () => { _logoLastTime = 0; _logoElapsedTime = 0; _lastLogoFrame = 0; });
 
     function draw(ts) {
-        const dt = Math.min(ts - _logoLastTime, _DT_MAX);
+        const dt = Math.min(ts - _logoLastTime, RENDER.DT_MAX);
         _logoElapsedTime += dt;
         _logoLastTime = ts;
 
@@ -1989,9 +1979,9 @@ function initLogoScope() {
          * Example: _logoElapsedTime = 8400ms → 8400 * 0.001 = 8.4 seconds
          * Used for wave oscillations (sine/cosine frequency calculations).
          */
-        const t = _FRAME_INDEPENDENT ?
-            (_logoElapsedTime * 0.00045)
-            : (ts * 0.00045);
+        const t = RENDER.FRAME_INDEPENDENT ?
+            (_logoElapsedTime * RENDER.LOGO_SPEED)
+            : (ts * RENDER.LOGO_SPEED);
 
         ctx.clearRect(0, 0, W, H);
 
