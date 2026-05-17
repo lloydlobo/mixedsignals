@@ -1668,6 +1668,8 @@ function startTimer() {
         if (wrap) wrap.classList.toggle("urgent", urgent);
         const cv = document.getElementById("c-overlay");
         if (cv) cv.classList.toggle("urgent", urgent);
+        const tw = document.querySelector(".timer-ring-wrap");
+        if (tw) tw.classList.toggle("urgent", urgent);
         if (timeLeft <= 0 && !won) {
             clearInterval(timerInterval);
             if (grace) { // Grace timeout: no gameOver.
@@ -1710,6 +1712,8 @@ function enterLevel() {
     if (wrap) wrap.classList.remove("urgent");
     const cv = document.getElementById("c-overlay");
     if (cv) cv.classList.remove("urgent");
+    const tw = document.querySelector(".timer-ring-wrap");
+    if (tw) tw.classList.remove("urgent");
     startTimer();
     startSignalPlayback();
     startLoop();
