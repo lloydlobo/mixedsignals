@@ -153,6 +153,7 @@ function initUI() {
     UI.buttons.levelBack      = document.getElementById("btn-level-back");
     UI.buttons.menu           = document.getElementById("menu-btn");
     UI.buttons.mute           = document.getElementById("mute-btn");
+    UI.buttons.sfx            = document.getElementById("sfx-btn");
     UI.buttons.newGame        = document.getElementById("btn-new-game");
     UI.buttons.pwm            = document.getElementById("btn-pwm");
     UI.buttons.retry          = document.getElementById("btn-retry");
@@ -221,6 +222,7 @@ function initEvents() {
     UI.buttons.skipTut?.addEventListener("click", skipTutorial);
     UI.buttons.freeplayReady?.addEventListener("click", endFreePlay);
     UI.buttons.mute?.addEventListener("click", toggleMute);
+    UI.buttons.sfx?.addEventListener("click", toggleSfxMute);
 
     // Delegated type button listener (handles all 6 waveform buttons)
     UI.typeButtons?.addEventListener("click", (e) => {
@@ -406,6 +408,7 @@ function pickNextTrack() {
 }
 
 let muted = lsGet("bgmMuted") === "true";
+let sfxMuted = lsGet("sfxMuted") === "true";
 let volume = parseFloat(lsGet("bgmVolume") ?? "0.4");
 
 function initAudio() {
@@ -413,6 +416,8 @@ function initAudio() {
     audio.muted = muted; audio.volume = volume;
     btn.textContent = muted ? "🔇" : "🎵";
     btn.style.color = muted ? "var(--text-dim)" : "";
+    const sfxBtn = UI.buttons.sfx;
+    if (sfxBtn) { sfxBtn.textContent = sfxMuted ? "🔇" : "SFX"; sfxBtn.style.color = sfxMuted ? "var(--text-dim)" : ""; }
     audio.addEventListener("ended", () => {
         if (!muted) { audio.src = pickNextTrack(); audio.play(); }
     });
@@ -440,13 +445,17 @@ function toggleMute() {
     btn.style.color = muted ? "var(--text-dim)" : "";
     if (muted) {
         if (!audio.paused) audio.pause();
-        // Silence channels but keep graphs alive — unmute restores mode
-        _setVol(_chTarget, 0);
-        _setVol(_chYours, 0);
     } else {
         if (currentScreen() === "game") startMusic();
-        if (_playbackActive) setPlaybackMode(_pbMode);
     }
+}
+
+function toggleSfxMute() {
+    sfxMuted = !sfxMuted;
+    const btn = UI.buttons.sfx;
+    btn.textContent = sfxMuted ? "🔇" : "SFX";
+    btn.style.color = sfxMuted ? "var(--text-dim)" : "";
+    lsSet("sfxMuted", String(sfxMuted));
 }
 
 // ─── SFX ─────────────────────────────────────────────────────────────────────
@@ -606,7 +615,7 @@ const _LOCK_VARIANTS = [
 
 const SFX = {
     tick: (pitch = 880) => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = pitch;
         g.gain.setValueAtTime(0.12, ac.currentTime);
@@ -615,7 +624,7 @@ const SFX = {
     },
 
     slider: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 440 + yoursSignal.freq * 40;
         g.gain.setValueAtTime(0.06, ac.currentTime);
@@ -625,14 +634,14 @@ const SFX = {
 
     // Randomly picks one of five warm melodic variations so wins don't sound identical
     lock: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx();
         _LOCK_VARIANTS[Math.floor(rand() * _LOCK_VARIANTS.length)](ac);
     },
 
     // Warm descending triangle cascade — losing but not brutal
     fail: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx();
         [[220, 0], [175, 0.11], [130, 0.24]].forEach(([f, t]) =>
             _warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3));
@@ -640,7 +649,7 @@ const SFX = {
 
     // Tired shrug — single triangle note gliding down, short and dismissive. "bwop"
     skip: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "triangle"; o.frequency.value = 330;
         o.frequency.linearRampToValueAtTime(200, ac.currentTime + 0.12);
@@ -653,7 +662,7 @@ const SFX = {
     // Broke-skip: sawtooth like fail but shorter, quieter, single note — a dull thud, not a cascade.
     // "You tried to skip but the machine shrugged."
     skipBroke: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sawtooth"; o.frequency.value = 180;
         g.gain.setValueAtTime(0.08, ac.currentTime);
@@ -663,7 +672,7 @@ const SFX = {
 
     // Sine sweep up — helpful, bright, curious
     hint: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 660;
         o.frequency.linearRampToValueAtTime(880, ac.currentTime + 0.12);
@@ -675,7 +684,7 @@ const SFX = {
 
     // Deflated balloon — sine goes up then immediately flops down. Cute, not mean. "bwip"
     hintBroke: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 660;
         o.frequency.linearRampToValueAtTime(720, ac.currentTime + 0.04);
@@ -687,14 +696,14 @@ const SFX = {
     },
 
     levelUp: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx();
         [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) =>
             _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
     },
 
     urgent: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "square"; o.frequency.value = 330;
         g.gain.setValueAtTime(0.07, ac.currentTime);
@@ -703,7 +712,7 @@ const SFX = {
     },
 
     close: () => {
-        if (muted) return;
+        if (sfxMuted) return;
         const ac = actx(), o = ac.createOscillator(), g = ac.createGain();
         o.type = "sine"; o.frequency.value = 330;
         o.frequency.linearRampToValueAtTime(440, ac.currentTime + 0.15);
@@ -1203,7 +1212,7 @@ function stopSignalPlayback() {
  */
 function setPlaybackMode(mode) {
     _pbMode = mode;
-    if (muted || !_playbackActive) { _updatePlaybackUI(); return; }
+    if (!_playbackActive) { _updatePlaybackUI(); return; }
 
     const t = mode === "target" || mode === "ab" ? PB.TARGET_VOL : 0;
     const y = mode === "yours" || mode === "ab" ? PB.YOURS_VOL : 0;
@@ -1214,7 +1223,7 @@ function setPlaybackMode(mode) {
 
 /** Update yours channel live while sliders move. Called from recompute(). */
 function updateYoursPlayback() {
-    if (!_playbackActive || muted) return;
+    if (!_playbackActive) return;
     _updateChannel(_chYours, yoursSignal);
     // Restore correct volume for current mode after a type-change rebuild
     const y = _pbMode === "yours" || _pbMode === "ab" ? PB.YOURS_VOL : 0;
