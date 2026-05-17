@@ -857,6 +857,82 @@ input[type=range]::-moz-range-thumb {
 .flash-overlay.go { opacity: .15; transition: none; }
 
 /* ============================================================
+   CEREMONY OVERLAY
+   ============================================================ */
+
+.ceremony-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    animation: ceremony-fade-in 0.3s ease-out;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.ceremony-card {
+    background: var(--bg2);
+    border-radius: var(--radius-tile);
+    padding: 36px 32px 28px;
+    max-width: 340px;
+    width: 90%;
+    text-align: center;
+    gap: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    animation: ceremony-card-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.ceremony-glow {
+    font-family: var(--font-mono);
+    font-weight: 900;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    padding: 5px 16px 4px;
+    border-radius: 20px;
+    border: 1.5px solid currentColor;
+    animation: ceremony-glow-pulse 2s ease-in-out infinite;
+}
+
+.ceremony-title {
+    font-family: var(--font-ui);
+    font-weight: 900;
+    font-size: clamp(20px, 5vw, 26px);
+    color: var(--cream);
+    letter-spacing: 0.02em;
+}
+
+.ceremony-desc {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    max-width: 280px;
+    margin: 0;
+}
+
+@keyframes ceremony-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes ceremony-card-in {
+    from { transform: translateY(24px) scale(0.96); opacity: 0; }
+    to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes ceremony-glow-pulse {
+    0%, 100% { box-shadow: 0 0 6px currentColor; opacity: 0.8; }
+    50%      { box-shadow: 0 0 18px currentColor; opacity: 1; }
+}
+
+/* ============================================================
    CREDITS
    ============================================================ */
  

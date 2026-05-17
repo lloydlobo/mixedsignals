@@ -31,8 +31,9 @@
  * @property {boolean}    [freeplay] round 1 preceded by untimed free-play warmup
  *
  * @typedef {Object} SaveData
- * @property {number}   highestLevel  0-indexed
- * @property {number[]} bestScores    per level
+ * @property {number}   highestLevel    0-indexed
+ * @property {number[]} bestScores      per level
+ * @property {number[]} seenCeremonies  level indices where ceremony was shown
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -73,6 +74,32 @@ const LEVELS = [
     // LV7 — noise as atmosphere (tolerance band), not a slider to match
     { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle", "pwm", "am"], phase: true, dc: true, harm: true, noise: true, grace: true },
 ];
+
+// ─── CEREMONIES ──────────────────────────────────────────────────────────────
+// Each level that introduces a new mechanic gets a ceremony (shown once).
+// Map key = level index (0-based).
+const CEREMONIES = {
+    2: {
+        tag: "PHASE", color: "var(--blue)",
+        title: "PHASE UNLOCKED",
+        desc: "Phase shifts the wave in time — a horizontal offset. At 180° the shape flips entirely. Align to match.",
+    },
+    3: {
+        tag: "DC", color: "var(--amber)",
+        title: "DC OFFSET UNLOCKED",
+        desc: "DC offset raises or lowers the wave center — like shifting the baseline. Watch the zero line drift.",
+    },
+    4: {
+        tag: "PWM/AM", color: "var(--coral)",
+        title: "PWM & AM UNLOCKED",
+        desc: "PWM varies pulse width for a fizzy edge. AM rides a carrier wave — amplitude becomes the signal itself.",
+    },
+    5: {
+        tag: "HARM", color: "var(--green)",
+        title: "HARMONICS UNLOCKED",
+        desc: "Harmonics layer overtones above the fundamental. Each adds texture and body to the wave.",
+    },
+};
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 
@@ -205,6 +232,8 @@ function initEvents() {
     UI.buttons.startOver?.addEventListener("click", restartGame);
     UI.buttons.continueLevel?.addEventListener("click", continueLevel);
     UI.buttons.levelBack?.addEventListener("click", () => { renderStartScreen(); showScreen("start"); });
+    document.getElementById("btn-dismiss-ceremony")?.addEventListener("click", dismissCeremony);
+    document.getElementById("ceremony-overlay")?.addEventListener("click", (e) => { if (e.target === e.currentTarget) dismissCeremony(); });
 
     // Action buttons
     UI.buttons.hint?.addEventListener("click", useHint);
@@ -274,7 +303,7 @@ function lsSet(key, value) {
 
 const SAVE_KEY = "mixedSignalsSave";
 
-function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0) }; }
+function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [] }; }
 
 /** @returns {SaveData} */
 function loadSave() {
@@ -284,6 +313,7 @@ function loadSave() {
         const d = JSON.parse(raw);
         if (typeof d.highestLevel !== "number" || !Array.isArray(d.bestScores)) return freshSave();
         while (d.bestScores.length < LEVELS.length) d.bestScores.push(0);
+        if (!Array.isArray(d.seenCeremonies)) d.seenCeremonies = [];
         return d;
     } catch { return freshSave(); }
 }
@@ -1561,9 +1591,40 @@ function showLevelUpScreen() {
     SFX.levelUp();
 }
 
+function hasPendingCeremony() {
+    if (!(level in CEREMONIES)) return false;
+    const save = loadSave();
+    return !save.seenCeremonies.includes(level);
+}
+
+function showCeremony() {
+    const c = CEREMONIES[level];
+    if (!c) { enterLevel(); return; }
+    SFX.levelUp();
+    const overlay = document.getElementById("ceremony-overlay");
+    document.getElementById("ceremony-title").textContent = c.title;
+    document.getElementById("ceremony-desc").textContent = c.desc;
+    document.getElementById("ceremony-tag").textContent = c.tag;
+    document.getElementById("ceremony-tag").style.color = c.color;
+    overlay.classList.remove("hidden");
+}
+
+function dismissCeremony() {
+    const overlay = document.getElementById("ceremony-overlay");
+    overlay.classList.add("hidden");
+    const save = loadSave();
+    if (!save.seenCeremonies.includes(level)) save.seenCeremonies.push(level);
+    writeSave(save);
+    enterLevel();
+}
+
 function continueLevel() {
     UI.displays.roundNo.textContent = roundNo;
-    enterLevel();
+    if (hasPendingCeremony()) {
+        showCeremony();
+    } else {
+        enterLevel();
+    }
 }
 
 function victory() {
