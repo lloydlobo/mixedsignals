@@ -1403,6 +1403,7 @@ const SAMPLERS = Object.freeze({
 });
 
 function sample(sig, t, addNoise) {
+    if (!sig) return 0;
     const { type, freq, phase, amp, harm, noise, dc } = sig;
     const u = (freq * t + phase / 360) % 1;
     const x = u * 6.283185307179586;
@@ -1557,7 +1558,7 @@ function loop(ts) {
         const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
         _ctx.globalAlpha = 0.25 * (1 - release);
-        drawWave(targetSignal, "#448855", W, H, repScroll, 1.5);
+        if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5);
 
         const flash = Math.max(0, 1 - lockT / 0.35);
         _ctx.globalAlpha = flash * 0.7;
@@ -1567,9 +1568,9 @@ function loop(ts) {
         _ctx.globalAlpha = 0.4 + 0.6 * settle;
         drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2);
     } else {
-        if (Round.roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
-        else if (Round.roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
-        else { _ctx.globalAlpha = 0.15 + 0.6 * t; drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
+        if (Round.roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
+        else if (Round.roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
+        else { _ctx.globalAlpha = 0.15 + 0.6 * t; if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
 
         _ctx.globalAlpha = 0.4 + 0.6 * t;
         if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
@@ -1941,10 +1942,7 @@ function startFreePlay() {
     Session.freePlayActive = true;
     clearInterval(timerInterval);
 
-    // Show a neutral target (flat sine) so the scope isn't empty,
-    // but make it invisible — the warmup is about YOUR signal, not matching.
-    // HACK: amp: 0 silent target is a code smell worth removing later.
-    targetSignal = { type: "sine", freq: 1, amp: 0, phase: 0, dc: 0, harm: 0, noise: 0 };
+    targetSignal = null; // null during freeplay by design — no match target needed
     invalidateMatchScore();
     applyLevelUI();
     resetYours();
