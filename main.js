@@ -465,6 +465,7 @@ function loadSave() {
             try { localStorage.removeItem("bgmMuted"); localStorage.removeItem("sfxMuted"); localStorage.removeItem("bgmVolume"); } catch {}
             writeSave(d);
         }
+        d.settings = { ...DEFAULT_SETTINGS(), ...d.settings };
         return d;
     } catch { return freshSave(); }
 }
@@ -2170,6 +2171,7 @@ function gameOver() {
 /** Exits gameplay cleanly from any state. */
 function goToMenu() {
     SFX.back();
+    transitionBGM(BGM_STATE.MENU);
     exitLevel();
     if (Session.tutorialActive) {
         Session.tutorialActive = false;
