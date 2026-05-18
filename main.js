@@ -45,6 +45,9 @@
  * @property {boolean}  settings.screenShake
  * @property {boolean}  settings.minigames
  * @property {boolean}  settings.assistDisableUrgent
+ * @property {boolean}  settings.assistInfiniteTime
+ * @property {boolean}  settings.assistEasyMatch
+ * @property {boolean}  settings.assistNoFail
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -187,6 +190,9 @@ const Session = {
     screenShake: true,
     minigames: false,
     assistDisableUrgent: false,
+    assistInfiniteTime: false,
+    assistEasyMatch: false,
+    assistNoFail: false,
     sfxVolume: 0.4,
     postGameFreeplay: false,
 };
@@ -434,7 +440,7 @@ function lsSet(key, value) {
 const SAVE_KEY = "mixedSignalsSave";
 
 function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() }; }
-const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true, minigames: false, assistDisableUrgent: false });
+const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true, minigames: false, assistDisableUrgent: false, assistInfiniteTime: false, assistEasyMatch: false, assistNoFail: false });
 
 /** @returns {SaveData} */
 function loadSave() {
@@ -630,6 +636,9 @@ Session.ceremonies = _initSettings.ceremonies;
 Session.minigames = _initSettings.minigames;
 Session.sfxVolume = _initSettings.sfxVolume ?? 0.4;
 Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
+Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
+Session.assistEasyMatch    = _initSettings.assistEasyMatch;
+Session.assistNoFail       = _initSettings.assistNoFail;
 
 function initAudio() {
     createMixGraph();
@@ -1414,6 +1423,8 @@ function matchScore() {
  * @returns {number} percentage (0–100)
  */
 function winThreshold() {
+    const easyMatchWinPCT = 88;
+    if (Session.assistEasyMatch && yoursSignal.type === targetSignal.type) return easyMatchWinPCT;
     if (yoursSignal.type !== targetSignal.type) return 99;
     const noiseReduction = (targetSignal.noise ?? 0) * CONFIG.NOISE_TOLERANCE_PER_UNIT;
     return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction);
@@ -1841,7 +1852,7 @@ function startTimer() {
             clearInterval(timerInterval);
             if (grace) {
                 UI.displays.feedback.textContent = "Time's up. Now it counts.";
-            } else {
+            } else if (!Session.assistInfiniteTime) {
                 gameOver();
             }
         }
@@ -2047,6 +2058,9 @@ function renderSettings() {
     sync("stg-shake", s.screenShake);
     sync("stg-minigames", s.minigames);
     sync("stg-disable-urgent", s.assistDisableUrgent);
+    sync("stg-infinite-time", s.assistInfiniteTime);
+    sync("stg-easy-match",    s.assistEasyMatch);
+    sync("stg-no-fail",       s.assistNoFail);
     const bgmVol = document.getElementById("stg-bgm-vol");
     if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
     const sfxVol = document.getElementById("stg-sfx-vol");
@@ -2087,6 +2101,9 @@ function initSettingsOverlay() {
     bindToggle("stg-shake", "screenShake", "screenShake");
     bindToggle("stg-minigames", "minigames", "minigames");
     bindToggle("stg-disable-urgent", "assistDisableUrgent", "assistDisableUrgent");
+    bindToggle("stg-infinite-time", "assistInfiniteTime", "assistInfiniteTime");
+    bindToggle("stg-easy-match",    "assistEasyMatch",    "assistEasyMatch");
+    bindToggle("stg-no-fail",       "assistNoFail",       "assistNoFail");
 
     const bindSlider = (id, key, sessionKey) => {
         const el = document.getElementById(id);
@@ -2118,6 +2135,13 @@ function victory() {
 }
 
 function gameOver() {
+    if (Session.assistNoFail) {
+        UI.displays.feedback.textContent = "Assisted — signal lost, moving on.";
+        UI.displays.feedback.className = "feedback close";
+        exitLevel();
+        setTimeout(() => nextRound(), 1200);
+        return;
+    }
     transitionBGM(BGM_STATE.RESULT);
     exitLevel(); flash("#ff4554"); spawnStamp("fail");
     const h3 = UI.displays.screenDead?.querySelector("h3");
