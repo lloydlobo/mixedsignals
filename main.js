@@ -1,3 +1,4 @@
+/// <reference path="types.d.ts" />
 "use strict";
 
 /**
@@ -1998,7 +1999,8 @@ function showLevelUpScreen() {
     UI.displays.luTitle.textContent = `LEVEL ${Session.level + 1}`;
     const lv = LEVELS[Session.level];
     const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
-    // TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion)
+    // TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion) [Digital Squirm Processing](https://ldjam.com/events/ludum-dare/59/digital-squirm-processing)
+    //       This is now ceremonies... However, needs animation like the link above uses
     // Wavy vignette wobbly screen reveal of param
     const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
     const warmupStr = lv.freeplay ? " Free warmup round to explore." : "";
