@@ -53,3 +53,36 @@ Test the three toggles in sequence:
 - Reload the page with toggles in various states → confirm they persist correctly
 
 Report what breaks.
+
+## PERF
+
+### Mobile regressions
+
+Deployed JS: Does not have my preloader changes — it's the original "regressed" version. Good baseline to profile.
+
+I cannot run browser JavaScript or open DevTools from this environment — those require a real browser. But I can tell you exactly what to do.
+
+How to profile (on the live site)
+1. Frame-time monitor
+Open the live site, paste this in the console, then play through a level:
+let _ft = [], _last = 0;
+requestAnimationFrame(function measure(ts) {
+    if (_last) _ft.push(ts - _last);
+    if (_ft.length > 120) {
+        const avg = _ft.reduce((a,b)=>a+b,0)/_ft.length;
+        const max = Math.max(..._ft);
+        console.log(`avg frame: ${avg.toFixed(1)}ms  max: ${max.toFixed(1)}ms  drops: ${_ft.filter(f=>f>20).length}/${_ft.length}`);
+        _ft = [];
+    }
+    _last = ts;
+    requestAnimationFrame(measure);
+});
+Run it in these scenarios and report the 3 lines back:
+- Start screen idle (wait 2s)
+- Mid-round (not touching anything)
+- Dragging a slider (freq or amp, rapidly)
+- Lock animation (when you match)
+2. DevTools Performance tab
+Record 5s of active gameplay (slider dragging mid-round). In the flame chart, look for the widest bar — is it loop() (animation frame), _updateChannel (audio graph), or drawWave (canvas)?
+---
+Once you have those numbers, I can validate whether the BGM preloader I already committed is the right fix or if the real hot path is elsewhere (canvas drawing, audio graph rebuilds, match scoring). If the profile shows frame drops don't correlate with audio loading at all, we may need a different approach.
