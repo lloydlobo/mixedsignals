@@ -226,7 +226,7 @@ declare var _canvas: HTMLCanvasElement;
 declare var _ctx: CanvasRenderingContext2D;
 declare var _canvasW: number;
 declare var _elapsedTime: number;
-declare var _lastTime: number;
+declare var _lastTime: DOMHighResTimeStamp;
 declare var _playbackActive: boolean;
 declare var _activeStamp: HTMLElement | null;
 declare var _limiter: DynamicsCompressorNode | null;

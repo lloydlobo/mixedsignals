@@ -1,5 +1,4 @@
 /// <reference path="types.d.ts" />
-"use strict";
 
 /**
  * Mixed Signals
@@ -9,52 +8,9 @@
  * @version 0.5.0
  */
 
-/**
- * @typedef {"sine"|"square"|"sawtooth"|"triangle"|"pwm"|"am"} Waveform
- * @typedef {Object} Signal
- * @property {Waveform} type
- * @property {number} freq
- * @property {number} amp
- * @property {number} phase
- * @property {number} dc
- * @property {number} harm
- * @property {number} noise
- * @property {string} [archetype]
- *
- * @typedef {Object} Level
- * @property {number}     rounds
- * @property {number}     time
- * @property {Waveform[]} types
- * @property {boolean}    phase
- * @property {boolean}    dc
- * @property {boolean}    harm
- * @property {boolean}    noise
- * @property {boolean}    [grace] round 1 never triggers gameOver on timeout — advances instead
- * @property {boolean}    [freeplay] round 1 preceded by untimed free-play warmup
- * @property {string}     [graceColor] CSS color for grace round accent theme
- *
- * @typedef {Object} SaveData
- * @property {number}   highestLevel    0-indexed
- * @property {number[]} bestScores      per level
- * @property {number[]} seenCeremonies  level indices where ceremony was shown
- * @property {Object}   [settings]
- * @property {boolean}  settings.bgmMuted
- * @property {boolean}  settings.sfxMuted
- * @property {number}   settings.bgmVolume
- * @property {number}   settings.sfxVolume
- * @property {boolean}  settings.ceremonies
- * @property {boolean}  settings.screenShake
- * @property {boolean}  settings.minigames
- * @property {boolean}  settings.assistDisableUrgent
- * @property {boolean}  settings.assistInfiniteTime
- * @property {boolean}  settings.assistEasyMatch
- * @property {boolean}  settings.assistNoFail
- */
-
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 
-/** @readonly */
-const CONFIG = {
+const CONFIG = Object.freeze({
     FIXED_STEPS_PRECISION: 2,
     TIME_BONUS_RATE: 0.8,
     BASE_REWARD: 100,
@@ -65,7 +21,7 @@ const CONFIG = {
     // Noise widens the win threshold: noisy targets are easier to "lock in".
     // noise=0 → no change. noise=6 (max) → threshold drops by 10 points.
     NOISE_TOLERANCE_PER_UNIT: 1.2,
-};
+});
 
 // TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
@@ -73,7 +29,6 @@ const WAVE_COLORS = {
     yours: "#f5efe0",
 };
 
-/** @readonly @type {Level[]} */
 const LEVELS = [
     // LV1 — freeplay warmup so players understand controls before the clock starts
     { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false, freeplay: true },
@@ -143,8 +98,8 @@ const _DEBUT_ARCHETYPES = {
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
 
-/** @type {Signal} */ let targetSignal = {};
-/** @type {Signal} */ let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+let targetSignal = {};
+let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
 
 // Resource handles (kept as bare lets — no lifecycle dependency)
 let timerInterval = null;
@@ -197,7 +152,10 @@ const Session = {
     assistEasyMatch: false,
     assistNoFail: false,
     sfxVolume: 0.4,
-    postGameFreeplay: false,
+    // FIXME: postGameFreeplay: This needs to have unlimited rounds (currently it adopts whatever the last round had/has) 
+    // FIXME: postGameFreeplay: Timer also counts down till it stops at 0 and then shows the following feedback
+    // FIXME: postGameFreeplay: Feedback says "TIME'S UP. NOW IT COUNTS." - however it is freeplay
+    postGameFreeplay: false, 
 };
 
 const TUTORIAL_TASKS = [
@@ -984,8 +942,6 @@ function spawnStamp(type) {
 
 // ─── SIGNAL PLAYBACK ─────────────────────────────────────────────────────────
 
-/** @typedef {"off"|"target"|"yours"|"ab"} PlaybackMode */
-/** @type {PlaybackMode} */
 let _pbMode = "ab";
 let _playbackActive = false;
 
@@ -1132,19 +1088,6 @@ const freqToHz = (freq) => AUDIO_MIN_HZ * Math.exp(
     ((freq - FREQ_MIN) * INV_FREQ_RANGE) * AUDIO_EXP_FACTOR
 );
 
-/**
- * @typedef {Object} Channel
- * @property {OscillatorNode|null}   osc
- * @property {OscillatorNode|null}   modOsc
- * @property {GainNode|null}         carGain     carrier amplitude node (AM only)
- * @property {GainNode|null}         modGain     modulator depth (AM only)
- * @property {GainNode|null}         ampGain
- * @property {GainNode|null}         masterGain
- * @property {BiquadFilterNode|null} filter      low-pass, rounds off harsh harmonics
- * @property {string}                type        last-built waveform type
- */
-
-/** @returns {Channel} */
 function _emptyChannel() {
     return { osc: null, modOsc: null, carGain: null, modGain: null, ampGain: null, filter: null, masterGain: null, type: "" };
 }
@@ -1433,8 +1376,8 @@ function winThreshold() {
 
 // ─── CANVAS ───────────────────────────────────────────────────────────────────
 
-/** @type {HTMLCanvasElement} */ let _canvas;
-/** @type {CanvasRenderingContext2D} */ let _ctx;
+let _canvas;
+let _ctx;
 let _canvasW = 320;
 
 function initCanvas() {
@@ -1488,7 +1431,7 @@ function getScrollPeriod() {
     return Math.max(RENDER.SCROLL_MIN_MS, RENDER.SCROLL_BASE_MS - Math.pow(Session.level, RENDER.SCROLL_EASE_EXP) * RENDER.SCROLL_EASE_FACTOR);
 }
 
-/** @type {DOMHighResTimeStamp} */ let _lastTime = 0;
+let _lastTime = 0;
 
 function loop(ts) {
     const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
@@ -2956,7 +2899,6 @@ function initLogoScope() {
         coral: styles.getPropertyValue('--coral').trim(),
     };
 
-
     /* ---------------- SIGNAL CONSTANTS ---------------- */
 
     const NOISE_LOW_FREQ = 0.02;
@@ -3036,7 +2978,6 @@ function initLogoScope() {
             return;
         }
         _lastLogoFrame = ts;
-
 
         if (currentScreen() !== LOGO_SCOPE_SCREEN) {
             _logoScopeRAF = requestAnimationFrame(draw);
