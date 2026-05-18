@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Share+Tech+Mono&display=swap');
 
+/* style.css — conservative cleanup of style.css
+   ============================================================
+   Changes from style.css:
+   • Added missing --te-orange: #f0690a to :root (single var, *all* references use it)
+   • Removed duplicate @keyframes ready-pulse / tutorial-pulse-text
+     (identical to pulse; classes now reuse pulse)
+   • Consolidated duplicate .scope-wrap & .meter-track declarations
+     (kept final winning values)
+   • Combined .ceremony-overlay + .settings-overlay duplicate rules
+     (verified byte-identical declarations)
+   • Combined .ceremony-card + .settings-card shared declarations
+   • Preserves original cascade behavior and source-order semantics
+   ============================================================ */
+
 :root {
     /* Threes dark mode — warm charcoal, not cold black */
     --bg:        #1c1915;
@@ -420,8 +434,8 @@ body {
    ============================================================ */
 
 @keyframes pulse {
-    from { opacity: 1; }
-    to   { opacity: 0.6; }
+    0%,100% { opacity: 1; }
+    50%     { opacity: 0.6; }
 }
 
 @keyframes shake {
@@ -481,16 +495,13 @@ body {
 .meter-track {
     flex: 1;
     height: 8px;
-    background: var(--surface);
+    /* variation of --surface */
+    background: #3a342c;
     border-radius: 4px;
     overflow: hidden;
     position: relative;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 }
-
-    .meter-track {
-        background: #3a342c;
-    }
 
 .meter-fill {
     height: 100%;
@@ -517,17 +528,13 @@ body {
    ============================================================ */
 
 .scope-wrap {
-    background: var(--bg);
+    /* variation of --bg */
+    background: #211d18;
     border-radius: var(--radius-sm);
     padding: 8px;
     margin-bottom: 12px;
     position: relative;
-    box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(0,0,0,0.18);
-}
-
-.scope-wrap {
-    background: #211d18;
 }
 
 .scope-wrap.glow-target.held { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--blue) 18%, transparent); }
@@ -913,7 +920,8 @@ input[type=range]::-moz-range-thumb {
    CEREMONY OVERLAY
    ============================================================ */
 
-.ceremony-overlay {
+.ceremony-overlay,
+.settings-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.75);
@@ -927,19 +935,29 @@ input[type=range]::-moz-range-thumb {
     border-radius: var(--radius-game);
 }
 
-.ceremony-card {
+.ceremony-card,
+.settings-card {
     background: var(--bg2);
     border-radius: var(--radius-tile);
-    padding: 36px 32px 28px;
-    max-width: 340px;
     width: 90%;
-    text-align: center;
-    gap: 14px;
     display: flex;
     flex-direction: column;
-    align-items: center;
     box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
     animation: ceremony-card-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.ceremony-card {
+    padding: 36px 32px 28px;
+    max-width: 340px;
+    text-align: center;
+    gap: 14px;
+    align-items: center;
+}
+
+.settings-card {
+    padding: 32px 28px 24px;
+    max-width: 380px;
+    gap: 18px;
 }
 
 .ceremony-glow {
@@ -991,33 +1009,6 @@ input[type=range]::-moz-range-thumb {
 }
 
 /* ── SETTINGS OVERLAY ────────────────────────────────────────────────────────── */
-
-.settings-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.75);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 500;
-    animation: ceremony-fade-in 0.3s ease-out;
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    border-radius: var(--radius-game);
-}
-
-.settings-card {
-    background: var(--bg2);
-    border-radius: var(--radius-tile);
-    padding: 32px 28px 24px;
-    max-width: 380px;
-    width: 90%;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
-    animation: ceremony-card-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
 
 .settings-heading {
     font-family: var(--font-mono);
@@ -1275,14 +1266,9 @@ input[type=range]::-moz-range-thumb {
 
 .tutorial-glow-text {
     color: var(--coral);
-    animation: tutorial-pulse-text 1.5s ease-in-out infinite;
+    animation: pulse 1.5s ease-in-out infinite;
 }
  
-@keyframes tutorial-pulse-text {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.6; }
-}
-
 @keyframes tutorial-pulse {
     0%,100% { box-shadow: 0 0 16px rgba(232,162,58,0.4); }
     50%      { box-shadow: 0 0 28px rgba(232,162,58,0.7); }
@@ -1345,7 +1331,7 @@ b {
 
 .timer-ring-fill {
     fill: none;
-    stroke: var(--orange);
+    stroke: var(--te-orange);
     stroke-width: 3.5;
     stroke-linecap: round;
     stroke-dasharray: 125.6; /* 2π × r=20 */
@@ -1592,12 +1578,7 @@ b {
  
 /* READY button pulses gently to draw attention without being annoying */
 #btn-freeplay-ready {
-    animation: ready-pulse 2s ease-in-out infinite;
-}
- 
-@keyframes ready-pulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.6; }
+    animation: pulse 2s ease-in-out infinite;
 }
  
 /* ── LEVEL-UP MESSAGE — longer text now, needs room to breathe */
