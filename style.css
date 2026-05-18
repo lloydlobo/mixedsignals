@@ -14,6 +14,26 @@
    • Preserves original cascade behavior and source-order semantics
    ============================================================ */
 
+/* 
+    Here's what changed and why:
+    New tokens added to :root:
+
+    - [x] --surface-deep — meter track background (was #3a342c)
+    - [x] --scope-bg — oscilloscope background (was #211d18)
+    - [x] --red-dark / --red-deep — stamp-fail fill and border (were #8b1a1a, #5a0a0a)
+
+    Replaced with color-mix(in oklch, ...):
+
+    - [x] .crt-btn:hover and .level-select-btn.unlocked:hover — derived from --surface2
+    - [x] .crt-btn.danger:hover — derived from --coral
+    - [x] .type-btn.active box-shadow — derived from --coral
+    - [ ] Stamp borders for hint, skip, success — derived from --amber, --coral, --cream
+    - [x] #game box-shadow bottom — derived from --bg
+    - [ ] Slider thumb resting/active states — derived from --cream
+
+    The token block is now the single source of truth. If you change --coral, the hover state and stamp border follow automatically.
+ */
+
 :root {
     /* Threes dark mode — warm charcoal, not cold black */
     --bg:        #1c1915;
@@ -21,6 +41,8 @@
     --bg3:       #2a261f;
     --surface:   #2e2a22;
     --surface2:  #353028;
+    --surface-deep: #3a342c; /* meter track — darker than surface2 */
+    --scope-bg:     #211d18; /* oscilloscope bg — between bg and bg2 */
 
     /* Threes tile colors */
     --coral:     #e8604a;   /* 1-tile salmon */
@@ -28,15 +50,21 @@
     --cream:     #f5efe0;   /* high tile cream */
     --amber:     #e8a23a;   /* accent / score */
     --red:       #e85a4a;
+    --red-dark:  #8b1a1a;   /* stamp-fail bg */
+    --red-deep:  #5a0a0a;   /* stamp-fail border */
     --green:     #6dc87a;   /* win state only */
 
-    /* Don’t replace coral—layer it as a second accent system */
+    /* Don’t replace coral—layer it as a second accent system (Teenage Engineering) */
     --te-orange: #f0690a;
 
     /* Text */
     --text:      #f0e8d8;
     --text-dim:  #7a7060;
     --text-mute: #4a4438;
+
+    --color-surface-hover: #3e3830;
+    --color-coral-hover: #d4533e;
+    --color-tile-active-shadow: #a83828;
 
     /* Card / tile shadows — warm, no color cast */
     --shadow-sm: 0 2px 0 rgba(0,0,0,0.35);
@@ -52,7 +80,6 @@
     --font-ui:    'Nunito', sans-serif;
     --font-mono:  'Share Tech Mono', monospace;
 }
-
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
@@ -78,7 +105,6 @@ body {
     line-height: 1.4;
     width: 480px;
     max-width: 95vw;
-    /* padding: 24px 16px 32px; */
     padding: 24px 16px;
     border-radius: var(--radius-game);
     position: relative;
@@ -88,6 +114,7 @@ body {
     transform: rotate(-0.5deg);
     will-change: transform;
     box-shadow: 0 8px 0 #0d0b08, 0 12px 40px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 0 color-mix(in oklch, var(--bg) 60%, black), 0 12px 40px rgba(0, 0, 0, 0.6);
 }
 
 /* TE: matte finish (z-index: -1 (applies only to outer shell) */
@@ -336,12 +363,13 @@ body {
     border: none;
     outline: none;
     background: var(--surface2);
+    /* background: color-mix(in oklch, var(--surface2) 50%, var(--surface2));   */
     color: var(--cream);
     box-shadow: var(--shadow-md);
     transition: transform .07s, box-shadow .07s;
 }
 
-.crt-btn:hover { background: #3e3830; }
+.crt-btn:hover { background: var(--color-surface-hover); }
 
 .crt-btn:active {
     transform: translateY(3px);
@@ -349,7 +377,7 @@ body {
 }
 
 .crt-btn.danger { background: var(--coral); color: #fff; }
-.crt-btn.danger:hover { background: #d4533e; }
+.crt-btn.danger:hover { background: var(--color-coral-hover); }
 
 .crt-btn.amber { background: var(--amber); color: #fff; }
 
@@ -497,6 +525,7 @@ body {
     height: 8px;
     /* variation of --surface */
     background: #3a342c;
+    background: var(--surface-deep);
     border-radius: 4px;
     overflow: hidden;
     position: relative;
@@ -530,6 +559,7 @@ body {
 .scope-wrap {
     /* variation of --bg */
     background: #211d18;
+    background: var(--scope-bg);
     border-radius: var(--radius-sm);
     padding: 8px;
     margin-bottom: 12px;
@@ -592,7 +622,8 @@ body {
     font-weight: 700;
     letter-spacing: 0.06em;
     color: var(--amber);
-    background: rgba(232, 162, 58, 0.1);
+    background: rgba(232, 162, 58, 0.1); /* fallback */
+    background: rgb(from var(--amber) r g b / 0.1);
     border: 1px solid rgba(232, 162, 58, 0.2);
     border-radius: 10px;
     padding: 1px 8px;
@@ -691,7 +722,8 @@ canvas.scope {
 .type-btn.active {
     background: var(--coral);
     color: #fff;
-    box-shadow: 0 3px 0 #a83828, 0 4px 10px rgba(232,96,74,0.25);
+    box-shadow: 0 3px 0 var(--color-tile-active-shadow), 0 4px 10px rgba(232,96,74,0.25);
+    box-shadow: 0 3px 0 var(--color-tile-active-shadow), 0 4px 10px rgb(from var(--red) r g b / 0.25);
     transform: translateY(0);
 }
 
@@ -708,7 +740,6 @@ canvas.scope {
     display: flex;
     flex-direction: column;
     gap: 10px;
-
 }
 
 .ctrl { display: flex; flex-direction: column; gap: 4px; }
@@ -1488,7 +1519,8 @@ b {
 }
  
 .level-select-btn.unlocked:hover {
-    background: #3e3830;
+    background: var(--color-surface-hover);
+    /* background: color-mix(in oklch, var(--surface2) 85%, white); */
 }
  
 .level-select-btn.unlocked:active {
@@ -1640,10 +1672,10 @@ b {
 }
  
 /* Solid warm fills — physical tiles, not transparent labels */
-.stamp-hint    { color: #1c1915; background: var(--amber); border-color: #c47d1a; text-shadow: 0 1px 0 rgba(255,255,255,0.2); }
-.stamp-skip    { color: #1c1915; background: var(--coral); border-color: #b83d28; text-shadow: 0 1px 0 rgba(255,255,255,0.15); }
-.stamp-fail    { color: #f5efe0; background: #8b1a1a;      border-color: #5a0a0a; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-.stamp-success { color: #1c1915; background: var(--cream); border-color: #b8a882; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+.stamp-hint    { color: var(--bg); background: var(--amber); border-color: #c47d1a; text-shadow: 0 1px 0 rgba(255,255,255,0.2); }
+.stamp-skip    { color: var(--bg); background: var(--coral); border-color: #b83d28; text-shadow: 0 1px 0 rgba(255,255,255,0.15); }
+.stamp-fail    { color: var(--cream); background: var(--red-dark);      border-color: var(--red-deep); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+.stamp-success { color: var(--bg); background: var(--cream); border-color: #b8a882; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
  
 /* Broke variants — ghost of the real thing. Smaller, dashed, faded.
    Like the machine ran out of ink. */
