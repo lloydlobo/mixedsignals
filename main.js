@@ -602,6 +602,28 @@ const BGM_POOL = {
     result: null,
 };
 
+// Background preloader — fire-and-forget fetch, never blocks the game
+const _bgmCache = new Map();
+const _bgmCacheMax = 6;
+
+function _bgmSrc(filename) {
+    return _bgmCache.get(filename) ?? ("resources/music/" + filename);
+}
+
+function _prefetchBGM(filename) {
+    return fetch("resources/music/" + filename)
+        .then(r => { if (!r.ok) throw Error(); return r.blob(); })
+        .then(blob => {
+            if (_bgmCache.size >= _bgmCacheMax) {
+                const [key] = _bgmCache.keys();
+                URL.revokeObjectURL(_bgmCache.get(key));
+                _bgmCache.delete(key);
+            }
+            _bgmCache.set(filename, URL.createObjectURL(blob));
+        })
+        .catch(() => {});
+}
+
 const _poolLastIndex = { menu: -1, gameplay: -1, result: -1 };
 let _bgmState = null;
 
@@ -616,7 +638,7 @@ function _pickFromPool(pool, stateKey) {
 function _playFromPool(pool, stateKey) {
     const audio = UI.audio;
     const next = _pickFromPool(pool, stateKey);
-    audio.src = "resources/music/" + next;
+    audio.src = _bgmSrc(next);
     if (!Session.muted) audio.play();
 }
 
@@ -625,6 +647,9 @@ function transitionBGM(state) {
     _bgmState = state;
     const pool = BGM_POOL[state] ?? BGM_POOL.menu;
     _playFromPool(pool, state);
+    if (state === BGM_STATE.GAMEPLAY) {
+        for (const t of BGM_POOL.gameplay) _prefetchBGM(t);
+    }
 }
 
 // Load settings from save
@@ -662,7 +687,7 @@ function startMusic() {
     if (Session.muted || !audio.paused) return;
     if (!audio.src || audio.ended) {
         const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
-        audio.src = "resources/music/" + _pickFromPool(pool, _bgmState);
+        audio.src = _bgmSrc(_pickFromPool(pool, _bgmState));
     }
     audio.play();
 }
@@ -3086,5 +3111,8 @@ initUI();
 initEvents();
 initCanvas();
 initAudio();
+_prefetchBGM(BGM_POOL.menu[0]).then(() => {
+    for (let i = 1; i < BGM_POOL.menu.length; i++) _prefetchBGM(BGM_POOL.menu[i]);
+});
 renderStartScreen();
 showScreen("start");
