@@ -1881,6 +1881,8 @@ function exitLevel() {
     if (meterFill) meterFill.style.background = "";
     const scopeWrap = document.querySelector(".scope-wrap");
     if (scopeWrap) scopeWrap.classList.remove("grace-active");
+    const reveal = document.getElementById("target-reveal");
+    if (reveal) reveal.classList.add("hidden");
 }
 
 function enterLevel() {
@@ -2147,6 +2149,16 @@ function gameOver() {
     const h3 = UI.displays.screenDead?.querySelector("h3");
     if (h3) { h3.textContent = "SIGNAL LOST"; h3.style.color = "var(--red)"; }
     UI.displays.deadMsg.textContent = `Level ${Session.level + 1} · Round ${Round.roundNo} · ${Session.score} pts`;
+    const t = targetSignal, lv = LEVELS[Session.level];
+    const reveal = document.getElementById("target-reveal");
+    if (reveal && t) {
+        const parts = [`TYPE: ${t.type.toUpperCase()}`, `FREQ: ${t.freq} Hz`, `AMP: ${(t.amp / 10).toFixed(2)}`];
+        if (lv.phase) parts.push(`PHASE: ${t.phase}°`);
+        if (lv.dc) parts.push(`DC: ${(t.dc / 10).toFixed(2)}`);
+        if (lv.harm) parts.push(`HARM: ${(t.harm / 10).toFixed(2)}`);
+        reveal.textContent = parts.join("  ·  ");
+        reveal.classList.remove("hidden");
+    }
     showScreen("dead"); SFX.fail();
     const gi = UI.gameInner;
     if (Session.screenShake) {

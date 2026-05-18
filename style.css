@@ -1670,6 +1670,21 @@ b {
 }
  
 
+/* ━━━ TARGET REVEAL ON DEATH SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.target-reveal {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-mute);
+    letter-spacing: .04em;
+    max-width: 300px;
+    line-height: 1.6;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--surface2);
+}
+
 /* ── MINI-GAME SCREEN ────────────────────────────────────────── */
 
 #screen-minigame {
