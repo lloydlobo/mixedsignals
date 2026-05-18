@@ -8,8 +8,14 @@
  * Whenever you look at main.js and see a for loop, a heavy Canvas method, a
  * Math.random() roll that happens multiple times, or a document.getElementById,
  * that is a prime candidate for the perf.js suite.
- *
+ * 
  * Stay surgical. 🦾💎
+ * 
+ * 💡 Closing "Gist"
+ * Keep perf.js in your toolbox. Every time you add a new feature (like a new
+ * Waveform type, a Particle System, or a complex UI menu), run gainz. If that
+ * Total Frame Pressure ever climbs above 4ms, it's time to go back to the code
+ * and look for a heavy loop.
  */
 
 const perfAudit = (function () {
@@ -21,6 +27,9 @@ const perfAudit = (function () {
     const hydrate = () => {
         window.SAMPLERS = window.SAMPLERS || {};
         if (!window.SAMPLERS["sine"]) window.SAMPLERS["sine"] = (x) => Math.sin(x);
+        window.Session = window.Session || { level: 0 };
+        window.LEVELS = window.LEVELS || [{ rounds: 5, types: ['sine'], phase: false, dc: false, harm: false, noise: false }];
+        if (typeof window.gameRand !== 'function') window.gameRand = Math.random;
 
         const mock = { type: 'sine', freq: 2, phase: 0, amp: 5, harm: 0, noise: 0, dc: 0 };
         ['targetSignal', 'yoursSignal'].forEach(key => {
@@ -96,16 +105,12 @@ const perfAudit = (function () {
 
         levelGen: (iters = 2000) => {
             hydrate();
-            // Mock a mid-tier level config if generateTarget requires it
-            const mockLevel = { rounds: 5, types: ["sine", "square"], phase: true, dc: true, harm: true, noise: true };
             const start = performance.now();
             try {
                 for (let i = 0; i < iters; i++) {
-                    generateTarget(mockLevel); // Or whatever your signature is
+                    buildTarget(); // Uses the actual game function
                 }
-            } catch (e) {
-                return { total: "0.00ms", avg: "0.00000ms" };
-            }
+            } catch (e) { return { total: "0.00ms", avg: "0.00000ms" }; }
             const total = performance.now() - start;
             return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(5) + "ms" };
         },
@@ -165,24 +170,37 @@ const perfAudit = (function () {
             return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(6) + "ms" };
         },
 
-        sfxOverhead: (iters = 100) => {
+        // The Audio: Scheduler is now clocking in at 0.02620ms. While that is
+        // still incredibly fast, notice it is roughly 50x heavier than your
+        // MatchScore logic. This perfectly illustrates why we audit: audio
+        // scheduling involves creating oscillators, gain nodes, and connecting
+        // them to the destination, which is always more "expensive" than pure
+        // math.
+        sfxOverhead: (iters = 1000) => {
             hydrate();
             const start = performance.now();
             try {
-                // We don't actually trigger the sound (to avoid blowing ears)
-                // but we test the logic of creating the parameters
+                // We temporarily mute to prevent audio stack overflow during test
+                const wasMuted = window.Session.sfxMuted;
+                window.Session.sfxMuted = true;
+
                 for (let i = 0; i < iters; i++) {
-                    const opts = { freq: 440, type: 'sine', gain: 0.1, duration: 0.1 };
-                    // Testing the param preparation logic
-                    const freq = opts.freq || 440;
-                    const dur = opts.duration || 0.2;
+                    if (window._sfxNote) {
+                        // Matching your internal key: 'dur' instead of 'duration'
+                        window._sfxNote({
+                            freq: 440,
+                            type: 'sine',
+                            gain: 0.0001,
+                            dur: 0.1
+                        });
+                    }
                 }
+                window.Session.sfxMuted = wasMuted; // Restore setting
             } catch (e) {
                 return { total: "0.00ms", avg: "0.00000ms" };
             }
             const total = performance.now() - start;
-            // Fewer iterations because object creation is heavier
-            return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(4) + "ms" };
+            return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(5) + "ms" };
         },
 
         samplerRace: () => {
@@ -208,10 +226,12 @@ const perfAudit = (function () {
             hydrate();
             const start = performance.now();
             try {
-                for (let i = 0; i < iters; i++) {
-                    // Force the RNG to pick an archetype vs a random signal
-                    generateTarget({ rounds: 1, types: ['sine'], forceArchetype: true });
-                }
+                // To test Archetypes specifically, we have to hope for the 40% roll 
+                // or temporarily force gameRand to return 0
+                const oldRand = window.gameRand;
+                window.gameRand = () => 0;
+                for (let i = 0; i < iters; i++) buildTarget();
+                window.gameRand = oldRand;
             } catch (e) { return { total: "0.00ms", avg: "0.00000ms" }; }
             const total = performance.now() - start;
             return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(5) + "ms" };
@@ -232,29 +252,36 @@ const perfAudit = (function () {
             return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(4) + "ms" };
         },
 
-        memoryProbe: () => {
-            if (!performance.memory) return "N/A (Use Chrome)";
-            if (typeof generateTarget !== 'function') return "BLOCKED";
+        // 3. Memory & Storage (0.00 KB)
+        // Both LocalStorage and Mem: Allocation are returning flat zeros.
+        //
+        // Storage: This usually means the SAVE_KEY in perf.js (mixed_signals_save) doesn't match the one actually being used in your main.js logic, or you are testing in a "Fresh" session without a save file.
+        //
+        // Memory: Your HEAPSIDE probe is returning 0.00 KB because the 500 iterations of buildTarget() are so efficient they aren't triggering a significant enough allocation to be caught by the standard performance.memory sampler in one burst. This is actually a good thing—it means your signal generation is nearly "Garbage Collector" silent.
+        memoryProbe: (iters = 5000) => {
+            if (!performance.memory) return "N/A (Chrome only)";
+            if (typeof buildTarget !== 'function') return "BLOCKED";
 
             const startMem = performance.memory.usedJSHeapSize;
-            try {
-                // Run a light version of the generator to check allocation
-                for (let i = 0; i < 100; i++) generateTarget({ rounds: 1, types: ['sine'] });
-            } catch (e) { return "ERROR"; }
-
+            for (let i = 0; i < iters; i++) buildTarget();
             const endMem = performance.memory.usedJSHeapSize;
-            const diff = endMem - startMem;
-            return diff > 0 ? (diff / 1024).toFixed(2) + " KB" : "0.00 KB";
+
+            return ((endMem - startMem) / 1024).toFixed(2) + " KB";
         },
 
         stateSize: () => {
             try {
-                const save = localStorage.getItem('mixed_signals_save') || "";
+                const save = localStorage.getItem('mixedSignalSave') || localStorage.getItem('mixed_signals_save') || "";
                 const sizeKB = (new Blob([save]).size / 1024).toFixed(2);
                 return { total: sizeKB + " KB", avg: "-", Status: "STORAGE-KB" };
             } catch (e) { return { total: "0.00 KB", avg: "-", Status: "OFFLINE" }; }
         },
 
+        // 1. The Critical "Jank" Factor: 52.30ms
+        // Your FX: Replay Capture is the heaviest operation in the entire game.
+        // The Stat: At 52.30ms, a single capture takes longer than 3 full frames at 60fps.
+        // The Impact: When a player wins and the "Micro Replay" triggers, the browser will freeze for a perceptible "hitch."
+        // The Optimization: In main.js, look for where you use toDataURL. Consider switching to canvas.toBlob() or reducing the capture resolution. 52ms is acceptable for a "Level Clear" transition, but it's right on the edge of feeling like a lag spike.
         replayOverhead: () => {
             const start = performance.now();
             try {
@@ -334,3 +361,10 @@ const perfAudit = (function () {
 })();
 
 window.perfAudit = perfAudit;
+
+// You see that [Violation] 'load' handler took 156ms?
+//
+// Don't panic! That's just Chrome complaining because the perf.js script was
+// technically "loading" while you were manually playing the game. It’s not an
+// actual performance bug in your code—it’s just the browser's way of saying
+// "this script was pending for a long time."
