@@ -1019,26 +1019,11 @@ const MIX = {
     bgm: null,
     mix: null,
     glue: null,
-    saturator: null,
     limiter: null,
     master: null,
 };
 
 let _clarityFilter = null;
-
-function createSaturator(ac) {
-    const shaper = ac.createWaveShaper();
-    const n = 44100;
-    const curve = new Float32Array(n);
-    const k = 2.5;
-    for (let i = 0; i < n; i++) {
-        const x = i * 2 / n - 1;
-        curve[i] = ((1 + k) * x) / (1 + k * Math.abs(x));
-    }
-    shaper.curve = curve;
-    shaper.oversample = "4x";
-    return shaper;
-}
 
 function createMixGraph() {
     if (MIX.master) return;
@@ -1058,7 +1043,6 @@ function createMixGraph() {
     MIX.glue.attack.value = 0.02;
     MIX.glue.release.value = 0.15;
 
-    MIX.saturator = createSaturator(ac);
     MIX.limiter = getLimiter();
 
     _clarityFilter = ac.createBiquadFilter();
@@ -1071,8 +1055,7 @@ function createMixGraph() {
 
     MIX.mix.connect(_clarityFilter);
     _clarityFilter.connect(MIX.glue);
-    MIX.glue.connect(MIX.saturator);
-    MIX.saturator.connect(MIX.limiter);
+    MIX.glue.connect(MIX.limiter);
     MIX.limiter.connect(MIX.master);
     MIX.master.connect(ac.destination);
     MIX.master.gain.value = 1;
@@ -1119,7 +1102,7 @@ function updateMixState() {
     const sc = smoothstep(matchScore());
     if (Math.abs(sc - _lastClarity) < 0.05) return;
     _lastClarity = sc;
-    const now = actx().currentTime;
+    const now = (_actx ?? actx()).currentTime;
     _clarityFilter.gain.setTargetAtTime(sc * 6, now, 0.2);
 }
 
@@ -1152,8 +1135,6 @@ const freqToHz = (freq) => AUDIO_MIN_HZ * Math.exp(
  * @typedef {Object} Channel
  * @property {OscillatorNode|null}   osc
  * @property {OscillatorNode|null}   modOsc
- * @property {OscillatorNode|null}   vibratoLfo  subtle pitch wobble for warmth
- * @property {GainNode|null}         vibratoGain
  * @property {GainNode|null}         carGain     carrier amplitude node (AM only)
  * @property {GainNode|null}         modGain     modulator depth (AM only)
  * @property {GainNode|null}         ampGain
@@ -1164,7 +1145,7 @@ const freqToHz = (freq) => AUDIO_MIN_HZ * Math.exp(
 
 /** @returns {Channel} */
 function _emptyChannel() {
-    return { osc: null, modOsc: null, vibratoLfo: null, vibratoGain: null, carGain: null, modGain: null, ampGain: null, filter: null, masterGain: null, type: "" };
+    return { osc: null, modOsc: null, carGain: null, modGain: null, ampGain: null, filter: null, masterGain: null, type: "" };
 }
 
 const _chTarget = _emptyChannel();
@@ -1180,8 +1161,8 @@ function _fadeOutChannel(ch) {
     ch.masterGain.gain.linearRampToValueAtTime(0, now + PB.FADE);
     const snap = { ...ch };
     setTimeout(() => {
-        [snap.osc, snap.modOsc, snap.vibratoLfo].forEach(n => { try { n?.stop(); } catch {} });
-        [snap.carGain, snap.modGain, snap.ampGain, snap.filter, snap.masterGain, snap.vibratoGain, snap.vibratoLfo]
+        [snap.osc, snap.modOsc].forEach(n => { try { n?.stop(); } catch {} });
+        [snap.carGain, snap.modGain, snap.ampGain, snap.filter, snap.masterGain]
             .forEach(n => { try { n?.disconnect(); } catch {} });
     }, (PB.FADE + 0.05) * 1000);
 }
@@ -1233,14 +1214,6 @@ function _buildChannel(ch, sig) {
     const masterGain = ac.createGain();
     masterGain.gain.setValueAtTime(0, now); // start silent — mode sets volume
 
-    const vibratoLfo = ac.createOscillator();
-    vibratoLfo.type = "square";
-    vibratoLfo.frequency.value = 2;
-    const vibratoGain = ac.createGain();
-    vibratoGain.gain.value = 0.5;
-    vibratoLfo.connect(vibratoGain);
-    vibratoGain.connect(osc.frequency);
-
     const filter = ac.createBiquadFilter();
     filter.type = "lowpass";
     filter.frequency.value = 800;
@@ -1256,13 +1229,10 @@ function _buildChannel(ch, sig) {
     // ── start ─────────────────────────────────────────────────────────────────
     osc.start(now);
     modOsc?.start(now);
-    vibratoLfo.start(now);
 
     // ── store ─────────────────────────────────────────────────────────────────
     ch.osc = osc;
     ch.modOsc = modOsc;
-    ch.vibratoLfo = vibratoLfo;
-    ch.vibratoGain = vibratoGain;
     ch.carGain = carGain;
     ch.modGain = modGain;
     ch.ampGain = ampGain;
