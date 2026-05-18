@@ -107,3 +107,18 @@ yours osc  ──┘
 - [x] Inline migration — verify no remaining `onclick` in HTML
 - [ ] Telemetry — `{level, attempts, hints, timeRemaining, lockPercent}` → localStorage
 - [ ] Difficulty tuning — adjust `LEVELS` timing/rounds from telemetry data
+
+---
+
+## P5 — Test health
+
+Two approaches, pick one:
+
+**Option A — Extract shared constants** (clean, touches 4 files)
+- [ ] Extract `CONFIG`, `LEVELS`, `CEREMONIES`, `ARCHETYPES`, `BGM_POOL`, `SAMPLERS`, `DEFAULT_SETTINGS`, `SAVE_KEY`, and other pure-data values from `main.js` into a new `const.js`
+- [ ] Load `const.js` via `<script>` in `index.html` before `main.js`
+- [ ] Source from `const.js` in both `main.js` and `mixed-signals.test.js`
+- [ ] Delete duplicate inline copies from `mixed-signals.test.js`
+
+**Option B — Self-validating tests** (minimal, 1 file only)
+- [ ] Add validation in `mixed-signals.test.js` that reads `main.js` source by regex and asserts `CONFIG`, `LEVELS.length` and other shared constants match the test file's inline copies. Catches silent drift without extracting modules.
