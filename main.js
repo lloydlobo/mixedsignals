@@ -397,6 +397,24 @@ function initEvents() {
 
     document.addEventListener("click", () => { if (!Session.muted) startMusic(); }, { once: true });
     window.addEventListener('blur', () => { _lastTime = 0; _elapsedTime = 0; });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.repeat) return;
+        const target = e.target;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+        if (e.key === "Escape") {
+            const so = document.getElementById("settings-overlay");
+            if (so && !so.classList.contains("hidden")) { e.preventDefault(); closeSettings(); return; }
+            const co = document.getElementById("ceremony-overlay");
+            if (co && !co.classList.contains("hidden")) { e.preventDefault(); dismissCeremony(); return; }
+            return;
+        }
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 6 && currentScreen() === "game" && !Round.won) {
+            const btns = document.querySelectorAll(".type-btn");
+            if (btns[num - 1]) { e.preventDefault(); btns[num - 1].click(); }
+        }
+    });
 }
 
 // ─── LOCALSTORAGE (Safari-safe) ───────────────────────────────────────────────
