@@ -43,6 +43,7 @@
  * @property {number}   settings.sfxVolume
  * @property {boolean}  settings.ceremonies
  * @property {boolean}  settings.screenShake
+ * @property {boolean}  settings.minigames
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -183,6 +184,7 @@ const Session = {
     sfxMuted: false,
     volume: 0.4,
     screenShake: true,
+    minigames: false,
     postGameFreeplay: false,
 };
 
@@ -411,7 +413,7 @@ function lsSet(key, value) {
 const SAVE_KEY = "mixedSignalsSave";
 
 function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() }; }
-const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true });
+const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true, minigames: false });
 
 /** @returns {SaveData} */
 function loadSave() {
@@ -604,6 +606,7 @@ Session.sfxMuted = _initSettings.sfxMuted;
 Session.volume = _initSettings.bgmVolume;
 Session.screenShake = _initSettings.screenShake;
 Session.ceremonies = _initSettings.ceremonies;
+Session.minigames = _initSettings.minigames;
 
 function initAudio() {
     createMixGraph();
@@ -1937,7 +1940,12 @@ function nextRound() {
         dispatch({ type: "LEVEL_SET", payload: nextLevel });
         dispatch({ type: "ROUND_SET", payload: 1 });
         Session.levelStartScore = Session.score;
-        runMiniGame(Session.level, () => { showLevelUpScreen(); }); return;
+        if (Session.minigames) {
+            runMiniGame(Session.level, () => { showLevelUpScreen(); });
+        } else {
+            showLevelUpScreen();
+        }
+        return;
     }
     UI.displays.roundNo.textContent = Round.roundNo;
 
@@ -2012,6 +2020,7 @@ function renderSettings() {
     sync("stg-sfx", !s.sfxMuted);
     sync("stg-ceremonies", s.ceremonies);
     sync("stg-shake", s.screenShake);
+    sync("stg-minigames", s.minigames);
     const bgmVol = document.getElementById("stg-bgm-vol");
     if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
     const sfxVol = document.getElementById("stg-sfx-vol");
@@ -2050,6 +2059,7 @@ function initSettingsOverlay() {
     };
     bindToggle("stg-ceremonies", "ceremonies", "ceremonies");
     bindToggle("stg-shake", "screenShake", "screenShake");
+    bindToggle("stg-minigames", "minigames", "minigames");
 
     const bindSlider = (id, key, sessionKey) => {
         const el = document.getElementById(id);
