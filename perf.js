@@ -185,6 +185,90 @@ const perfAudit = (function () {
             return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(4) + "ms" };
         },
 
+        samplerRace: () => {
+            hydrate();
+            const types = Object.keys(window.SAMPLERS || {});
+            const results = {};
+            const iters = 20000;
+
+            types.forEach(type => {
+                const fn = window.SAMPLERS[type];
+                const start = performance.now();
+                for (let i = 0; i < iters; i++) {
+                    // Test at a standard point with common params
+                    fn(i * 0.01, 2, 0.5, 5, 0.2);
+                }
+                const total = performance.now() - start;
+                results[type] = (total / iters).toFixed(7) + "ms";
+            });
+            return results;
+        },
+
+        archetypeGen: (iters = 1000) => {
+            hydrate();
+            const start = performance.now();
+            try {
+                for (let i = 0; i < iters; i++) {
+                    // Force the RNG to pick an archetype vs a random signal
+                    generateTarget({ rounds: 1, types: ['sine'], forceArchetype: true });
+                }
+            } catch (e) { return { total: "0.00ms", avg: "0.00000ms" }; }
+            const total = performance.now() - start;
+            return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(5) + "ms" };
+        },
+
+        uiStressTest: (iters = 100) => {
+            hydrate();
+            const start = performance.now();
+            try {
+                for (let i = 0; i < iters; i++) {
+                    // Trigger every UI update function in main.js
+                    syncLabels();
+                    if (window.updateMeters) updateMeters(95); // Example function
+                    if (window.renderLevelSelect) renderLevelSelect();
+                }
+            } catch (e) { return { total: "0.00ms", avg: "0.00000ms" }; }
+            const total = performance.now() - start;
+            return { total: total.toFixed(2) + "ms", avg: (total / iters).toFixed(4) + "ms" };
+        },
+
+        memoryProbe: () => {
+            if (!performance.memory) return "N/A (Use Chrome)";
+            if (typeof generateTarget !== 'function') return "BLOCKED";
+
+            const startMem = performance.memory.usedJSHeapSize;
+            try {
+                // Run a light version of the generator to check allocation
+                for (let i = 0; i < 100; i++) generateTarget({ rounds: 1, types: ['sine'] });
+            } catch (e) { return "ERROR"; }
+
+            const endMem = performance.memory.usedJSHeapSize;
+            const diff = endMem - startMem;
+            return diff > 0 ? (diff / 1024).toFixed(2) + " KB" : "0.00 KB";
+        },
+
+        stateSize: () => {
+            try {
+                const save = localStorage.getItem('mixed_signals_save') || "";
+                const sizeKB = (new Blob([save]).size / 1024).toFixed(2);
+                return { total: sizeKB + " KB", avg: "-", Status: "STORAGE-KB" };
+            } catch (e) { return { total: "0.00 KB", avg: "-", Status: "OFFLINE" }; }
+        },
+
+        replayOverhead: () => {
+            const start = performance.now();
+            try {
+                // Simulate the 'Micro Replay' logic: canvas capture
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = 1200; tempCanvas.height = 400;
+                const ctx = tempCanvas.getContext('2d');
+                ctx.drawImage(document.querySelector('canvas'), 0, 0);
+                const data = tempCanvas.toDataURL('image/webp', 0.5);
+            } catch (e) { return { total: "0.00ms", avg: "N/A" }; }
+            const total = performance.now() - start;
+            return { total: total.toFixed(2) + "ms", avg: total.toFixed(2) + "ms" };
+        },
+
         runAll: function () {
             console.clear();
             console.log("%c 🚀 DIGITAL SQUIRM ZENITH AUDIT ", "background: #1a2a6c; color: white; font-weight: bold; padding: 4px;");
@@ -199,6 +283,11 @@ const perfAudit = (function () {
             const iR = this.inputSync(); // This corresponds to "Input: readSliders"
             const mR = this.minigameLogic();
             const aR = this.sfxOverhead();
+            const aG = this.archetypeGen(); // Status Label: SIGNAL-FACTORY
+            const uST = this.uiStressTest(); // Status Label: UI-STRESS
+            const mP = this.memoryProbe();
+            const storage = this.stateSize();
+            const replay = this.replayOverhead();
 
             console.table({
                 "Logic: MatchScore": { ...lR, Status: lR.total === "0.00ms" ? "BLOCKED" : "ZENITH" },
@@ -209,22 +298,37 @@ const perfAudit = (function () {
                 "Trig: FastSin": { ...tR, Status: "BRANCHLESS" },
                 "Input: readSliders": { ...iR, Status: iR.total === "0.00ms" ? "BLOCKED" : "POLLING-COST" },
                 "Minigame: Physics": { ...mR, Status: mR.total === "0.00ms" ? "BLOCKED" : "SIM-SPEED" },
-                "Audio: Scheduler": { ...aR, Status: aR.total === "0.00ms" ? "BLOCKED" : "SCHEDULER" }
+                "Audio: Scheduler": { ...aR, Status: aR.total === "0.00ms" ? "BLOCKED" : "SCHEDULER" },
+                "RNG: Archetype": { ...aG, Status: aG.total === "0.00ms" ? "BLOCKED" : "SIGNAL-FACTORY" },
+                "State: LocalStorage": storage,
+                "FX: Replay Capture": { ...replay, Status: "JANK-RISK" },
+                "UI: Stress Test": { ...uST, Status: uST.total === "0.00ms" ? "BLOCKED" : "UI-STRESS" },
+                "Mem: Allocation": { total: mP, avg: "-", Status: "HEAPSIDE" },
             });
+
+            const sRace = this.samplerRace();
+            console.log("%c 🧬 WAVEFORM SAMPLER LATENCY ", "background: #7f8c8d; color: white; font-weight: bold; padding: 2px;");
+            console.table(sRace);
 
             const status = lR.total === "0.00ms" ? "COLD START" : "ELITE";
             console.log(`%c REPORT CARD: ${status} `, "color: #00ff00; font-weight: bold;");
             console.log("%c Gist: Verified sub-microsecond DSP logic & hardware-accelerated paths. ", "color: #888; font-style: italic;");
 
-            // --- THE ZENITH FRAME BUDGETER ---
-            // Summing the core per-frame costs: Logic + Rendering + Input Polling
+            // --- THE ZENITH FRAME BUDGETER (V2) ---
             const totalFrameTime = (parseFloat(lR.avg) + parseFloat(rR.avg) + parseFloat(iR.avg)).toFixed(3);
-            const color = totalFrameTime < 10 ? "#0f0" : (totalFrameTime < 16.6 ? "#f1c40f" : "#e74c3c");
+            const is144HzReady = totalFrameTime < 6.9; // 144fps budget
+
+            const color = totalFrameTime < 7 ? "#00ffff" : (totalFrameTime < 16.6 ? "#0f0" : "#e74c3c");
+            const badge = is144HzReady ? "PRO (144Hz)" : "STANDARD (60Hz)";
 
             console.log(
-                `%c Total Frame Pressure: ${totalFrameTime}ms / 16.6ms `,
-                `background: #000; color: ${color}; border: 1px solid ${color}; font-weight: bold; padding: 2px;`
+                `%c Total Frame Pressure: ${totalFrameTime}ms | Target: ${badge} `,
+                `background: #000; color: ${color}; border: 1px solid ${color}; font-weight: bold; padding: 4px;`
             );
+
+            if (is144HzReady) {
+                console.log("%c 🛰️ ZENITH VERIFIED: Frame latency is low enough for High-Refresh monitors.", "color: #00ffff; font-style: italic;");
+            }
         }
     };
 })();
