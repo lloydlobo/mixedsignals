@@ -1514,18 +1514,60 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
     const halfH = H * 0.5, yOffset = halfH - 10, invW = 1 / W;
     const step = Round._recomputeScheduled ? 4 : 2;
 
-    const wobbleAmp = 2.5;                               // pixels of jelly displacement
-    const wobbleFreq = 4.0;                              // spatial frequency (wiggles across width)
-    const wobbleSpeed = 0.0018;                          // time scaling — tune for buttery vs snappy
+    // ─── Wiggle Wiggle Wiggle ───────────────────────────────────────────────
+    // Wobbling powered thanks to [Digital Squirm](https://ldjam.com/events/ludum-dare/59/digital-squirm-processing). 
+    // Canvas 2D only, so no GPU shader path. Jelly on canvas means perturbing
+    // the y-position of each pixel column with a time-varying sine —
+    // essentially adding a secondary wobble on top of the existing sample() output.
+
+    const wobbleAmp = 2.5;              // pixels of jelly displacement
+    const wobbleFreq = 4.0;             // spatial frequency (wiggles across width)
+    const wobbleSpeed = 0.0018;         // time scaling — tune for buttery vs snappy
     const t = _elapsedTime * wobbleSpeed + wobblePhase;  // ← phase offset here
 
-    _ctx.strokeStyle = color; _ctx.lineWidth = lineW || 1.8;
+    // ─── MATH SIMPLIFICATION ────────────────────────────────────────────────
+    // We want the LUT index. 
+    // The base math is: (px * wobbleFreq * invW * 2PI + t) * (LUT_SIZE / 2PI)
+    // The 2PIs cancel out, leaving: (px * wobbleFreq * invW * LUT_SIZE) + (t * SCALE)
+
+    const lutStep = (wobbleFreq * invW * LUT_SIZE) * step;
+    let lutIndex = t * SCALE;
+
+    // ─── PHASE ACCUMULATOR OPTIMIZATION ─────────────────────────────────────
+    // Calculate the step size for the signal phase.
+    const phaseStep = step * invW;
+
+    // Calculate initial phase. Adding 1.0 handles positive wrapping.
+    // The if-statement acts as a fast modulo for negative JS scroll edge-cases.
+    let sigPhase = (1.0 - scroll) % 1.0;
+    if (sigPhase < 0) sigPhase += 1.0;
+
+    _ctx.strokeStyle = color;
+    _ctx.lineWidth = lineW || 1.8;
     _ctx.beginPath();
+
+    // ─── HOIST INITIALIZATION (BRANCH ELIMINATION) ──────────────────────────
+    // Handle px = 0 explicitly so we don't have an if-statement in the loop.
+    let jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp; // Direct lookup: floor the index and wrap it with the MASK
+    let y = halfH - sample(sig, sigPhase, true) * yOffset + jelly; // Sample and Perturb
+    _ctx.moveTo(0, y);
+
+    lutIndex += lutStep;
+    sigPhase += phaseStep;
+
+    // ─── THE TIGHT LOOP ─────────────────────────────────────────────────────
     for (let px = 0; px <= W; px += step) {
-        const jelly = fastSin(px * wobbleFreq * invW * Math.PI * 2 + t) * wobbleAmp;
-        const y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset + jelly;
-        if (px === 0) _ctx.moveTo(px, y); else _ctx.lineTo(px, y);
+        if (sigPhase >= 1.0) sigPhase -= 1.0; // Fast modulo: Simple subtraction is dramatically faster than `% 1`
+
+        jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp; 
+        y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset + jelly;
+
+        _ctx.lineTo(px, y);
+
+        lutIndex += lutStep;
+        sigPhase += phaseStep;
     }
+
     _ctx.stroke();
 }
 
