@@ -7,3 +7,6 @@
 
 # temp files
 _archive/
+
+# node_modules
+node_modules

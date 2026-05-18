@@ -1,8 +1,15 @@
 # Mixed Signals — Roadmap
 
+> "Audit files" is quite broad. Could you clarify what kind of audit you're looking for?
+> - Security audit — secrets, vulnerabilities, dependency issues
+> - Code quality audit — linting, type errors, dead code, anti-patterns
+> - Dependency audit — outdated packages, unused deps, license compliance
+> - File structure audit — large files, orphaned files, naming conventions
+> - Something else — please specify
+
 ## P0 — Compact controls (CSS only) ✓
 
-Target: `@media (max-width: 640px)` at `style.css:224`
+Target: `@media (max-width: 640px)` at `style.css:217`
 
 - [x] `.param-list` gap: 10px → 6px
 - [x] `.ctrl` gap: 4px → 2px
@@ -20,7 +27,7 @@ Target: `@media (max-width: 640px)` at `style.css:224`
 
 ## P1A — Lifecycle extraction (main.js + index.html) ✓
 
-### New functions (~line 1515)
+### New functions (~line 1870)
 
 - [x] `exitLevel()` — shared teardown: `_lockAnimStart = 0` + `clearInterval` + `stopLoop` + `stopSignalPlayback` + `won = false`
 - [x] `enterLevel()` — shared round setup: `showScreen("game")` + `buildTarget` + `invalidateMatchScore` + `applyLevelUI` + `resetYours` + `startTimer` + `startSignalPlayback` + `startLoop`
@@ -42,7 +49,7 @@ Target: `@media (max-width: 640px)` at `style.css:224`
 - [x] `#menu-btn` → `goToMenu`
 - [x] `#skip-tut` → `skipTutorial`
 - [x] `#btn-freeplay-ready` → `endFreePlay`
-- [x] `#mute-btn` → `toggleMute`
+- [x] BGM mute via settings toggle `#stg-bgm` → `toggleMute()`
 - [x] `.sys-btn` hint/skip → `useHint` / `skipRound`
 - [x] Remove `onclick` attributes from `index.html`
 
@@ -73,19 +80,19 @@ yours osc  ──┘
 - [x] Pointer handlers on `#c-overlay`: `pointerdown` ramps gate on, `pointerup`/`pointerleave` ramps off
 - [x] Add `PB.BEAT_VOL`, `PB.GATE_ATTACK`, `PB.GATE_RELEASE` constants
 - [x] Default listening mode is beating (both channels audible on touch)
-- [x] Filter lowered 1800 → 800 Hz for warmer tone
+- [x] Beating bus low-pass filter set at 3000 Hz
 
 ---
 
 ## P1C — SFX mute toggle ✓
 
-- [x] Add `#sfx-btn` button to HTML
+- [x] Add SFX mute toggle to settings (`#stg-sfx`) + `toggleSfxMute()` function
 - [x] Independent `sfxMuted` state + `toggleSfxMute()` function
 - [x] All SFX functions check `sfxMuted` instead of `muted`
 
 ---
 
-## P2 — Learning + personality
+## P2 — Learning + personality ✓
 
 - [x] Unlock ceremonies — screen on first encounter of new param
 - [x] Signal archetypes — authored named signals (heartbeat, sonar, reactor…)
@@ -98,7 +105,7 @@ yours osc  ──┘
 
 - [ ] Score expression — combo streaks, tiered stamps
 - [x] Tension amplification — timer <10s: scope glow shift
-- [x] Tension amplification — timer <10s: filter sweep (low-pass 2200→150 Hz over 8s)
+- [x] Tension amplification — timer <10s: filter sweep (low-pass 2200→150 Hz over ~7s)
 
 ---
 
@@ -112,13 +119,64 @@ yours osc  ──┘
 
 ## P5 — Test health
 
-Two approaches, pick one:
-
-**Option A — Extract shared constants** (clean, touches 4 files)
-- [ ] Extract `CONFIG`, `LEVELS`, `CEREMONIES`, `ARCHETYPES`, `BGM_POOL`, `SAMPLERS`, `DEFAULT_SETTINGS`, `SAVE_KEY`, and other pure-data values from `main.js` into a new `const.js`
-- [ ] Load `const.js` via `<script>` in `index.html` before `main.js`
-- [ ] Source from `const.js` in both `main.js` and `mixed-signals.test.js`
-- [ ] Delete duplicate inline copies from `mixed-signals.test.js`
-
 **Option B — Self-validating tests** (minimal, 1 file only)
 - [ ] Add validation in `mixed-signals.test.js` that reads `main.js` source by regex and asserts `CONFIG`, `LEVELS.length` and other shared constants match the test file's inline copies. Catches silent drift without extracting modules.
+
+---
+
+## P6 — Codebase hygiene (from audit)
+
+### High priority
+
+- [ ] Extract shared constants (`CONFIG`, `LEVELS`, `CEREMONIES`, `ARCHETYPES`, `BGM_POOL`, `SAMPLERS`, `DEFAULT_SETTINGS`, `SAVE_KEY`, `smoothstep`, `sigmoid`, `dispatch`) into `const.js` — eliminates test/main.js drift
+- [ ] Delete stale `_archive/` directory (42 files, 2.8 MB)
+- [ ] Add `package.json` with lint (ESLint) and typecheck (`tsc --noEmit` / JSDoc) scripts
+- [ ] Remove `window._testMG` debug global from production code
+- [ ] Resolve `wrangler.jsonc` schema reference (`$schema` points to `node_modules/wrangler/config-schema.json` which doesn't exist locally)
+
+### Medium priority
+
+- [ ] Remove empty `resources/image/` directory
+- [ ] Replace `Math.random()` calls in minigames (`mgNeedleStart` phaseOffset, noise bursts) with seeded game RNG for determinism
+- [ ] Add keyboard focus indicators — buttons with `outline: none` have no visible focus fallback
+- [ ] Prune stale git branches (20 branches — 10 local + 10 remote, several unmerged)
+
+### Low priority
+
+- [ ] Check `--text-mute` (#4a4438) contrast against `--bg` (#1c1915) — may fail WCAG AA
+- [ ] Extract minigame magic numbers (`BPM: 90`, `MAX_TRIES: 3`, noise regen `0.0001`) into named constants
+- [ ] Add JSDoc types to `applySignal`, `scheduleRender`, `syncLabels`, `readSliders`
+
+---
+
+## P7 — Recent additions (from CHANGELOG, not originally tracked)
+
+### Settings & controls
+
+- [x] Full settings overlay with ceremonies, screen shake, and audio controls (BGM/SFX volume, mute)
+- [x] Keyboard shortcuts: 1-6 for waveform types, Escape for overlays
+- [x] SFX volume slider independent of BGM volume
+
+### Assist & accessibility
+
+- [x] Assist mode toggles: infinite time, easy match (88% win threshold), no-fail
+- [x] Urgent-cue toggle to disable heartbeat SFX during countdown
+- [x] Toggle for bonus rounds (minigames) in settings, default off
+
+### Mini-games
+
+- [x] Mini-game engine with 4 games (Peak Hit, Needle Stop, Pulse Tap, Noise Filter)
+
+### Hints & feedback
+
+- [x] Persistent hint system — each purchase reveals a new unrevealed parameter, accumulates as a row overlay
+- [x] Stamp feedback system with animated overlays for lock, fail, skip, hint
+- [x] Click sounds on all silent UI buttons
+
+### Game feel & polish
+
+- [x] Target signal parameters revealed on game over screen
+- [x] BGM prefetcher with fetch + blob URL cache for instant playback
+- [x] Debut-archetype filter + weighted param selection + chaos jitter on re-encounter
+- [x] Audio channel: warm analog-feel sound effects, melodic lock variants
+- [x] Tutorial clarity improvements (glow effects, contrast, step locking)
