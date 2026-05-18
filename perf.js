@@ -271,7 +271,7 @@ const perfAudit = (function () {
 
         stateSize: () => {
             try {
-                const save = localStorage.getItem('mixedSignalSave') || localStorage.getItem('mixed_signals_save') || "";
+                const save = localStorage.getItem('mixedSignalsSave') || localStorage.getItem('mixed_signals_save') || "";
                 const sizeKB = (new Blob([save]).size / 1024).toFixed(2);
                 return { total: sizeKB + " KB", avg: "-", Status: "STORAGE-KB" };
             } catch (e) { return { total: "0.00 KB", avg: "-", Status: "OFFLINE" }; }
