@@ -3200,7 +3200,8 @@ showScreen("start");
 
 /**
  * 🛰️ ZENITH STEALTH LOADER
- * Listens for "gainz" and dynamically imports the audit suite from the edge.
+ * Listens for "gainz" and dynamically imports/runs the audit suite.
+ * NOTE: Currently perf.js is in root dir. SUGGESTION: /js/debug/perf.js
  */
 (function() {
     let buffer = "";
@@ -3208,15 +3209,25 @@ showScreen("start");
     window.addEventListener('keydown', function loader(e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
+        
         if (buffer === secret) {
+            // 1. If already loaded, just re-run the audit
+            if (window.perfAudit) {
+                console.log("%c 🔄 RE-RUNNING AUDIT... ", "color: #f1c40f; font-weight: bold;");
+                window.perfAudit.runAll();
+                return;
+            }
+
+            // 2. Otherwise, inject the script
+            console.log("%c 🛰️ FETCHING AUDIT SUITE... ", "color: #3498db; font-weight: bold;");
             const s = document.createElement('script');
-            s.src = 'perf.js'; // Ensure this matches your folder structure
+            // Cache busting: ?v= allows you to see updates immediately after a push
+            s.src = '/perf.js?v=' + Date.now(); 
             s.onload = () => { 
                 console.log("%c 🔓 ZENITH SUITE READY ", "color: #00ff00; font-weight: bold;");
-                if (window.perfAudit) window.perfAudit.runAll(); 
+                window.perfAudit.runAll(); 
             };
             document.head.appendChild(s);
-            window.removeEventListener('keydown', loader);
         }
     });
 })();
