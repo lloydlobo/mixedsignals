@@ -161,6 +161,7 @@ const Round = {
     _setTypeScheduled: false,
     _lastUrgentSfx: 0,
     _wasCloseSfx: false,
+    _revealedHints: null,
 
     reset() {
         this.timeLeft = 0;
@@ -172,6 +173,7 @@ const Round = {
         this._setTypeScheduled = false;
         this._lastUrgentSfx = 0;
         this._wasCloseSfx = false;
+        this._revealedHints = new Set();
     },
 };
 
@@ -1913,6 +1915,7 @@ function exitLevel() {
 }
 
 function enterLevel() {
+    Round._revealedHints = new Set();
     transitionBGM(BGM_STATE.GAMEPLAY);
     showScreen("game");
     targetSignal = buildTarget();
@@ -2308,8 +2311,8 @@ function endTutorial() {
 // ─── HINTS / SKIP ────────────────────────────────────────────────────────────
 
 function useHint() {
+    if (!Round._revealedHints) Round._revealedHints = new Set();
     if (Round.won || Session.score < CONFIG.COST_HINT) { SFX.hintBroke(); spawnStamp("hint_broke"); return; }
-    dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
     const lv = LEVELS[Session.level];
     const hints = [
         "type: " + targetSignal.type,
@@ -2319,10 +2322,18 @@ function useHint() {
         ...(lv.dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
         ...(lv.harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
     ];
+    const unrevealedIndices = hints.map((_, i) => i).filter(i => !Round._revealedHints.has(i));
     const feedback = UI.displays.feedback;
-    // FUTURE: Maybe stack/flex row hints as they are gathered. No need to spam
-    // the hint button and waste `score` currency
-    feedback.textContent = `hint: ${hints[rng(0, hints.length - 1)]}`;
+    if (unrevealedIndices.length === 0) {
+        feedback.textContent = "all params revealed — use your eyes";
+        feedback.className = "feedback close";
+        SFX.hint(); spawnStamp("hint");
+        return;
+    }
+    dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
+    const idx = unrevealedIndices[rng(0, unrevealedIndices.length - 1)];
+    Round._revealedHints.add(idx);
+    feedback.textContent = "hint: " + hints[idx];
     feedback.className = "feedback close";
     SFX.hint(); spawnStamp("hint");
 }
