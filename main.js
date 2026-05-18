@@ -63,8 +63,8 @@ const CONFIG = {
     CLOSE_PERCENTAGE: 75,
     // Noise widens the win threshold: noisy targets are easier to "lock in".
     // noise=0 → no change. noise=6 (max) → threshold drops by 10 points.
-    NOISE_TOLERANCE_PER_UNIT: 1.8, // points of threshold reduction per noise unit
-}; // TODO: Tweak NOISE_TOLERANCE_PER_UNIT (last level seems too easy)
+    NOISE_TOLERANCE_PER_UNIT: 1.2,
+};
 
 // TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
