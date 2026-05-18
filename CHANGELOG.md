@@ -10,11 +10,30 @@ All notable changes to Mixed Signals.
 - Micro replay: freeze-frame scroll capture on lock with expanding radar ring emanations from scope center
 - Debut-archetype filter and weighted parameter selection for new mechanics on introduction levels
 - Chaos jitter (±1) on archetype re-encounters for organic variation
-- Redesign sound effects with warm analog-feel audio, melodic lock variants, and consistent stamp feedback
-- Implement stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
-- Enhance stamp layer styling and animation for improved visual feedback
-- Enhance audio channel with vibrato and low-pass filter effects
+- Mini-game engine with 4 games (Peak Hit, Needle Stop, Pulse Tap, Noise Filter) across 3 polish phases
+- Settings overlay with ceremonies, screen shake, and audio controls (BGM/SFX volume, mute)
+- Assist mode toggles: infinite time, easy match (88% win threshold), no-fail mode
+- Persistent hint system — each purchase reveals a new unrevealed parameter, accumulates as a row overlay
+- Background music prefetcher with fetch + blob URL cache for instant playback on first click
+- Reveal target signal parameters on game over screen
+- Keyboard shortcuts: 1-6 for waveform types, Escape for overlays
+- SFX volume slider independent of BGM volume
+- Urgent-cue toggle to disable heartbeat SFX during countdown
+- Toggle for bonus rounds (minigames) in settings, default off
+- Two new music tracks: "Neon Nebula" (Databend), "Modern Chillout Future Calm" (Oleksandr Stepanov)
+- One new music track: "Lazy Day Stylish Futuristic Chill" (Oleksandr Stepanov)
+- Click sounds on all silent UI buttons
+- Tension filter sweep: lowpass sweeps from 2200→150Hz during urgent countdown
+- Stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
+- Enhance audio channel with warm analog-feel sound effects, melodic lock variants
 - Improve tutorial clarity with updated messaging, glow effects, and better text contrast
+
+### Performance
+- Remove vibratoLfo (2 always-running oscillators) and saturator (WaveShaper with 4x oversampling) from audio graph
+- Cache AudioContext reference in updateMixState instead of calling actx() every frame
+- Halve drawWave canvas path operations during slider drag (step 2→4 when recompute scheduled)
+- Remove scope glow CSS pulse animations that forced continuous GPU repaints on mobile
+- Prefetch BGM tracks in background via fetch — game never blocks on audio load
 
 ### Fixes
 - Show "CONTINUE (FREEPLAY)" instead of "CONTINUE (LV 8)" after all levels beaten
@@ -22,12 +41,28 @@ All notable changes to Mixed Signals.
 - Stop signal playback when level up screen is displayed
 - Prevent slider adjustments after game lock-in
 - Prevent sliders from freezing during tutorial when winning
+- Replace silent fake targetSignal (`amp: 0`) with proper `null` during freeplay
+- Add missing BGM transition when navigating to level select and on settings key merge
+- Defer BGM start to first user interaction instead of page load (autoplay policy)
+- Prevent AM/sine false positives in scoring with type-mismatch win threshold guard
+- Reduce NOISE_TOLERANCE_PER_UNIT from 1.8 to 1.2 for better difficulty curve
+- Adjust SFX gain levels and durations across all sound effects
+- Needle minigame: 3 tries with random reposition, SFX on stop; noise: fix regrowth rate
+- Lower saturator drive from k=15 to k=2.5 to avoid audible distortion
 
 ### Refactoring
 - Deduplicate initUI DOM lookups with collect() helper (~35 LoC saved)
 - Consolidate render constants (scroll, timing, lock duration, timer circumference) into RENDER namespace
 - Streamline sound effects with shared _sfxNote() config helper and extract makeRand() factory
 - Migrate bare module-level globals into Round/Session lifecycle objects with documented reset() boundaries
+- State-machine BGM with per-pool track pools and no-repeat selection
+- 5-pass refactor: dispatch owns score/level/round writes, BUTTON_ACTIONS table, scoped RNG, SAMPLERS lookup, data-attr sliders
+
+### Documentation
+- Add manual test checklist for browser and settings overlay (CHECKLIST.md)
+- Add bug fix log (FIXES.md)
+- Add 53 unit tests for signal math, scoring, dispatch, persistence, and RNG (mixed-signals.test.js)
+- Add P5 test health section to TODO with two options for preventing constant drift
 
 ## [0.5.0] - 2026-05-11
 
