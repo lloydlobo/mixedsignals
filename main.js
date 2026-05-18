@@ -1390,8 +1390,9 @@ function matchScore() {
  * @returns {number} percentage (0–100)
  */
 function winThreshold() {
+    if (yoursSignal.type !== targetSignal.type) return 99;
     const noiseReduction = (targetSignal.noise ?? 0) * CONFIG.NOISE_TOLERANCE_PER_UNIT;
-    return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction); // TODO: Tweak the max (last level seems too easy)
+    return Math.max(75, CONFIG.WIN_PERCENTAGE - noiseReduction);
 }
 
 // ─── CANVAS ───────────────────────────────────────────────────────────────────
