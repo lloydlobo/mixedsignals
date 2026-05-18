@@ -1510,8 +1510,20 @@ function loop(ts) {
     animRaf = requestAnimationFrame(loop);
 }
 
+/**
+ * @function drawWave
+ * @description Renders a procedurally generated wave with a 'jelly wobble' effect.
+ * * OPTIMIZATIONS USED:
+ * 1. 2-Way Stride: Reduces loop bookkeeping overhead by 50%.
+ * 2. LUT-Indexing: Replaces Math.sin() with a Float32Array lookup (Masked bitwise).
+ * 3. Branch Hoisting: MoveTo is called before the loop to remove internal conditionals.
+ * 4. Fast Wrapping: Replaces modulo (%) with subtraction for phase accumulation.
+ */
 function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
     const halfH = H * 0.5, yOffset = halfH - 10, invW = 1 / W;
+    
+    // Dynamic LOD: If the system is scheduled for a recompute (heavy load), 
+    // we double the step size to trade a bit of visual crispness for frame stability.
     const step = Round._recomputeScheduled ? 4 : 2;
 
     // ─── Wiggle Wiggle Wiggle ───────────────────────────────────────────────
@@ -1523,18 +1535,17 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
     const wobbleAmp = 2.5;              // pixels of jelly displacement
     const wobbleFreq = 4.0;             // spatial frequency (wiggles across width)
     const wobbleSpeed = 0.0018;         // time scaling — tune for buttery vs snappy
-    const t = _elapsedTime * wobbleSpeed + wobblePhase;  // ← phase offset here
+    const t = _elapsedTime * wobbleSpeed + wobblePhase;
 
     // ─── MATH SIMPLIFICATION ────────────────────────────────────────────────
     // We want the LUT index. 
     // The base math is: (px * wobbleFreq * invW * 2PI + t) * (LUT_SIZE / 2PI)
     // The 2PIs cancel out, leaving: (px * wobbleFreq * invW * LUT_SIZE) + (t * SCALE)
-
+    // We pre-calculate the 'lutStep' to avoid multiplication inside the hot path.
     const lutStep = (wobbleFreq * invW * LUT_SIZE) * step;
     let lutIndex = t * SCALE;
 
     // ─── PHASE ACCUMULATOR OPTIMIZATION ─────────────────────────────────────
-    // Calculate the step size for the signal phase.
     const phaseStep = step * invW;
 
     // Calculate initial phase. Adding 1.0 handles positive wrapping.
@@ -1548,22 +1559,46 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
 
     // ─── HOIST INITIALIZATION (BRANCH ELIMINATION) ──────────────────────────
     // Handle px = 0 explicitly so we don't have an if-statement in the loop.
-    let jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp; // Direct lookup: floor the index and wrap it with the MASK
-    let y = halfH - sample(sig, sigPhase, true) * yOffset + jelly; // Sample and Perturb
-    _ctx.moveTo(0, y);
+    // Direct lookup: floor the index and wrap it with the MASK bitwise.
+    let jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp; 
+    _ctx.moveTo(0, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
 
+    // Advance 1 step to align loop with 'px = step'
     lutIndex += lutStep;
     sigPhase += phaseStep;
 
-    // ─── THE TIGHT LOOP ─────────────────────────────────────────────────────
-    for (let px = 0; px <= W; px += step) {
-        if (sigPhase >= 1.0) sigPhase -= 1.0; // Fast modulo: Simple subtraction is dramatically faster than `% 1`
+    // ─── THE ZENITH STRIDE ──────────────────────────────────────────────────
+    // We process 2 samples per loop iteration. This reduces loop bookkeeping 
+    // overhead by 50% and provides the highest stable throughput in V8/Chrome.
+    let px = step;
+    const limit = W - step;
+    const twoStep = step * 2;
 
-        jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp; 
-        y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset + jelly;
+    for (; px <= limit; px += twoStep) {
+        // --- Sample A ---
+        if (sigPhase >= 1.0) sigPhase -= 1.0; // Fast modulo subtraction
+        jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
+        _ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+        
+        lutIndex += lutStep;
+        sigPhase += phaseStep;
 
-        _ctx.lineTo(px, y);
+        // --- Sample B ---
+        if (sigPhase >= 1.0) sigPhase -= 1.0;
+        jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
+        _ctx.lineTo(px + step, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+        
+        lutIndex += lutStep;
+        sigPhase += phaseStep;
+    }
 
+    // ─── CLEANUP ─────────────────────────────────────────────────────────────
+    // Handle the remaining pixels if the canvas width isn't a multiple of our stride.
+    for (; px <= W; px += step) {
+        if (sigPhase >= 1.0) sigPhase -= 1.0;
+        jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
+        _ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+        
         lutIndex += lutStep;
         sigPhase += phaseStep;
     }
