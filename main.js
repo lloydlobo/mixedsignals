@@ -44,6 +44,7 @@
  * @property {boolean}  settings.ceremonies
  * @property {boolean}  settings.screenShake
  * @property {boolean}  settings.minigames
+ * @property {boolean}  settings.assistDisableUrgent
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -185,6 +186,7 @@ const Session = {
     volume: 0.4,
     screenShake: true,
     minigames: false,
+    assistDisableUrgent: false,
     sfxVolume: 0.4,
     postGameFreeplay: false,
 };
@@ -432,7 +434,7 @@ function lsSet(key, value) {
 const SAVE_KEY = "mixedSignalsSave";
 
 function freshSave() { return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() }; }
-const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true, minigames: false });
+const DEFAULT_SETTINGS = () => ({ bgmMuted: false, sfxMuted: false, bgmVolume: 0.4, sfxVolume: 0.4, ceremonies: true, screenShake: true, minigames: false, assistDisableUrgent: false });
 
 /** @returns {SaveData} */
 function loadSave() {
@@ -627,6 +629,7 @@ Session.screenShake = _initSettings.screenShake;
 Session.ceremonies = _initSettings.ceremonies;
 Session.minigames = _initSettings.minigames;
 Session.sfxVolume = _initSettings.sfxVolume ?? 0.4;
+Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
 
 function initAudio() {
     createMixGraph();
@@ -1817,7 +1820,7 @@ function startTimer() {
     timerInterval = setInterval(() => {
         Round.timeLeft--;
         ring.style.strokeDashoffset = C * (1 - Round.timeLeft / total);
-        const urgent = !grace && Round.timeLeft <= 8;
+        const urgent = !Session.assistDisableUrgent && !grace && Round.timeLeft <= 8;
         el.textContent = Round.timeLeft;
         el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
         ring.style.stroke = grace ? (lv.graceColor ?? "var(--blue)") : (urgent ? "#e85a4a" : "#f0690a");
@@ -2043,6 +2046,7 @@ function renderSettings() {
     sync("stg-ceremonies", s.ceremonies);
     sync("stg-shake", s.screenShake);
     sync("stg-minigames", s.minigames);
+    sync("stg-disable-urgent", s.assistDisableUrgent);
     const bgmVol = document.getElementById("stg-bgm-vol");
     if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
     const sfxVol = document.getElementById("stg-sfx-vol");
@@ -2082,6 +2086,7 @@ function initSettingsOverlay() {
     bindToggle("stg-ceremonies", "ceremonies", "ceremonies");
     bindToggle("stg-shake", "screenShake", "screenShake");
     bindToggle("stg-minigames", "minigames", "minigames");
+    bindToggle("stg-disable-urgent", "assistDisableUrgent", "assistDisableUrgent");
 
     const bindSlider = (id, key, sessionKey) => {
         const el = document.getElementById(id);
