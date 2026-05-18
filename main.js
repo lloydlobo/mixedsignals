@@ -1559,9 +1559,10 @@ function loop(ts) {
 
 function drawWave(sig, color, W, H, scroll, lineW) {
     const halfH = H * 0.5, yOffset = halfH - 10, invW = 1 / W;
+    const step = Round._recomputeScheduled ? 4 : 2;
     _ctx.strokeStyle = color; _ctx.lineWidth = lineW || 1.8;
     _ctx.beginPath();
-    for (let px = 0; px <= W; px += 2) {
+    for (let px = 0; px <= W; px += step) {
         const y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset;
         if (px === 0) _ctx.moveTo(px, y); else _ctx.lineTo(px, y);
     }
