@@ -185,6 +185,7 @@ const Session = {
     volume: 0.4,
     screenShake: true,
     minigames: false,
+    sfxVolume: 0.4,
     postGameFreeplay: false,
 };
 
@@ -625,9 +626,11 @@ Session.volume = _initSettings.bgmVolume;
 Session.screenShake = _initSettings.screenShake;
 Session.ceremonies = _initSettings.ceremonies;
 Session.minigames = _initSettings.minigames;
+Session.sfxVolume = _initSettings.sfxVolume ?? 0.4;
 
 function initAudio() {
     createMixGraph();
+    if (MIX.sfx) MIX.sfx.gain.value = Session.sfxVolume;
     const audio = UI.audio, btn = UI.buttons.mute;
     audio.muted = Session.muted; audio.volume = Session.volume;
     if (btn) { btn.textContent = "BGM"; btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)"; }
@@ -2061,7 +2064,7 @@ function onSettingsVolChange(key, sessionKey, slider) {
     writeSave(save);
     if (sessionKey) Session[sessionKey] = val;
     if (key === "bgmVolume") { Session.volume = val; UI.audio.volume = val; }
-    if (key === "sfxVolume") Session.sfxVolume = val; // sfx gain not wired yet
+    if (key === "sfxVolume") { Session.sfxVolume = val; if (MIX.sfx) MIX.sfx.gain.value = val; }
 }
 
 function initSettingsOverlay() {
