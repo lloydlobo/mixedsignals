@@ -262,6 +262,7 @@ function initUI() {
         score:      document.getElementById("score"),
         pct:        document.getElementById("pct"),
         feedback:   document.getElementById("feedback"),
+        hintLog:    document.getElementById("hint-log"),
         timer:      document.getElementById("timer"),
         roundNo:    document.getElementById("round-no"),
         roundTotal: document.getElementById("round-total"),
@@ -1916,6 +1917,7 @@ function exitLevel() {
 
 function enterLevel() {
     Round._revealedHints = new Set();
+    UI.displays.hintLog.innerHTML = "";
     transitionBGM(BGM_STATE.GAMEPLAY);
     showScreen("game");
     targetSignal = buildTarget();
@@ -2335,6 +2337,9 @@ function useHint() {
     Round._revealedHints.add(idx);
     feedback.textContent = "hint: " + hints[idx];
     feedback.className = "feedback close";
+    const entry = document.createElement("div");
+    entry.textContent = hints[idx];
+    UI.displays.hintLog.appendChild(entry);
     SFX.hint(); spawnStamp("hint");
 }
 
