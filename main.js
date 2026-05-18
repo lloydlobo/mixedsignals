@@ -1433,6 +1433,13 @@ function getScrollPeriod() {
 
 let _lastTime = 0;
 
+// 1.3 is roughly a quarter-period offset — enough that they drift visibly
+// against each other without ever being perfectly opposed. You can also
+// try Math.PI * 0.5 (exact quarter phase) or Math.PI (fully opposed,
+// mirror-image jelly) depending on which feel you like.
+const YOURS_SIGNAL_WOBBLE_PHASES = [1.3, Math.PI * 0.5, Math.PI * 0.618, Math.PI * 0.85, Math.PI];
+const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
+
 function loop(ts) {
     const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
     _elapsedTime += dt;
@@ -1463,6 +1470,8 @@ function loop(ts) {
 
     const repScroll = Round._lockScrollPos >= 0 ? Round._lockScrollPos : scroll;
 
+    const YOURS_SIGNAL_WOBBLE_PHASE = YOURS_SIGNAL_WOBBLE_PHASES[Math.min(5, Session.level)]; // Decrease wobbling as rounds get harder
+
     if (lockT > 0 && lockT < 1) {
         // Radar ring emanates from scope center during lock
         _ctx.globalAlpha = Math.max(0, 0.25 * (1 - lockT / 0.6));
@@ -1475,24 +1484,24 @@ function loop(ts) {
         const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
         _ctx.globalAlpha = 0.25 * (1 - release);
-        if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5);
+        if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0);
 
         const flash = Math.max(0, 1 - lockT / 0.35);
         _ctx.globalAlpha = flash * 0.7;
-        drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash);
+        drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE);
 
         const settle = Math.min(lockT / 0.25, 1);
         _ctx.globalAlpha = 0.4 + 0.6 * settle;
-        drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2);
+        drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE);
     } else {
         if (Round.roundNo === 1) { _ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc); if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2); }
         else if (Round.roundNo % 2 === 0) { _ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc); if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2); }
         else { _ctx.globalAlpha = 0.15 + 0.6 * t; if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2); }
 
         _ctx.globalAlpha = 0.4 + 0.6 * t;
-        if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2);
-        else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2);
-        else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2);
+        if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
+        else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
+        else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
     }
 
     _ctx.globalAlpha = 1;
@@ -1501,13 +1510,20 @@ function loop(ts) {
     animRaf = requestAnimationFrame(loop);
 }
 
-function drawWave(sig, color, W, H, scroll, lineW) {
+function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
     const halfH = H * 0.5, yOffset = halfH - 10, invW = 1 / W;
     const step = Round._recomputeScheduled ? 4 : 2;
+
+    const wobbleAmp = 2.5;                               // pixels of jelly displacement
+    const wobbleFreq = 4.0;                              // spatial frequency (wiggles across width)
+    const wobbleSpeed = 0.0018;                          // time scaling — tune for buttery vs snappy
+    const t = _elapsedTime * wobbleSpeed + wobblePhase;  // ← phase offset here
+
     _ctx.strokeStyle = color; _ctx.lineWidth = lineW || 1.8;
     _ctx.beginPath();
     for (let px = 0; px <= W; px += step) {
-        const y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset;
+        const jelly = fastSin(px * wobbleFreq * invW * Math.PI * 2 + t) * wobbleAmp;
+        const y = halfH - sample(sig, (px * invW - scroll + 1) % 1, true) * yOffset + jelly;
         if (px === 0) _ctx.moveTo(px, y); else _ctx.lineTo(px, y);
     }
     _ctx.stroke();

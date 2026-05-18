@@ -349,7 +349,7 @@ declare function scheduleRender(): void;
 declare function setType(btn: HTMLElement): void;
 declare function syncLabels(): void;
 
-declare function drawWave(sig: Signal, color: string, W: number, H: number, scroll: number, lineW: number): void;
+declare function drawWave(sig: Signal, color: string, W: number, H: number, scroll: number, lineW: number, wobblePhase?: number): void;
 declare function loop(ts: DOMHighResTimeStamp): void;
 declare function flash(color: string): void;
 declare function showScorePop(points: number): void;
