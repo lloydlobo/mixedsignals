@@ -729,26 +729,26 @@ function _warmNote(ac, freq, startTime, gain, duration, detune = 4) {
 // Five distinct melodic personalities, all warm triangle + detuned twin.
 // Picked randomly on each win so 35 locks/playthrough don't feel repetitive.
 
-// [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]]
+const _LOCK_GAIN = 0.08;
 const _LOCK_VARIANTS = [
 
     // A: "happy bounce" — ascending C chord, quick and cheerful
     (ac) => {
         [[523, 0], [659, 0.07], [784, 0.14], [1047, 0.21]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.13, 0.22 + Math.floor(stampRand() * 4)));
+            _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.22 + Math.floor(stampRand() * 4)));
     },
 
     // B: "smug little nod" — 3 notes, last one wobbles like it's pleased with itself
     (ac) => {
         [[440, 0], [554, 0.08], [659, 0.16]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.12, 0.26));
+            _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.26));
         // wobble on the last note
         const o = ac.createOscillator(), g = ac.createGain();
         o.type = "triangle"; o.frequency.value = 659;
         o.frequency.linearRampToValueAtTime(698, ac.currentTime + 0.28);
         o.frequency.linearRampToValueAtTime(659, ac.currentTime + 0.36);
         g.gain.setValueAtTime(0, ac.currentTime + 0.16);
-        g.gain.linearRampToValueAtTime(0.05, ac.currentTime + 0.18);
+        g.gain.linearRampToValueAtTime(0.03, ac.currentTime + 0.18);
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.40);
         o.connect(g); g.connect(MIX.sfx);
         o.start(ac.currentTime + 0.16); o.stop(ac.currentTime + 0.42);
@@ -757,24 +757,24 @@ const _LOCK_VARIANTS = [
     // C: "lil fanfare" — 5 notes, bounces back to middle, feels playful
     (ac) => {
         [[392, 0], [523, 0.07], [659, 0.14], [523, 0.20], [784, 0.28]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.11, 0.20));
+            _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.20));
     },
 
     // D: "soft bloop" — just 2 notes, understated, like a quiet thumbs up
     (ac) => {
         [[440, 0], [659, 0.10]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.14, 0.28, 6));
+            _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.28, 6));
     },
 
     // E: "wobbly high five" — 3 notes climbing, last one slides up a bit, triumphant but goofy
     (ac) => {
         [[523, 0], [784, 0.09], [1047, 0.18]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.10, 0.20));
+            _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.20));
         const o = ac.createOscillator(), g = ac.createGain();
         o.type = "triangle"; o.frequency.value = 1047;
         o.frequency.linearRampToValueAtTime(1175, ac.currentTime + 0.32);
         g.gain.setValueAtTime(0, ac.currentTime + 0.18);
-        g.gain.linearRampToValueAtTime(0.08, ac.currentTime + 0.20);
+        g.gain.linearRampToValueAtTime(0.06, ac.currentTime + 0.20);
         g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.38);
         o.connect(g); g.connect(MIX.sfx);
         o.start(ac.currentTime + 0.18); o.stop(ac.currentTime + 0.40);
@@ -838,7 +838,7 @@ const SFX = {
         if (Session.sfxMuted) return;
         const ac = actx();
         [[330, 0], [392, 0.1], [494, 0.2], [659, 0.32], [880, 0.44]].forEach(([f, t]) =>
-            _warmNote(ac, f, ac.currentTime + t, 0.12, 0.28));
+            _warmNote(ac, f, ac.currentTime + t, 0.12, 0.12));
     },
 
     nav: () => _sfxNote({ freq: 660, gain: 0.08, dur: 0.04 }),
