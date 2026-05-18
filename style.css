@@ -530,9 +530,6 @@ body {
     background: #211d18;
 }
 
-.scope-wrap.glow-target { animation: pulse-blue 2s ease-in-out infinite; }
-.scope-wrap.glow-yours  { animation: pulse-coral 2s ease-in-out infinite; }
-.scope-wrap.glow-ab     { animation: pulse-green 2s ease-in-out infinite; }
 .scope-wrap.glow-target.held { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--blue) 18%, transparent); }
 .scope-wrap.glow-yours.held  { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--coral) 18%, transparent); }
 .scope-wrap.glow-ab.held     { animation: none; box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--green) 18%, transparent); }
@@ -540,14 +537,6 @@ body {
     box-shadow: inset 0 0 20px 4px rgba(255,255,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.18);
     border: 1px solid rgba(255,255,255,0.08);
 }
-
-.scope-wrap.urgent.glow-target,
-.scope-wrap.urgent.glow-yours,
-.scope-wrap.urgent.glow-ab { animation-duration: 0.5s; }
-
-@keyframes pulse-blue  { 0%,100% { box-shadow: inset 0 0 8px 2px color-mix(in srgb, var(--blue) 0%, transparent); } 50% { box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--blue) 15%, transparent); } }
-@keyframes pulse-coral { 0%,100% { box-shadow: inset 0 0 8px 2px color-mix(in srgb, var(--coral) 0%, transparent); } 50% { box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--coral) 15%, transparent); } }
-@keyframes pulse-green { 0%,100% { box-shadow: inset 0 0 8px 2px color-mix(in srgb, var(--green) 0%, transparent); } 50% { box-shadow: inset 0 0 28px 8px color-mix(in srgb, var(--green) 15%, transparent); } }
 
 #c-overlay.urgent {
     animation: canvas-urgent 0.5s ease-in-out infinite;
