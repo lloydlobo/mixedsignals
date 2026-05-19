@@ -38,18 +38,28 @@ interface SaveSettings {
     assistNoFail: boolean;
 }
 
+interface TelemetryEntry {
+    level: number;
+    rounds: number;
+    hintsUsed: number;
+    skipsUsed: number;
+    score: number;
+    timeRemaining: number;
+}
+
 interface SaveData {
     highestLevel: number;
     bestScores: number[];
     seenCeremonies: number[];
     settings?: SaveSettings;
+    telemetry?: TelemetryEntry[];
 }
 
 type Screen = "start" | "dead" | "levelup" | "levelselect" | "game" | "minigame";
 
 type PlaybackMode = "off" | "target" | "yours" | "ab";
 
-type StampType = "hint" | "skip" | "fail" | "success" | "hint_broke" | "skip_broke";
+type StampType = "hint" | "skip" | "fail" | "success" | "hint_broke" | "skip_broke" | "combo_2" | "combo_3" | "combo_5";
 
 interface Channel {
     osc: OscillatorNode | null;
@@ -103,6 +113,9 @@ interface RoundState {
     roundNo: number;
     timeLeft: number;
     won: boolean;
+    combo: number;
+    _hintsUsed: number;
+    _skipsUsed: number;
     _lockAnimStart: number;
     _lockScrollPos: number;
     _lastPct: number;
