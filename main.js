@@ -1171,7 +1171,7 @@ const PB = {
 // RMS loudness normalisation per waveform type (reference: sine = 1.0)
 const WAVEFORM_GAIN = Object.freeze({
 	sine: 1.0,
-	square: 0.707, // FIXME: Prefer constants from the standard library.biomelint/suspicious/noApproximativeNumericConstant
+	square: Math.SQRT1_2, // 0.7071067811865476
 	sawtooth: 1.225,
 	triangle: 1.225,
 	pwm: 0.877,
@@ -1725,10 +1725,7 @@ const RENDER = {
 let _elapsedTime = 0;
 
 function getScrollPeriod() {
-	return Math.max(
-		RENDER.SCROLL_MIN_MS,
-		RENDER.SCROLL_BASE_MS - Session.level ** RENDER.SCROLL_EASE_EXP * RENDER.SCROLL_EASE_FACTOR,
-	);
+	return Math.max(RENDER.SCROLL_MIN_MS, RENDER.SCROLL_BASE_MS - Session.level ** RENDER.SCROLL_EASE_EXP * RENDER.SCROLL_EASE_FACTOR);
 }
 
 let _lastTime = 0;
@@ -3008,11 +3005,7 @@ function mgPeakStart(cfg) {
 
 		if (elapsed > duration) {
 			const pts = mgState.hits >= TARGET_HITS ? 30 : mgState.hits * 8;
-			mgFinish(
-				pts,
-				mgState.hits >= TARGET_HITS ? "PERFECT!" : `Missed some peaks. +${mgState.hits * 8} pts`,
-				mgState.hits >= TARGET_HITS,
-			);
+			mgFinish(pts, mgState.hits >= TARGET_HITS ? "PERFECT!" : `Missed some peaks. +${mgState.hits * 8} pts`, mgState.hits >= TARGET_HITS);
 			return;
 		}
 
