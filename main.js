@@ -1170,7 +1170,7 @@ const PB = {
 // RMS loudness normalisation per waveform type (reference: sine = 1.0)
 const WAVEFORM_GAIN = Object.freeze({
 	sine: 1.0,
-	square: 0.707,
+	square: 0.707, // FIXME: Prefer constants from the standard library.biomelint/suspicious/noApproximativeNumericConstant
 	sawtooth: 1.225,
 	triangle: 1.225,
 	pwm: 0.877,
@@ -1547,12 +1547,12 @@ function fastSin(x) {
 // ─── SIGNAL SAMPLING ─────────────────────────────────────────────────────────
 
 const SAMPLERS = Object.freeze({
-	sine: (x, u, harm) => fastSin(x),
-	square: (x, u, harm) => (fastSin(x) >= 0 ? 1 : -1),
-	sawtooth: (x, u, harm) => 2 * u - 1,
-	triangle: (x, u, harm) => (u < 0.5 ? 4 * u - 1 : 3 - 4 * u),
-	pwm: (x, u, harm) => (u < 0.65 ? 1 : -1),
-	am: (x, u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
+	sine: (x, _u, _harm) => fastSin(x),
+	square: (x, _u, _harm) => (fastSin(x) >= 0 ? 1 : -1),
+	sawtooth: (_x, u, _harm) => 2 * u - 1,
+	triangle: (_x, u, _harm) => (u < 0.5 ? 4 * u - 1 : 3 - 4 * u),
+	pwm: (_x, u, _harm) => (u < 0.65 ? 1 : -1),
+	am: (x, _u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
 });
 
 function sample(sig, t, addNoise) {
@@ -1775,7 +1775,7 @@ function loop(ts) {
 
 	const repScroll = Round._lockScrollPos >= 0 ? Round._lockScrollPos : scroll;
 
-	const YOURS_SIGNAL_WOBBLE_PHASE = YOURS_SIGNAL_WOBBLE_PHASES[Math.min(5, Session.level)]; // Decrease wobbling as rounds get harder
+	const YOURS_SIGNAL_WOBBLE_PHASE = YOURS_SIGNAL_WOBBLE_PHASES[Math.min(Math.min(5, MAX_YOURS_SIGNAL_WOBBLE_PHASES), Session.level)]; // Decrease wobbling as rounds get harder
 
 	if (lockT > 0 && lockT < 1) {
 		// Radar ring emanates from scope center during lock
@@ -2054,7 +2054,9 @@ function recompute() {
 
 function setType(btn) {
 	if (Round.won) return; // NOTE: Freeze waveform type buttons on lock-in
-	document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("active"));
+	document.querySelectorAll(".type-btn").forEach(b => {
+		b.classList.remove("active");
+	});
 	btn.classList.add("active");
 	yoursSignal.type = btn.dataset.t;
 	invalidateMatchScore();
@@ -2162,7 +2164,9 @@ function resetYours() {
 		const el = document.getElementById(`sl-${k}`);
 		if (el) el.value = yoursSignal[k];
 	});
-	document.querySelectorAll(".type-btn").forEach(b => b.classList.toggle("active", b.dataset.t === "sine"));
+	document.querySelectorAll(".type-btn").forEach(b => {
+		b.classList.toggle("active", b.dataset.t === "sine");
+	});
 	invalidateMatchScore();
 	recompute();
 }
@@ -2189,6 +2193,7 @@ function startTimer() {
 	resetTensionFilter();
 	const lv = LEVELS[Session.level];
 	const grace = lv.grace && Round.roundNo === 1; // grace round: timeout advances, never kills
+	// biome-ignore lint/suspicious/noAssignInExpressions: <quick obvious semantic assignment>
 	const total = (Round.timeLeft = lv.time);
 	const el = UI.displays.timer,
 		ring = UI.timerRingFill,
@@ -2609,7 +2614,9 @@ function goToMenu() {
 	exitLevel();
 	if (Session.tutorialActive) {
 		Session.tutorialActive = false;
-		document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+		document.querySelectorAll(".tutorial-glow").forEach(el => {
+			el.classList.remove("tutorial-glow");
+		});
 		UI.buttons.skipTut.classList.add("hidden");
 	}
 	Round.won = false;
@@ -2691,13 +2698,17 @@ function lockControl(stepIndex) {
 	const el = document.getElementById(id);
 	if (!el) return;
 	el.classList.add("tutorial-done");
-	el.querySelectorAll("input, button").forEach(i => (i.disabled = true));
+	el.querySelectorAll("input, button").forEach(i => {
+		i.disabled = true;
+	});
 }
 
 function unlockAllTutorialControls() {
 	document.querySelectorAll(".tutorial-done, .tutorial-glow").forEach(el => {
 		el.classList.remove("tutorial-done", "tutorial-glow");
-		el.querySelectorAll("input, button").forEach(i => (i.disabled = false));
+		el.querySelectorAll("input, button").forEach(i => {
+			i.disabled = false;
+		});
 	});
 }
 
@@ -2712,7 +2723,9 @@ function checkTutorial() {
 }
 
 function highlightControl() {
-	document.querySelectorAll(".tutorial-glow").forEach(el => el.classList.remove("tutorial-glow"));
+	document.querySelectorAll(".tutorial-glow").forEach(el => {
+		el.classList.remove("tutorial-glow");
+	});
 	const id = TUTORIAL_CONTROLS[Session.tutorialStep];
 	if (id) {
 		document.getElementById(id)?.classList.add("tutorial-glow");
@@ -3093,7 +3106,7 @@ function mgPeakStart(cfg) {
 
 function mgNeedleStart(cfg) {
 	let started = Date.now();
-	let duration = 6000;
+	const duration = 6000;
 	let baseSpeed = cfg.needleBase;
 	const speedLimit = cfg.needleLimit;
 	const GREEN_LO = 0.33,
@@ -3255,7 +3268,7 @@ function mgPulseStart(cfg) {
 		if (onBeat) {
 			hits++;
 			SFX.beep(660, 0.08, 0.2);
-			$mg("mg-status").textContent = "ON BEAT! " + hits + "/" + TARGET;
+			$mg("mg-status").textContent = `ON BEAT! ${hits}/${TARGET}`;
 			$mg("mg-status").className = "mg-status win";
 			if (hits >= TARGET) {
 				mgFinish(35, "PERFECT RHYTHM!", true);
@@ -3397,12 +3410,12 @@ function mgNoiseStart(cfg) {
 		const regen = elapsed < 3000 ? 0 : 0.0001;
 		noise = Math.min(1, noise + regen);
 		const timeLeft = Math.max(0, 1 - elapsed / duration);
-		$mg("mg-bar").style.width = timeLeft * 100 + "%";
+		$mg("mg-bar").style.width = `${timeLeft * 100}%`;
 		$mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
 
 		if (elapsed > duration && !mgDone) {
 			const pts = noise < 0.3 ? 20 : noise < 0.6 ? 10 : 0;
-			mgFinish(pts, noise < 0.15 ? "Mostly clear. +" + pts + " pts" : "Static remains. +" + pts + " pts", noise < 0.3);
+			mgFinish(pts, noise < 0.15 ? `Mostly clear. +${pts} pts` : `Static remains. +${pts} pts`, noise < 0.3);
 			return;
 		}
 
@@ -3450,7 +3463,7 @@ function mgNoiseStart(cfg) {
 				ctx.beginPath();
 				ctx.moveTo(x, H / 2);
 				ctx.lineTo(x, y);
-				ctx.strokeStyle = "hsl(" + (140 + Math.random() * 40) + ",60%," + (40 + Math.random() * 20) + "%)";
+				ctx.strokeStyle = `hsl(${140 + Math.random() * 40},60%,${40 + Math.random() * 20}%)`;
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
 			}
@@ -3494,10 +3507,10 @@ function mgNoiseStart(cfg) {
 		const pct = Math.round(noise * 100);
 		ctx.font = "9px Share Tech Mono";
 		ctx.fillStyle = noise > 0.5 ? "rgba(255,69,84,0.7)" : "rgba(0,255,180,0.6)";
-		ctx.fillText("NOISE: " + pct + "%", 4, 14);
+		ctx.fillText(`NOISE: ${pct}%`, 4, 14);
 
 		$mg("mg-status").textContent = noise < 0.15 ? "Almost clear!" : noise < 0.4 ? "Keep going..." : "Mash harder!";
-		$mg("mg-status").className = "mg-status" + (noise < 0.15 ? " win" : noise < 0.4 ? " amber" : "");
+		$mg("mg-status").className = `mg-status${noise < 0.15 ? " win" : noise < 0.4 ? " amber" : ""}`;
 
 		mgRaf = requestAnimationFrame(tick);
 	}
@@ -3531,7 +3544,9 @@ function initLogoScope() {
 	const mobile = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
 
 	if (mobile) {
-		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => n.removeAttribute("filter"));
+		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => {
+			n.removeAttribute("filter");
+		});
 	}
 
 	const scale = mobile ? 0.5 : 1;
@@ -3715,7 +3730,7 @@ showScreen("start");
 //  * Listens for "zenith" and dynamically imports/runs the audit suite.
 //  * NOTE: Currently perf-zenith.js is in root dir. SUGGESTION: /js/debug/perf-zenith.js
 //  */
-(function () {
+(() => {
 	// --- BRIDGE FOR ZENITH AUDIT ---
 	Object.assign(window, { matchScore, buildTarget, syncLabels, readSliders, drawWave, fastSin, _sfxNote });
 
@@ -3737,7 +3752,7 @@ showScreen("start");
 			console.log("%c 🛰️ FETCHING AUDIT SUITE... ", "color: #3498db; font-weight: bold;");
 			const s = document.createElement("script");
 			// Cache busting: ?v= allows you to see updates immediately after a push
-			s.src = "/perf-zenith.js?v=" + Date.now();
+			s.src = `/perf-zenith.js?v=${Date.now()}`;
 			s.onload = () => {
 				console.log("%c 🔓 ZENITH SUITE READY ", "color: #00ff00; font-weight: bold;");
 				window.perfAudit.runAll();
@@ -3757,11 +3772,11 @@ showScreen("start");
  * Dynamically loads perf-deepscan.js
  * and runs diagnostics.
  */
-(function () {
+(() => {
 	Object.assign(window, { matchScore, buildTarget, syncLabels, readSliders, drawWave, fastSin, _sfxNote });
 	let buffer = "";
 	const secret = "deepscan";
-	window.addEventListener("keydown", async function (e) {
+	window.addEventListener("keydown", async e => {
 		if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
 		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
 
@@ -3776,7 +3791,7 @@ showScreen("start");
 		}
 		console.log("%c📡 FETCHING PERF", "color:#3498db;font-weight:bold");
 		const s = document.createElement("script");
-		s.src = "/perf-deepscan.js?v=" + Date.now();
+		s.src = `/perf-deepscan.js?v=${Date.now()}`;
 		s.onload = async () => {
 			console.log("%c🔓 SUITE READY", "color:#00ff00;font-weight:bold");
 			await perfAuditDeepScan.runAll();
