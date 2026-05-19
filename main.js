@@ -796,13 +796,6 @@ function startMusic() {
 	audio.play();
 }
 
-// FIXME: UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-function setVolume(v) {
-	Session.volume = Math.max(0, Math.min(1, v));
-	UI.audio.volume = Session.volume;
-	lsSet("bgmVolume", String(Session.volume));
-}
-
 function toggleMute() {
 	Session.muted = !Session.muted;
 	const audio = UI.audio,
