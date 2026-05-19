@@ -103,7 +103,7 @@ yours osc  ──┘
 
 ## P3 — Emotional layer
 
-- [ ] Score expression — combo streaks, tiered stamps
+- [x] Score expression — combo streaks, tiered stamps
 - [x] Tension amplification — timer <10s: scope glow shift
 - [x] Tension amplification — timer <10s: filter sweep (low-pass 2200→150 Hz over ~7s)
 
@@ -112,15 +112,15 @@ yours osc  ──┘
 ## P4 — Structural
 
 - [x] Inline migration — verify no remaining `onclick` in HTML
-- [ ] Telemetry — `{level, attempts, hints, timeRemaining, lockPercent}` → localStorage
-- [ ] Difficulty tuning — adjust `LEVELS` timing/rounds from telemetry data
+- [x] Telemetry — `{level, attempts, hints, timeRemaining, lockPercent}` → localStorage
+- [x] Difficulty tuning — adjust `LEVELS` timing/rounds from telemetry data
 
 ---
 
 ## P5 — Test health
 
 **Option B — Self-validating tests** (minimal, 1 file only)
-- [ ] Add validation in `mixed-signals.test.js` that reads `main.js` source by regex and asserts `CONFIG`, `LEVELS.length` and other shared constants match the test file's inline copies. Catches silent drift without extracting modules.
+- [x] Add validation in `mixed-signals.test.js` that reads `main.js` source by regex and asserts `CONFIG`, `LEVELS.length` and other shared constants match the test file's inline copies. Catches silent drift without extracting modules.
 
 ---
 
@@ -140,7 +140,7 @@ yours osc  ──┘
 ### Medium priority
 
 - [ ] Remove empty `resources/image/` directory
-- [ ] Replace `Math.random()` calls in minigames (`mgNeedleStart` phaseOffset, noise bursts) with seeded game RNG for determinism
+- [x] Replace `Math.random()` calls in minigames (`mgNeedleStart` phaseOffset, noise bursts) with seeded game RNG for determinism
 - [ ] Add keyboard focus indicators — buttons with `outline: none` have no visible focus fallback
 - [ ] Prune stale git branches (20 branches — 10 local + 10 remote, several unmerged)
 
