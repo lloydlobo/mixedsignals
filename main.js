@@ -1727,7 +1727,7 @@ let _elapsedTime = 0;
 function getScrollPeriod() {
 	return Math.max(
 		RENDER.SCROLL_MIN_MS,
-		RENDER.SCROLL_BASE_MS - Math.pow(Session.level, RENDER.SCROLL_EASE_EXP) * RENDER.SCROLL_EASE_FACTOR,
+		RENDER.SCROLL_BASE_MS - Session.level ** RENDER.SCROLL_EASE_EXP * RENDER.SCROLL_EASE_FACTOR,
 	);
 }
 
@@ -2495,7 +2495,7 @@ function toggleSetting(key, sessionKey) {
 }
 
 function onSettingsVolChange(key, sessionKey, slider) {
-	const val = parseInt(slider.value) / 100;
+	const val = parseInt(slider.value, 10) / 100;
 	const save = loadSave();
 	save.settings[key] = val;
 	writeSave(save);
