@@ -4,250 +4,150 @@
 
 ## Optimization Blueprint: "Stop Auditing, Start Executing"
 
-Current status: **Math is solved.** The bottleneck is now **DOM churn** and **scheduling spikes**.
+Current status: **All applicable phases complete.** DOM churn is now negligible.
+
+> ✅ **All applicable phases implemented (commit `56e366d`).** Verified by deepscan — see Ground Truth section below.
 
 ---
 
-### Phase 1: Offload Replay (The "Hitch" Killer)
+### Phase 1: Offload Replay (The "Hitch" Killer) — N/A
 
-Don't optimize the capture; move it out of the interaction path. Use a double `requestAnimationFrame` (RAF) inside an idle period to ensure the transition finishes before the CPU spike.
-
-```javascript
-function scheduleReplay() {
-    const run = () => {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => replayCapture());
-        });
-    };
-    window.requestIdleCallback ? requestIdleCallback(run, {timeout: 5000}) : setTimeout(run, 750);
-}
-// Replace captureReplay() with scheduleReplay()
-
-```
+`captureReplay`/`replayCapture`/`toDataURL` do not exist in `main.js`. This feature exists only in perf benchmark tooling (`perf-deepscan.js`, `perf-zenith.js`). Nothing to implement here.
 
 ---
 
-### Phase 2: DOM Write Suppression
+### ✅ Phase 2: DOM Write Suppression — DONE
 
-`syncLabels()` is your biggest cost ($0.22\text{ms}$). Querying is slow, but **writing** to the DOM is slower. Use a cache and a "dirty check" to only update text when it actually changes.
+`syncLabels()` was your biggest cost ($0.22\text{ms}$). Now uses pre-cached `UI.sliders`/`UI.labels` + `setText`/`setAria` guards that skip DOM writes when unchanged.
 
-**1. Create a Cache:**
+**Implementation:** `main.js:2249-2279` — `setText()` and `setAria()` helpers + `syncLabels()` rewritten to iterate cache.
 
-```javascript
-const UI_CACHE = {};
-function cacheUI() {
-    document.querySelectorAll("[data-param]").forEach(el => {
-        const p = el.dataset.param;
-        UI_CACHE[p] = { slider: el, label: document.querySelector(`[data-for="${p}"]`) };
-    });
-}
-
-```
-
-**2. Smart Writers:**
-
-```javascript
-const setText = (el, v) => { if (el.__v !== v) { el.textContent = v; el.__v = v; } };
-const setAria = (el, v) => { if (el.__a !== v) { el.ariaValueText = v; el.__a = v; } };
-
-```
+**Measured:** $0.22\text{ms} \to 0.0167\text{ms}$ avg (deepscan) — **13× improvement, 3× under target.**
 
 ---
 
-### Phase 3: Dirty Flags (Collapse Needless Work)
+### ✅ Phase 3: Dirty Flags — ALREADY SATISFIED
 
-Stop running logic every frame. Only execute if a value actually changed.
+`syncLabels()` is only called from `scheduleRender()` which is triggered exclusively by slider `input` events via `recompute()` → `scheduleRender()` → rAF. It never runs in the main frame `loop()`. Per-label dirty tracking via `setText`/`setAria` (Phase 2) provides the right granularity.
 
-```javascript
-const DIRTY = { signal: true, ui: true };
-
-// In input listeners:
-DIRTY.signal = true; DIRTY.ui = true;
-
-// In frame loop:
-function frame() {
-    if (DIRTY.signal) { drawWave(); DIRTY.signal = false; }
-    if (DIRTY.ui) { syncLabels(); DIRTY.ui = false; }
-    requestAnimationFrame(frame);
-}
-
-```
+The main `loop()` and slider-triggered `scheduleRender()` are already on separate rAF paths — no further flagging needed.
 
 ---
 
-### Phase 4: Cleanup & Final Audit
+### ✅ Phase 4: Cleanup & Final Audit — DONE
 
-* **Delete duplicate `matchScore()`:** Keep the unrolled version ($d0...d3$); delete the other to prevent parse/maintenance overhead.
-* **Cache Static Elements:** Move `.scope-wrap`, `.timer-ring-wrap`, and `#c-overlay` into your `UI_CACHE` during init. Stop searching for them in `setInterval`.
+* ✅ **Delete duplicate `matchScore()`:** Already cleaned up in a prior commit — only one declaration remains.
+* ✅ **Cache Static Elements:** `UI.scopeWrap`, `UI.timerRingWrap` cached in `initUI()`. `UI.canvas` was already cached. All 9 `document.querySelector`/`getElementById` calls for these elements replaced with cached refs across 6 functions (`_timerTick`, `startTimer`, `exitLevel`, `enterLevel`, `setPlaybackMode`, pointer gate).
+* ✅ **Score pop pooling:** `UI.scorePop` created once in `initUI()`, reused in `showScorePop()` — no more `createElement`/`remove()` churn.
+* ✅ **Hint array allocation:** Spread+ternary `...(cond ? [text] : [])` replaced with `.push()` in `useHint()`.
+* ❌ **`drawWave()` / `sample()` inlining:** Skipped as recommended (micro-math at $0.05\text{ms}$ is not a bottleneck).
 * **Skip Micro-Math:** Do **not** inline `sample()` or optimize `readSliders`. At $0.01\text{ms}$–$0.05\text{ms}$, you are chasing noise.
 
 ---
 
-### Success Metrics
+### Success Metrics — ✅ Verified
 
-| Metric           | Before          | After                   |
-| ---------------- | --------------- | ----------------------- |
-| **Replay Hitch** | Severe Spike    | Negligible              |
-| **`syncLabels`** | $0.22\text{ms}$ | $\approx 0.05\text{ms}$ |
-| **Long Frames**  | > 0             | 0                       |
-
-**Next Step:** Open `syncLabels()`, apply the cache, and implement `setText`. Stop when you hit the **0.05ms** mark.
+| Metric           | Before          | After                         | Status |
+| ---------------- | --------------- | ----------------------------- | ------ |
+| **`syncLabels`** | $0.22\text{ms}$ | **$0.0167\text{ms}$ avg** (deepscan) | ✅ **13× improvement, 3× under 0.05ms target** |
+| **Long Frames**  | > 0             | **0** (deepscan)              | ✅ |
+| **DOM queries**  | 9 per timer tick | 0 (all cached)                | ✅ |
+| **Score pop alloc** | `createElement` per pop | 1 pooled element         | ✅ |
+| **Hint arrays**  | Throwaway spreads | `.push()`                    | ✅ |
+| **Frame budget headroom** | — | **8.33ms** (33% unused)    | ✅ |
+| **Memory**       | —               | **3.93 MB**                   | ✅ Negligible |
 
 ---
 
-## Original PERF Plan
+## Original PERF Plan — ✅ All Applicable Phases Complete
 
 Stop auditing, start executing. Profile converged. **Current reality:**
-`Game logic: negligible`, `Rendering/Memory: excellent`, `Frame cadence: stable`, `Replay: severe spike`, `DOM sync: medium cost`.
+`Game logic: negligible`, `Rendering/Memory: excellent`, `Frame cadence: stable`, `Replay: N/A (no capture feature)`, `DOM sync: ✅ fixed`.
 
-### Phase 1 — Remove replay from interaction path
+### Phase 1 — Remove replay from interaction path → N/A
 
-Hide it. Don't make it fast.
-**Current:** `Win → capture replay → show transition`.
-**Change:** `Win → show transition → idle → capture replay`.
-**Code:**
+Feature does not exist in `main.js` (only in perf benchmarking tools).
 
-```js
-function scheduleReplay(){
-    const run=()=>{replayCapture();};
-    if(window.requestIdleCallback){requestIdleCallback(run,{timeout:3000});return;}
-    setTimeout(run,500);
-}
+### ✅ Phase 2 — `syncLabels()` audit — DONE
 
-```
+`setText`/`setAria` guards with cached `UI.sliders`/`UI.labels`. DOM writes skip when value unchanged.
 
-**Replace:** `captureReplay()` with `scheduleReplay()`. **Expected:** player hitch disappears.
+### Phase 3 — Dirty flags → ALREADY SATISFIED
 
-### Phase 2 — Audit `syncLabels()`
+`syncLabels()` is only called from slider-triggered `scheduleRender()`, never from the frame loop. Per-label dirty tracking via `setText`/`setAria` covers the granularity needed.
 
-Biggest sustained cost. Look for `querySelector`, `getElementById`, `textContent`, `style`, `aria` in loops.
-**Bad:** `freqLabel.textContent=freq;` (every frame).
-**Fix:**
+### Phase 4 — Event flow → NOT APPLICABLE
 
-```js
-function setText(el,v){
-   const s=String(v);
-   if(el.textContent===s)return;
-   el.textContent=s;
-}
-
-```
-
-**Use:** `setText(freqLabel,freq);` for labels, meters, progress, aria. **Goal:** write only when changed. **Expected:** $0.22\text{ms} \to 0.05\text{--}0.08\text{ms}$.
-
-### Phase 3 — Introduce dirty flags
-
-**Current:** `frame → read → sync → draw`.
-**Convert:**
-
-```js
-let signalDirty=true, uiDirty=true;
-slider.addEventListener("input",()=>{signalDirty=true;uiDirty=true;});
-function frame(){
-   if(signalDirty){drawWave();signalDirty=false;}
-   if(uiDirty){syncLabels();uiDirty=false;}
-   requestAnimationFrame(frame);
-}
-
-```
-
-### Phase 4 — Event flow
-
-`readSliders()` ($0.01\text{ms}$) is polling. Move to:
-
-```js
-sliderFreq.addEventListener("input",e=>{yoursSignal.freq=+e.target.value;});
-
-```
-
-Inputs wake state; frames should not wake inputs.
-
-### Phase 5 — Reaudit
-
-Run `deepscan`. Target: `Replay: hidden`, `syncLabels: 0.05ms`, `drawWave: unchanged`, `longFrames: 0`. Stop before entering "$0.01\text{ms}$ territory." **Action:** Inspect `syncLabels()`.
+`readSliders()` ($0.01\text{ms}$) is already event-driven via delegated slider listener → `recompute()` → `scheduleRender()`. No polling in the frame loop.
 
 ---
 
-## Targeted Bottlenecks
-
-Profiler says: **Stop micro-optimizing math.** Attack **DOM + scheduling + allocation churn.**
-
-### 1) `syncLabels()` Cache
-
-Stop DOM searches every frame.
-
-```js
-const LABEL_CACHE={};
-function cacheLabels(){
- document.querySelectorAll("[data-param]").forEach(el=>{
-     const p=el.dataset.param;
-     LABEL_CACHE[p]={slider:el,label:document.querySelector(`[data-for="${p}"]`)};
- });
-}
+## ✅ Zenith Audit — Actual Measured Results
 
 ```
+Total Frame Pressure: 0.068ms | Target: PRO (144Hz)
+```
 
-**New `syncLabels()`:** Iterate `LABEL_CACHE`, calculate `text`, use `if(label.textContent!==text)label.textContent=text;`.
+| Metric | Total | Avg | Status |
+|--------|-------|-----|--------|
+| **UI: DOM Sync** (syncLabels) | 2.40ms | **0.0048ms** | ✅ BRIDGE-HIT — beats 0.05ms target by **10×** |
+| **Render: DrawWave** | 33.90ms | 0.0678ms | WALL-HIT |
+| **Logic: MatchScore** | 0.80ms | 0.00016ms | ZENITH |
+| **Input: readSliders** | 0.50ms | 0.00050ms | POLLING-COST |
+| **Audio: Scheduler** | 28.30ms | 0.02830ms | SCHEDULER |
+| **Trig: FastSin** | 7.90ms | 0.000008ms | BRANCHLESS |
+| **FX: Replay Capture** | 54.70ms | 54.70ms | ⚠️ JANK-RISK (N/A — only in perf tooling, not main.js) |
 
-### 2) Timer Loop Queries
-
-Inside `startTimer()`, `setInterval()` queries `.scope-wrap`, `#c-overlay`, etc. Move to `UI` cache during `initUI()` and toggle cached refs instead.
-
-### 3) `showScorePop()` Allocation
-
-Stop `createElement` on every score.
-**Fix:** Create one `SCORE_POP` div at startup. In `showScorePop(points)`, update `textContent`, toggle `.show` class, and use `void SCORE_POP.offsetWidth` to trigger animation.
-
-### 4) `drawWave()` repeated `sample()`
-
-`sample()` destructures `sig` hundreds of times. **Fix:** Unpack `freq`, `phase`, `amp`, etc., once at top of `drawWave` and inline waveform evaluation.
-
-### 5) Duplicate `matchScore()`
-
-Delete one of the two declarations. Keep the manually unrolled one ($d0...d3$).
-
-### 6) Array Allocations
-
-In hints, stop `...(lv.phase?[...]:[])`. **Fix:** `const hints=[]; hints.push(...); if(lv.phase) hints.push(...);`.
+**Grade: ELITE** — Verified sub-microsecond DSP logic & hardware-accelerated paths. Frame latency is low enough for high-refresh monitors.
 
 ---
 
-## Revised Execution Order
-
-1. **Replay scheduling** 2. **DOM write suppression** 3. **UI dirty boundaries** 4. **DOM cache cleanup** 5. **Allocation cleanup** 6. **STOP**.
-
-### Revised Phase 1 (Replay)
-
-Use double RAF to push past transition paint:
-
-```js
-function scheduleReplay(){
-    const run=()=>{requestAnimationFrame(()=>{requestAnimationFrame(()=>{replayCapture();});});};
-    if(window.requestIdleCallback){requestIdleCallback(run,{timeout:5000});return;}
-    setTimeout(run,750);
-}
+## ✅ Deepscan Ground Truth — Instrumented Results
 
 ```
-
-### Revised Phase 2 (Suppression)
-
-DOM writes ($>$ query cost). Use:
-
-```js
-function setText(el,v){const s=String(v); if(el.__v===s)return; el.__v=s; el.textContent=s;}
-function setAria(el,v){if(el.__a===v)return; el.__a=v; el.ariaValueText=v;}
-
+Frame avg: 16.66ms  |  p95: 16.70ms  |  worst: 16.80ms  |  budget: 24.99ms  |  longFrames: 0
+Memory: 3.93 MB used / 6.98 MB total
 ```
 
-### Revised Phase 3 (Dirty Flags)
+| Function | Avg | Worst | Calls |
+|----------|-----|-------|-------|
+| **syncLabels** | **0.0167ms** | 0.200ms | 30 |
+| drawWave | 0.2000ms | 1.500ms | 30 |
+| readSliders | 0.0067ms | 0.100ms | 30 |
+| matchScore | 0.0000ms | 0.0000ms | 30 |
 
-Use source ownership: `const DIRTY={signal:true,ui:true};`. Update flags in input listeners; check in `frame()`.
+**Replay capture worst:** 58.10ms (N/A — only in perf tooling)
 
-### Revised Phase 4-7 Notes
+| Metric | Value |
+|--------|-------|
+| Frame budget headroom | **8.33ms** (33% of budget unused) |
+| syncLabels vs documented target | **0.0167ms avg** beats **0.05ms** by **3×** |
+| syncLabels vs pre-opt estimate | **0.0167ms avg** beats **0.22ms** by **13×** |
+| Memory footprint | **3.93 MB** — negligible |
 
-* **Slider polling:** No longer urgent ($0.01\text{ms}$).
-* **Inline `sample()`:** Stale recommendation ($0.05\text{ms}$ is fine).
-* **Duplicate `matchScore`:** Still important for correctness.
-* **Score popup:** Only pool if rapid combo chains occur.
+---
 
-**New Priority:** 1. `scheduleReplay()` 2. `setText/setAria` 3. `DIRTY` flags 4. Remove duplicate `matchScore` 5. Cache DOM refs. **STOP.**
+## Targeted Bottlenecks — ✅ Status
+
+| # | Bottleneck | Status |
+|---|-----------|--------|
+| 1 | `syncLabels()` cache | ✅ **DONE** — iterates `UI.sliders`/`UI.labels` with `setText`/`setAria` guards |
+| 2 | Timer loop queries | ✅ **DONE** — `.scope-wrap`, `#c-overlay`, `.timer-ring-wrap` cached in `UI` |
+| 3 | `showScorePop()` allocation | ✅ **DONE** — pooled `UI.scorePop` element, no more `createElement` per pop |
+| 4 | `drawWave()` / `sample()` inlining | ❌ Skipped — micro-math ($0.05\text{ms}$) is not the bottleneck per PERF.md |
+| 5 | Duplicate `matchScore()` | ✅ Already cleaned up in prior commit |
+| 6 | Array allocations (hints) | ✅ **DONE** — spread+ternary replaced with `.push()` |
+
+---
+
+## ✅ Revised Execution Order — All Complete
+
+| Priority | Item | Status |
+|----------|------|--------|
+| 1 | Replay scheduling | N/A — no capture feature in `main.js` |
+| 2 | `setText`/`setAria` + `syncLabels` cache | ✅ **DONE** |
+| 3 | Dirty flags | ✅ Already satisfied (separate rAF paths) |
+| 4 | Remove duplicate `matchScore` | ✅ Already cleaned up |
+| 5 | Cache DOM refs (scopeWrap, timerRingWrap, scorePop) | ✅ **DONE** |
+| 6 | Hint array allocations | ✅ **DONE** |
+| — | **STOP** | ✅ **All applicable phases complete** |
