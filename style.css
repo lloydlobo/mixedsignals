@@ -361,12 +361,15 @@ body {
     cursor: pointer;
     border-radius: var(--radius-tile);
     border: none;
-    outline: none;
     background: var(--surface2);
-    /* background: color-mix(in oklch, var(--surface2) 50%, var(--surface2));   */
     color: var(--cream);
     box-shadow: var(--shadow-md);
-    transition: transform .07s, box-shadow .07s;
+    transition: transform .07s, box-shadow .07s, outline .1s;
+}
+
+.crt-btn:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 2px;
 }
 
 .crt-btn:hover { background: var(--color-surface-hover); }
@@ -679,14 +682,18 @@ canvas.scope {
     padding: 10px 2px 8px;
     cursor: pointer;
     border-radius: var(--radius-tile);
-    outline: none;
     font-family: var(--font-ui);
     font-weight: 700;
     font-size: 10px;
     color: var(--text-mute);
     box-shadow: var(--shadow-sm);
-    transition: transform .07s, box-shadow .07s;
+    transition: transform .07s, box-shadow .07s, outline .1s;
     user-select: none;
+}
+
+.type-btn:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 1px;
 }
 
 .type-btn:active {
@@ -1132,6 +1139,11 @@ input[type=range]::-moz-range-thumb {
     color: var(--blue);
     background: rgba(91, 141, 217, 0.12);
 }
+.settings-toggle:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 2px;
+}
+
 .settings-toggle:active {
     transform: translateY(2px);
     box-shadow: none;
@@ -1478,10 +1490,14 @@ b {
     cursor: pointer;
     transition: color .1s, border-color .1s, background .1s, transform .07s, box-shadow .07s;
     box-shadow: var(--shadow-sm);
-    outline: none;
     user-select: none;
 }
- 
+
+.pb-btn:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 2px;
+}
+
 .pb-btn:hover {
     color: var(--text-dim);
     border-color: var(--surface2);
@@ -1547,8 +1563,13 @@ b {
     cursor: pointer;
     font-family: var(--font-ui);
     text-align: left;
-    transition: transform .07s, box-shadow .07s;
+    transition: transform .07s, box-shadow .07s, outline .1s;
     box-shadow: var(--shadow-sm);
+}
+
+.level-select-btn:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 1px;
 }
  
 /* Unlocked — playable */
