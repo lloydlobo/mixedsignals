@@ -47,15 +47,15 @@ The main `loop()` and slider-triggered `scheduleRender()` are already on separat
 
 ### Success Metrics — ✅ Verified
 
-| Metric           | Before          | After                         | Status |
-| ---------------- | --------------- | ----------------------------- | ------ |
-| **`syncLabels`** | $0.22\text{ms}$ | **$0.0167\text{ms}$ avg** (deepscan) | ✅ **13× improvement, 3× under 0.05ms target** |
-| **Long Frames**  | > 0             | **0** (deepscan)              | ✅ |
-| **DOM queries**  | 9 per timer tick | 0 (all cached)                | ✅ |
-| **Score pop alloc** | `createElement` per pop | 1 pooled element         | ✅ |
-| **Hint arrays**  | Throwaway spreads | `.push()`                    | ✅ |
-| **Frame budget headroom** | — | **8.33ms** (33% unused)    | ✅ |
-| **Memory**       | —               | **3.93 MB**                   | ✅ Negligible |
+| Metric                    | Before                  | After                                | Status                                      |
+| ------------------------- | ----------------------- | ------------------------------------ | ------------------------------------------- |
+| **`syncLabels`**          | $0.22\text{ms}$         | **$0.0167\text{ms}$ avg** (deepscan) | **13× improvement, 3× under 0.05ms target** |
+| **Long Frames**           | > 0                     | **0** (deepscan)                     |                                             |
+| **DOM queries**           | 9 per timer tick        | 0 (all cached)                       |                                             |
+| **Score pop alloc**       | `createElement` per pop | 1 pooled element                     |                                             |
+| **Hint arrays**           | Throwaway spreads       | `.push()`                            |                                             |
+| **Frame budget headroom** | —                       | **8.33ms** (33% unused)              |                                             |
+| **Memory**                | —                       | **3.93 MB**                          | Negligible                                  |
 
 ---
 
@@ -88,15 +88,15 @@ Feature does not exist in `main.js` (only in perf benchmarking tools).
 Total Frame Pressure: 0.068ms | Target: PRO (144Hz)
 ```
 
-| Metric | Total | Avg | Status |
-|--------|-------|-----|--------|
-| **UI: DOM Sync** (syncLabels) | 2.40ms | **0.0048ms** | ✅ BRIDGE-HIT — beats 0.05ms target by **10×** |
-| **Render: DrawWave** | 33.90ms | 0.0678ms | WALL-HIT |
-| **Logic: MatchScore** | 0.80ms | 0.00016ms | ZENITH |
-| **Input: readSliders** | 0.50ms | 0.00050ms | POLLING-COST |
-| **Audio: Scheduler** | 28.30ms | 0.02830ms | SCHEDULER |
-| **Trig: FastSin** | 7.90ms | 0.000008ms | BRANCHLESS |
-| **FX: Replay Capture** | 54.70ms | 54.70ms | ⚠️ JANK-RISK (N/A — only in perf tooling, not main.js) |
+| Metric                        | Total   | Avg          | Status                                              |
+| ----------------------------- | ------- | ------------ | --------------------------------------------------- |
+| **UI: DOM Sync** (syncLabels) | 2.40ms  | **0.0048ms** | BRIDGE-HIT — beats 0.05ms target by **10×**         |
+| **Render: DrawWave**          | 33.90ms | 0.0678ms     | WALL-HIT                                            |
+| **Logic: MatchScore**         | 0.80ms  | 0.00016ms    | ZENITH                                              |
+| **Input: readSliders**        | 0.50ms  | 0.00050ms    | POLLING-COST                                        |
+| **Audio: Scheduler**          | 28.30ms | 0.02830ms    | SCHEDULER                                           |
+| **Trig: FastSin**             | 7.90ms  | 0.000008ms   | BRANCHLESS                                          |
+| **FX: Replay Capture**        | 54.70ms | 54.70ms      | JANK-RISK (N/A — only in perf tooling, not main.js) |
 
 **Grade: ELITE** — Verified sub-microsecond DSP logic & hardware-accelerated paths. Frame latency is low enough for high-refresh monitors.
 
@@ -109,45 +109,45 @@ Frame avg: 16.66ms  |  p95: 16.70ms  |  worst: 16.80ms  |  budget: 24.99ms  |  l
 Memory: 3.93 MB used / 6.98 MB total
 ```
 
-| Function | Avg | Worst | Calls |
-|----------|-----|-------|-------|
-| **syncLabels** | **0.0167ms** | 0.200ms | 30 |
-| drawWave | 0.2000ms | 1.500ms | 30 |
-| readSliders | 0.0067ms | 0.100ms | 30 |
-| matchScore | 0.0000ms | 0.0000ms | 30 |
+| Function       | Avg          | Worst    | Calls |
+| -------------- | ------------ | -------- | ----- |
+| **syncLabels** | **0.0167ms** | 0.200ms  | 30    |
+| drawWave       | 0.2000ms     | 1.500ms  | 30    |
+| readSliders    | 0.0067ms     | 0.100ms  | 30    |
+| matchScore     | 0.0000ms     | 0.0000ms | 30    |
 
 **Replay capture worst:** 58.10ms (N/A — only in perf tooling)
 
-| Metric | Value |
-|--------|-------|
-| Frame budget headroom | **8.33ms** (33% of budget unused) |
-| syncLabels vs documented target | **0.0167ms avg** beats **0.05ms** by **3×** |
-| syncLabels vs pre-opt estimate | **0.0167ms avg** beats **0.22ms** by **13×** |
-| Memory footprint | **3.93 MB** — negligible |
+| Metric                          | Value                                        |
+| ------------------------------- | -------------------------------------------- |
+| Frame budget headroom           | **8.33ms** (33% of budget unused)            |
+| syncLabels vs documented target | **0.0167ms avg** beats **0.05ms** by **3×**  |
+| syncLabels vs pre-opt estimate  | **0.0167ms avg** beats **0.22ms** by **13×** |
+| Memory footprint                | **3.93 MB** — negligible                     |
 
 ---
 
 ## Targeted Bottlenecks — ✅ Status
 
-| # | Bottleneck | Status |
-|---|-----------|--------|
-| 1 | `syncLabels()` cache | ✅ **DONE** — iterates `UI.sliders`/`UI.labels` with `setText`/`setAria` guards |
-| 2 | Timer loop queries | ✅ **DONE** — `.scope-wrap`, `#c-overlay`, `.timer-ring-wrap` cached in `UI` |
-| 3 | `showScorePop()` allocation | ✅ **DONE** — pooled `UI.scorePop` element, no more `createElement` per pop |
-| 4 | `drawWave()` / `sample()` inlining | ❌ Skipped — micro-math ($0.05\text{ms}$) is not the bottleneck per PERF.md |
-| 5 | Duplicate `matchScore()` | ✅ Already cleaned up in prior commit |
-| 6 | Array allocations (hints) | ✅ **DONE** — spread+ternary replaced with `.push()` |
+| #   | Bottleneck                         | Status                                                                       |
+| --- | ---------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | `syncLabels()` cache               | **DONE** — iterates `UI.sliders`/`UI.labels` with `setText`/`setAria` guards |
+| 2   | Timer loop queries                 | **DONE** — `.scope-wrap`, `#c-overlay`, `.timer-ring-wrap` cached in `UI`    |
+| 3   | `showScorePop()` allocation        | **DONE** — pooled `UI.scorePop` element, no more `createElement` per pop     |
+| 4   | `drawWave()` / `sample()` inlining | Skipped — micro-math ($0.05\text{ms}$) is not the bottleneck per PERF.md     |
+| 5   | Duplicate `matchScore()`           | Already cleaned up in prior commit                                           |
+| 6   | Array allocations (hints)          | **DONE** — spread+ternary replaced with `.push()`                            |
 
 ---
 
 ## ✅ Revised Execution Order — All Complete
 
-| Priority | Item | Status |
-|----------|------|--------|
-| 1 | Replay scheduling | N/A — no capture feature in `main.js` |
-| 2 | `setText`/`setAria` + `syncLabels` cache | ✅ **DONE** |
-| 3 | Dirty flags | ✅ Already satisfied (separate rAF paths) |
-| 4 | Remove duplicate `matchScore` | ✅ Already cleaned up |
-| 5 | Cache DOM refs (scopeWrap, timerRingWrap, scorePop) | ✅ **DONE** |
-| 6 | Hint array allocations | ✅ **DONE** |
-| — | **STOP** | ✅ **All applicable phases complete** |
+| Priority | Item                                                | Status                                 |
+| -------- | --------------------------------------------------- | -------------------------------------- |
+| 1        | Replay scheduling                                   | N/A — no capture feature in `main.js`  |
+| 2        | `setText`/`setAria` + `syncLabels` cache            | **DONE**                               |
+| 3        | Dirty flags                                         | Already satisfied (separate rAF paths) |
+| 4        | Remove duplicate `matchScore`                       | Already cleaned up                     |
+| 5        | Cache DOM refs (scopeWrap, timerRingWrap, scorePop) | **DONE**                               |
+| 6        | Hint array allocations                              | **DONE**                               |
+| —        | **STOP**                                            | **All applicable phases complete**     |
