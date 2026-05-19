@@ -695,11 +695,11 @@ const _bgmCache = new Map();
 const _bgmCacheMax = 6;
 
 function _bgmSrc(filename) {
-	return _bgmCache.get(filename) ?? "resources/music/" + filename;
+	return _bgmCache.get(filename) ?? `resources/music/${filename}`;
 }
 
 function _prefetchBGM(filename) {
-	return fetch("resources/music/" + filename)
+	return fetch(`resources/music/${filename}`)
 		.then(r => {
 			if (!r.ok) throw Error();
 			return r.blob();
@@ -1500,7 +1500,7 @@ function setPlaybackMode(mode) {
 	const wrap = document.querySelector(".scope-wrap");
 	if (wrap) {
 		wrap.classList.remove("glow-target", "glow-yours", "glow-ab");
-		if (mode !== "off") wrap.classList.add("glow-" + mode);
+		if (mode !== "off") wrap.classList.add(`glow-${mode}`);
 	}
 }
 
@@ -1937,7 +1937,7 @@ function showScorePop(points) {
 	if (!scoreEl) return;
 	const pop = document.createElement("div");
 	pop.className = "score-pop";
-	pop.textContent = "+" + points;
+	pop.textContent = `+${points}`;
 	scoreEl.parentElement.style.position = "relative";
 	scoreEl.parentElement.appendChild(pop);
 	setTimeout(() => pop.remove(), 800);
@@ -2017,11 +2017,11 @@ function syncLabels() {
 		const label = document.querySelector(`[data-for="${param}"]`);
 		if (!label) return;
 		if (unit === "Hz") {
-			label.textContent = raw + " Hz";
-			el.setAttribute("aria-valuetext", raw + " Hz");
+			label.textContent = `${raw} Hz`;
+			el.setAttribute("aria-valuetext", `${raw} Hz`);
 		} else if (unit === "°") {
-			label.textContent = raw + "°";
-			el.setAttribute("aria-valuetext", raw + "°");
+			label.textContent = `${raw}°`;
+			el.setAttribute("aria-valuetext", `${raw}°`);
 		} else {
 			label.textContent = (raw / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
 			el.setAttribute("aria-valuetext", (raw / 10).toFixed(1));
@@ -2775,12 +2775,12 @@ function useHint() {
 	}
 	const lv = LEVELS[Session.level];
 	const hints = [
-		"type: " + targetSignal.type,
-		"freq: " + targetSignal.freq + " Hz",
-		"amp: " + (targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION),
-		...(lv.phase ? ["phase: " + targetSignal.phase + "°"] : []),
-		...(lv.dc && targetSignal.dc !== 0 ? ["dc: " + (targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
-		...(lv.harm && targetSignal.harm > 0 ? ["harmonic: " + (targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)] : []),
+		`type: ${targetSignal.type}`,
+		`freq: ${targetSignal.freq} Hz`,
+		`amp: ${(targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`,
+		...(lv.phase ? [`phase: ${targetSignal.phase}°`] : []),
+		...(lv.dc && targetSignal.dc !== 0 ? [`dc: ${(targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`] : []),
+		...(lv.harm && targetSignal.harm > 0 ? [`harmonic: ${(targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`] : []),
 	];
 	const unrevealedIndices = hints.map((_, i) => i).filter(i => !Round._revealedHints.has(i));
 	const feedback = UI.displays.feedback;
@@ -2794,7 +2794,7 @@ function useHint() {
 	dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
 	const idx = unrevealedIndices[rng(0, unrevealedIndices.length - 1)];
 	Round._revealedHints.add(idx);
-	feedback.textContent = "hint: " + hints[idx];
+	feedback.textContent = `hint: ${hints[idx]}`;
 	feedback.className = "feedback close";
 	const entry = document.createElement("div");
 	entry.textContent = hints[idx];
@@ -2875,12 +2875,12 @@ function mgStart(cfg, mg) {
 	btn.disabled = true;
 
 	let c = 3;
-	$mg("mg-status").textContent = "GET READY · " + c;
+	$mg("mg-status").textContent = `GET READY · ${c}`;
 	const iv = setInterval(() => {
 		c--;
 		SFX.beep(c > 0 ? 660 : 880, 0.1, 0.15);
 		if (c > 0) {
-			$mg("mg-status").textContent = "GET READY · " + c;
+			$mg("mg-status").textContent = `GET READY · ${c}`;
 		} else {
 			clearInterval(iv);
 			$mg("mg-status").textContent = "GO!";
@@ -2918,8 +2918,8 @@ function mgFinish(pts, msg, win) {
 	dispatch({ type: "SCORE_ADD", payload: pts });
 
 	$mg("mg-status").textContent = msg;
-	$mg("mg-status").className = "mg-status " + (win ? "win" : "bad");
-	$mg("mg-bonus-tag").textContent = pts > 0 ? "+" + pts + " pts bonus carried to next level" : "no bonus this time";
+	$mg("mg-status").className = `mg-status ${win ? "win" : "bad"}`;
+	$mg("mg-bonus-tag").textContent = pts > 0 ? `+${pts} pts bonus carried to next level` : "no bonus this time";
 
 	const btn = $mg("mg-btn");
 	btn.textContent = "CONTINUE";
@@ -2986,7 +2986,7 @@ function mgPeakStart(cfg) {
 		mgState.hits = hits;
 		SFX.beep(880 + hits * 80, 0.1, 0.2);
 		mgState.flashUntil = performance.now() + 80;
-		$mg("mg-status").textContent = "HIT! " + hits + "/" + TARGET_HITS;
+		$mg("mg-status").textContent = `HIT! ${hits}/${TARGET_HITS}`;
 		$mg("mg-status").className = "mg-status win";
 		peakHitThisWindow = true;
 		mgState.canHit = false;
@@ -3003,14 +3003,14 @@ function mgPeakStart(cfg) {
 		const now = Date.now(),
 			elapsed = now - startT;
 		const timeLeft = Math.max(0, (duration - elapsed) / duration);
-		$mg("mg-bar").style.width = timeLeft * 100 + "%";
+		$mg("mg-bar").style.width = `${timeLeft * 100}%`;
 		$mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
 
 		if (elapsed > duration) {
 			const pts = mgState.hits >= TARGET_HITS ? 30 : mgState.hits * 8;
 			mgFinish(
 				pts,
-				mgState.hits >= TARGET_HITS ? "PERFECT!" : "Missed some peaks. +" + mgState.hits * 8 + " pts",
+				mgState.hits >= TARGET_HITS ? "PERFECT!" : `Missed some peaks. +${mgState.hits * 8} pts`,
 				mgState.hits >= TARGET_HITS,
 			);
 			return;
@@ -3133,14 +3133,14 @@ function mgNeedleStart(cfg) {
 		tryNo++;
 		if (tryNo >= MAX_TRIES || inZone) {
 			stopped = true;
-			mgFinish(bestPts, bestPts > 0 ? "LOCKED! +" + bestPts + " pts" : "MISSED THE ZONE", bestPts > 0);
+			mgFinish(bestPts, bestPts > 0 ? `LOCKED! +${bestPts} pts` : "MISSED THE ZONE", bestPts > 0);
 		} else {
 			baseSpeed = Math.min(speedLimit, baseSpeed + 0.15);
 			phaseOffset = Math.random() * Math.PI * 2;
 			started = Date.now();
 			btn.textContent = "STOP";
 			btn.disabled = false;
-			$mg("mg-status").textContent = "TRY " + (tryNo + 1) + " OF " + MAX_TRIES;
+			$mg("mg-status").textContent = `TRY ${tryNo + 1} OF ${MAX_TRIES}`;
 			$mg("mg-status").className = "mg-status amber";
 		}
 	};
@@ -3215,8 +3215,8 @@ function mgNeedleStart(cfg) {
 
 		const speedPct = Math.min(1, (speed - 0.6) / 0.8);
 		ctx.font = "9px Share Tech Mono";
-		ctx.fillStyle = "rgba(255,69,84," + speedPct.toFixed(2) + ")";
-		ctx.fillText("SPEED: " + speed.toFixed(2) + "x", 4, 16);
+		ctx.fillStyle = `rgba(255,69,84,${speedPct.toFixed(2)})`;
+		ctx.fillText(`SPEED: ${speed.toFixed(2)}x`, 4, 16);
 
 		// Precision label
 		if (inZone) {
@@ -3297,7 +3297,7 @@ function mgPulseStart(cfg) {
 		const now = Date.now(),
 			elapsed = now - startT;
 		if (elapsed > 10000 && !mgDone) {
-			mgFinish(hits * 8, "Time's up. +" + hits * 8 + " pts", false);
+			mgFinish(hits * 8, `Time's up. +${hits * 8} pts`, false);
 			return;
 		}
 		const sinceLastBeat = now - lastBeatT;
@@ -3324,7 +3324,7 @@ function mgPulseStart(cfg) {
 		// Contracting ring
 		const ring = Math.max(0, (1 - beatPhase) * W * 0.45);
 		const alpha = Math.max(0, 1 - beatPhase);
-		ctx.strokeStyle = "rgba(0,255,180," + (alpha * 0.5).toFixed(2) + ")";
+		ctx.strokeStyle = `rgba(0,255,180,${(alpha * 0.5).toFixed(2)})`;
 		ctx.lineWidth = 2;
 		ctx.beginPath();
 		ctx.arc(W / 2, H / 2, ring, 0, Math.PI * 2);
@@ -3358,7 +3358,7 @@ function mgPulseStart(cfg) {
 
 		ctx.font = "9px Share Tech Mono";
 		ctx.fillStyle = "rgba(90,112,96,0.6)";
-		ctx.fillText("BPM: " + BPM, 4, 14);
+		ctx.fillText(`BPM: ${BPM}`, 4, 14);
 
 		mgRaf = requestAnimationFrame(tick);
 	}
