@@ -239,7 +239,7 @@
                                     </svg>
                                     Freq
                                 </label>
-                                <span class="slider-val"><b id="lbl-freq" data-for="freq">1 Hz</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="freq"></span><b id="lbl-freq" data-for="freq">1 Hz</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" data-param="freq" data-unit="Hz" />
@@ -255,7 +255,7 @@
                                     </svg>
                                     Amp
                                 </label>
-                                <span class="slider-val"><b id="lbl-amp" data-for="amp">0.50</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="amp"></span><b id="lbl-amp" data-for="amp">0.50</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" data-param="amp" />
@@ -273,7 +273,7 @@
                                     </svg>
                                     Phase
                                 </label>
-                                <span class="slider-val"><b id="lbl-phase" data-for="phase">0&deg;</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="phase"></span><b id="lbl-phase" data-for="phase">0&deg;</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" data-param="phase" data-unit="°" />
@@ -289,7 +289,7 @@
                                     </svg>
                                     DC Off
                                 </label>
-                                <span class="slider-val"><b id="lbl-dc" data-for="dc">0.00</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="dc"></span><b id="lbl-dc" data-for="dc">0.00</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" data-param="dc" />
@@ -305,7 +305,7 @@
                                     </svg>
                                     Harm
                                 </label>
-                                <span class="slider-val"><b id="lbl-harm" data-for="harm">0.00</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="harm"></span><b id="lbl-harm" data-for="harm">0.00</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" data-param="harm" />
@@ -395,6 +395,14 @@
                     <div class="settings-row">
                         <span>No fail</span>
                         <button class="settings-toggle" id="stg-no-fail">OFF</button>
+                    </div>
+                    <div class="settings-row">
+                        <span>Param guide</span>
+                        <button class="settings-toggle" id="stg-param-guide">OFF</button>
+                    </div>
+                    <div class="settings-row">
+                        <span>Score-gated guide</span>
+                        <button class="settings-toggle" id="stg-score-gated">OFF</button>
                     </div>
                 </div>
 

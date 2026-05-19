@@ -795,6 +795,23 @@ canvas.scope {
 label:hover .param-glyph { stroke: var(--text-dim); }
 label:hover .param-glyph path, label:hover .param-glyph line { stroke-opacity: 1; }
 
+/* ─── PARAM GRADIENT ARROWS ─────────────────────────────────────── */
+.param-arrow {
+	display: inline-block;
+	font-size: 9px;
+	line-height: 1;
+	margin-inline-end: 3px;
+	vertical-align: middle;
+	color: transparent;
+	transition: color .15s, opacity .15s;
+	user-select: none;
+	pointer-events: none;
+}
+
+.param-arrow.arrow-ok     { color: var(--green);    opacity: 0.45; }
+.param-arrow.arrow-soft   { color: var(--amber);    opacity: 0.55; }
+.param-arrow.arrow-strong { color: var(--cream);    opacity: 0.90; }
+
 /* Track */
 input[type=range] {
     flex: 1;

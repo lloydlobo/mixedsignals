@@ -206,6 +206,8 @@ const Session = {
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
+	assistParamGuide: false,
+	assistScoreGated: false,
 	sfxVolume: 0.4,
 	// FIXME: postGameFreeplay: This needs to have unlimited rounds (currently it adopts whatever the last round had/has)
 	// FIXME: postGameFreeplay: Timer also counts down till it stops at 0 and then shows the following feedback
@@ -509,6 +511,8 @@ const DEFAULT_SETTINGS = () => ({
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
+	assistParamGuide: false,
+	assistScoreGated: false,
 });
 
 /** @returns {SaveData} */
@@ -755,6 +759,8 @@ Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
 Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
 Session.assistEasyMatch = _initSettings.assistEasyMatch;
 Session.assistNoFail = _initSettings.assistNoFail;
+Session.assistParamGuide = _initSettings.assistParamGuide;
+Session.assistScoreGated = _initSettings.assistScoreGated;
 
 function initAudio() {
 	createMixGraph();
@@ -1636,6 +1642,77 @@ function invalidateMatchScore() {
 	_matchScoreDirty = true;
 }
 
+// ─── PARAM GRADIENT ASSIST ───────────────────────────────────────────────────
+
+const GRADIENT_STEPS = { freq: 1, amp: 0.5, phase: 5, dc: 0.5, harm: 0.5 };
+
+function paramGradient() {
+	if (!targetSignal || Round.won || Session.freePlayActive) return null;
+	const base = matchScore();
+	const result = {};
+
+	for (const [param, step] of Object.entries(GRADIENT_STEPS)) {
+		const saved = yoursSignal[param];
+
+		yoursSignal[param] = saved + step;
+		_matchScoreDirty = true;
+		const scoreUp = matchScore();
+
+		yoursSignal[param] = saved - step;
+		_matchScoreDirty = true;
+		const scoreDown = matchScore();
+
+		yoursSignal[param] = saved;
+		_matchScoreDirty = true;
+
+		const best = Math.max(scoreUp, scoreDown);
+		if (best <= base) {
+			result[param] = { dir: 0, magnitude: 0 };
+		} else {
+			result[param] = {
+				dir: scoreUp >= scoreDown ? 1 : -1,
+				magnitude: best - base,
+			};
+		}
+	}
+
+	return result;
+}
+
+function updateParamArrows() {
+	const arrows = document.querySelectorAll(".param-arrow");
+	const guideOn = Session.assistParamGuide;
+	const affordable = !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
+
+	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
+		arrows.forEach(el => { el.textContent = ""; el.className = "param-arrow"; });
+		return;
+	}
+
+	const gradient = paramGradient();
+	if (!gradient) { arrows.forEach(el => { el.textContent = ""; }); return; }
+
+	if (yoursSignal.type !== targetSignal.type) {
+		arrows.forEach(el => { el.textContent = ""; el.className = "param-arrow"; });
+		return;
+	}
+
+	arrows.forEach(el => {
+		const param = el.dataset.param;
+		const g = gradient[param];
+		if (!g) return;
+
+		if (g.dir === 0) {
+			el.textContent = "·";
+			el.className = "param-arrow arrow-ok";
+		} else {
+			el.textContent = g.dir > 0 ? "↑" : "↓";
+			const strong = g.magnitude > 0.05;
+			el.className = "param-arrow " + (strong ? "arrow-strong" : "arrow-soft");
+		}
+	});
+}
+
 // Noise widens the win threshold: noisy targets are easier to lock in.
 // The noise slider is hidden — players can't match it, they just need to
 // get close enough despite it.
@@ -2147,6 +2224,7 @@ function scheduleRender() {
 	requestAnimationFrame(() => {
 		updateMeter();
 		syncLabels();
+		updateParamArrows();
 		const now = Date.now();
 		if (now - _lastSliderSfx > 80) {
 			SFX.slider();
@@ -2588,6 +2666,8 @@ function renderSettings() {
 	sync("stg-infinite-time", s.assistInfiniteTime);
 	sync("stg-easy-match", s.assistEasyMatch);
 	sync("stg-no-fail", s.assistNoFail);
+	sync("stg-param-guide", s.assistParamGuide);
+	sync("stg-score-gated", s.assistScoreGated);
 	const bgmVol = document.getElementById("stg-bgm-vol");
 	if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
 	const sfxVol = document.getElementById("stg-sfx-vol");
@@ -2643,6 +2723,8 @@ function initSettingsOverlay() {
 	bindToggle("stg-infinite-time", "assistInfiniteTime", "assistInfiniteTime");
 	bindToggle("stg-easy-match", "assistEasyMatch", "assistEasyMatch");
 	bindToggle("stg-no-fail", "assistNoFail", "assistNoFail");
+	bindToggle("stg-param-guide", "assistParamGuide", "assistParamGuide");
+	bindToggle("stg-score-gated", "assistScoreGated", "assistScoreGated");
 
 	const bindSlider = (id, key, sessionKey) => {
 		const el = document.getElementById(id);
