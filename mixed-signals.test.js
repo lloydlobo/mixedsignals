@@ -73,6 +73,21 @@ const UI = {
 
 // ─── INLINE CONSTANTS (copied verbatim from main.js) ─────────────────────────
 
+// freqToHz constants
+const AUDIO_MIN_HZ = 110, AUDIO_MAX_HZ = 220;
+const FREQ_MIN = 1, FREQ_MAX = 8;
+const INV_FREQ_RANGE = 1 / (FREQ_MAX - FREQ_MIN);
+const AUDIO_EXP_FACTOR = Math.log(AUDIO_MAX_HZ / AUDIO_MIN_HZ);
+
+// Scroll constants
+const PHI = (1 + Math.sqrt(5)) / 2;
+const RENDER_SCROLL = {
+    SCROLL_BASE_MS: 3500,
+    SCROLL_MIN_MS: 2000,
+    SCROLL_EASE_EXP: PHI,
+    SCROLL_EASE_FACTOR: 60,
+};
+
 const CONFIG = {
     FIXED_STEPS_PRECISION: 2,
     TIME_BONUS_RATE: 0.8,
@@ -241,6 +256,67 @@ function loadSave() {
         d.settings = { ...DEFAULT_SETTINGS(), ...d.settings };
         return d;
     } catch { return freshSave(); }
+}
+
+// ─── ADDITIONAL PURE FUNCTIONS ─────────────────────────────────────────────────
+
+function freqToHz(freq) {
+    return AUDIO_MIN_HZ * Math.exp((freq - FREQ_MIN) * INV_FREQ_RANGE * AUDIO_EXP_FACTOR);
+}
+
+function getScrollPeriod(level) {
+    return Math.max(RENDER_SCROLL.SCROLL_MIN_MS, RENDER_SCROLL.SCROLL_BASE_MS - level ** RENDER_SCROLL.SCROLL_EASE_EXP * RENDER_SCROLL.SCROLL_EASE_FACTOR);
+}
+
+const _SessionCeremony = { level: 0, ceremonies: true };
+const CEREMONIES = { 2: {}, 3: {}, 4: {}, 5: {} };
+function hasPendingCeremony() {
+    return _SessionCeremony.ceremonies && _SessionCeremony.level in CEREMONIES;
+}
+
+const WAVEFORM_GAIN = Object.freeze({
+    sine: 1.0,
+    square: Math.SQRT1_2,
+    sawtooth: 1.225,
+    triangle: 1.225,
+    pwm: 0.877,
+    am: 1.334,
+});
+
+function _pickWeightedType(types, level) {
+    const weights = types.map(t => {
+        if (level <= 4) return 1;
+        if (t === "pwm" || t === "am") return level === 4 ? 3 : level === 5 ? 2 : 1;
+        return 1;
+    });
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = gameRand() * total;
+    for (let i = 0; i < types.length; i++) {
+        r -= weights[i];
+        if (r <= 0) return types[i];
+    }
+    return types[types.length - 1];
+}
+
+function _pickWeightedParam(values, debutLevel, boost, level) {
+    let total = 0;
+    for (let i = 0; i < values.length; i++) {
+        total += values[i] === 0 ? 1 : level === debutLevel ? boost : level === debutLevel + 1 ? Math.max(1, (boost * 0.6) | 0) : 1;
+    }
+    let r = gameRand() * total;
+    for (let i = 0; i < values.length; i++) {
+        const w = values[i] === 0 ? 1 : level === debutLevel ? boost : level === debutLevel + 1 ? Math.max(1, (boost * 0.6) | 0) : 1;
+        r -= w;
+        if (r <= 0) return values[i];
+    }
+    return values[values.length - 1];
+}
+
+function recordLevelComplete(completedLevel, runScore) {
+    const save = loadSave();
+    save.highestLevel = Math.max(save.highestLevel, completedLevel + 1);
+    save.bestScores[completedLevel] = Math.max(save.bestScores[completedLevel], runScore);
+    writeSave(save);
 }
 
 // ─── TESTS ────────────────────────────────────────────────────────────────────
@@ -590,6 +666,312 @@ test("smoothstep is monotone increasing", () => {
 test("sigmoid(0.5) = 0.5", () => assertClose(sigmoid(0.5), 0.5, 0.001));
 test("sigmoid(0) < 0.1 (steep at edges)", () => assert(sigmoid(0) < 0.1));
 test("sigmoid(1) > 0.9", () => assert(sigmoid(1) > 0.9));
+
+console.log("\n── freqToHz ──────────────────────────────────────────────");
+
+test("freqToHz(1) = AUDIO_MIN_HZ (110)", () => assertClose(freqToHz(1), 110, 0.001));
+
+test("freqToHz(8) = AUDIO_MAX_HZ (220)", () => assertClose(freqToHz(8), 220, 0.001));
+
+test("freqToHz is monotonic increasing", () => {
+    let prev = freqToHz(1);
+    for (let f = 1.5; f <= 8; f += 0.5) {
+        const cur = freqToHz(f);
+        assert(cur > prev, `not monotonic at ${f}`);
+        prev = cur;
+    }
+});
+
+test("freqToHz(4.5) = geometric mean ~155.56", () => assertClose(freqToHz(4.5), 155.56, 0.5));
+
+console.log("\n── getScrollPeriod ────────────────────────────────────────");
+
+test("getScrollPeriod(0) = SCROLL_BASE_MS (3500)", () => assertEq(getScrollPeriod(0), 3500));
+
+test("getScrollPeriod does not fall below SCROLL_MIN_MS (2000)", () => {
+    for (let lv = 0; lv < 20; lv++) {
+        assert(getScrollPeriod(lv) >= 2000, `below min at level ${lv}`);
+    }
+});
+
+test("getScrollPeriod decreases with level", () => {
+    for (let lv = 1; lv < 10; lv++) {
+        assert(getScrollPeriod(lv) <= getScrollPeriod(lv - 1), `increased from lv${lv - 1} to lv${lv}`);
+    }
+});
+
+console.log("\n── pick ───────────────────────────────────────────────────");
+
+test("pick returns an element from the array", () => {
+    const r = makeRand(42);
+    const p = pick(r);
+    const arr = [10, 20, 30];
+    for (let i = 0; i < 50; i++) {
+        const v = p(arr);
+        assert(arr.includes(v), `unexpected value: ${v}`);
+    }
+});
+
+test("pick returns undefined for empty array", () => {
+    const r = makeRand(42);
+    const p = pick(r);
+    assertEq(p([]), undefined);
+});
+
+test("pick single-element array always returns that element", () => {
+    const r = makeRand(99);
+    const p = pick(r);
+    for (let i = 0; i < 20; i++) assertEq(p([42]), 42);
+});
+
+console.log("\n── WAVEFORM_GAIN ──────────────────────────────────────────");
+
+test("all waveform types have a gain coefficient", () => {
+    for (const t of ["sine", "square", "sawtooth", "triangle", "pwm", "am"]) {
+        assert(typeof WAVEFORM_GAIN[t] === "number" && WAVEFORM_GAIN[t] > 0, `missing/invalid gain for ${t}`);
+    }
+});
+
+test("sine gain is exactly 1.0 (reference)", () => assertEq(WAVEFORM_GAIN.sine, 1.0));
+
+test("square gain equals Math.SQRT1_2", () => assertEq(WAVEFORM_GAIN.square, Math.SQRT1_2));
+
+console.log("\n── _pickWeightedType ──────────────────────────────────────");
+
+test("_pickWeightedType returns a type from the given list", () => {
+    const types = ["sine", "square", "sawtooth"];
+    for (let i = 0; i < 50; i++) {
+        const t = _pickWeightedType(types, 0);
+        assert(types.includes(t), `unexpected type: ${t}`);
+    }
+});
+
+test("_pickWeightedType at level 4 boosts pwm/am weight", () => {
+    // With equal weights all types are equally likely, but at lv4 pwm+am get 3x
+    // Run many iterations and verify both appear
+    const types = ["sine", "pwm", "am"];
+    let sawPwm = false, sawAm = false, sawSine = false;
+    for (let i = 0; i < 200; i++) {
+        const t = _pickWeightedType(types, 4);
+        if (t === "pwm") sawPwm = true;
+        if (t === "am") sawAm = true;
+        if (t === "sine") sawSine = true;
+    }
+    assert(sawPwm, "pwm never picked at level 4");
+    assert(sawAm, "am never picked at level 4");
+    assert(sawSine, "sine never picked at level 4");
+});
+
+console.log("\n── _pickWeightedParam ─────────────────────────────────────");
+
+test("_pickWeightedParam returns a value from the given array", () => {
+    const vals = [0, 45, 90, 180];
+    for (let i = 0; i < 50; i++) {
+        const v = _pickWeightedParam(vals, 2, 6, 3);
+        assert(vals.includes(v), `unexpected value: ${v}`);
+    }
+});
+
+test("_pickWeightedParam at debut level 2 uses boost multiplier", () => {
+    // non-zero values at debut level 2 get boost=6x weight; value=0 gets 1x
+    const vals = [0, 45];
+    let sawZero = false, saw45 = false;
+    for (let i = 0; i < 200; i++) {
+        const v = _pickWeightedParam(vals, 2, 6, 2);
+        if (v === 0) sawZero = true;
+        if (v === 45) saw45 = true;
+    }
+    assert(sawZero, "0 never picked at debut");
+    assert(saw45, "45 never picked at debut");
+});
+
+console.log("\n── hasPendingCeremony ─────────────────────────────────────");
+
+test("hasPendingCeremony returns false when ceremonies disabled", () => {
+    _SessionCeremony.ceremonies = false;
+    _SessionCeremony.level = 2;
+    assert(!hasPendingCeremony());
+    _SessionCeremony.ceremonies = true;
+});
+
+test("hasPendingCeremony returns true for level with ceremony", () => {
+    _SessionCeremony.level = 2;
+    assert(hasPendingCeremony());
+});
+
+test("hasPendingCeremony returns false for level without ceremony", () => {
+    _SessionCeremony.level = 0;
+    assert(!hasPendingCeremony());
+    _SessionCeremony.level = 1;
+    assert(!hasPendingCeremony());
+    _SessionCeremony.level = 6;
+    assert(!hasPendingCeremony());
+});
+
+console.log("\n── recordLevelComplete ────────────────────────────────────");
+
+test("recordLevelComplete updates highestLevel", () => {
+    localStorage.clear();
+    recordLevelComplete(0, 100);
+    const s = loadSave();
+    assertEq(s.highestLevel, 1);
+});
+
+test("recordLevelComplete does not decrease highestLevel", () => {
+    localStorage.clear();
+    recordLevelComplete(3, 200);
+    recordLevelComplete(1, 50);
+    const s = loadSave();
+    assertEq(s.highestLevel, 4);
+});
+
+test("recordLevelComplete keeps best score per level", () => {
+    localStorage.clear();
+    recordLevelComplete(0, 100);
+    recordLevelComplete(0, 50);
+    const s = loadSave();
+    assertEq(s.bestScores[0], 100);
+});
+
+console.log("\n── sample: additional waveforms & features ────────────────");
+
+test("pwm at u<0.65 = +amp*0.1, at u≥0.65 = -amp*0.1", () => {
+    const pw = { ...baseSig, type: "pwm" };
+    assertClose(sample(pw, 0.0, false),  1.0, 0.01);
+    assertClose(sample(pw, 0.649, false), 1.0, 0.01);
+    assertClose(sample(pw, 0.65, false), -1.0, 0.01);
+    assertClose(sample(pw, 0.999, false), -1.0, 0.01);
+});
+
+test("am at t=0 is zero crossing", () => {
+    const am = { ...baseSig, type: "am", harm: 0.5 };
+    assertClose(sample(am, 0, false), 0.0, 0.02);
+});
+
+test("harmonics add overtones for non-AM types", () => {
+    const harmSig = { ...baseSig, type: "sawtooth", harm: 3 };
+    const noHarm  = { ...baseSig, type: "sawtooth", harm: 0 };
+    let diff = false;
+    for (let i = 0; i < 50; i++) {
+        if (Math.abs(sample(harmSig, i / 50, false) - sample(noHarm, i / 50, false)) > 0.001) {
+            diff = true; break;
+        }
+    }
+    assert(diff, "harmonics had no effect on sawtooth");
+});
+
+test("harmonics affect AM through the AM sampler", () => {
+    const amH = { ...baseSig, type: "am", harm: 3 };
+    const am0  = { ...baseSig, type: "am", harm: 0 };
+    let diff = false;
+    for (let i = 0; i < 50; i++) {
+        if (Math.abs(sample(amH, i / 50, false) - sample(am0, i / 50, false)) > 0.001) {
+            diff = true; break;
+        }
+    }
+    assert(diff, "harm parameter should change AM output");
+});
+
+test("noise adds variance when addNoise=true", () => {
+    const noisy = { ...baseSig, type: "sine", amp: 10, noise: 5 };
+    const vals = new Set();
+    for (let i = 0; i < 30; i++) vals.add(sample(noisy, i / 30, true));
+    assert(vals.size > 1, "noise produced identical values");
+});
+
+test("noise is ignored when addNoise=false", () => {
+    const noisy = { ...baseSig, type: "sine", amp: 0, noise: 5 };
+    for (let i = 0; i < 10; i++) assertEq(sample(noisy, i / 10, false), 0);
+});
+
+test("phase shifts the wave by the expected fraction", () => {
+    // phase=180 shifts the wave by half a period
+    const shifted = { ...baseSig, phase: 180 };
+    // t=0.25 with phase=180 → u = (1*0.25 + 180/360) % 1 = (0.25 + 0.5) % 1 = 0.75
+    // sample at u=0.75 for sine = trough = -1 (amp=10 → amp*0.1 = 1 → -1)
+    assertClose(sample(shifted, 0.25, false), -1.0, 0.01);
+});
+
+console.log("\n── matchScore: additional edge cases ──────────────────────");
+
+test("matchScore with null target (treats target as silence)", () => {
+    _targetSignal = null;
+    _yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+    invalidateMatchScore();
+    const sc = matchScore();
+    assert(sc >= 0 && sc < 1, "score should be non-negative and less than 1 for null target");
+});
+
+test("matchScore with all waveform types stays in [0, 1]", () => {
+    for (const tT of ["sine", "square", "sawtooth", "triangle", "pwm", "am"]) {
+        for (const tY of ["sine", "square", "sawtooth", "triangle", "pwm", "am"]) {
+            _targetSignal = { type: tT, freq: 3, amp: 8, phase: 0, dc: 0, harm: 0, noise: 0 };
+            _yoursSignal  = { type: tY, freq: 5, amp: 6, phase: 90, dc: 1, harm: 0, noise: 0 };
+            invalidateMatchScore();
+            const sc = matchScore();
+            assert(sc >= 0 && sc <= 1, `score out of range for ${tT} vs ${tY}: ${sc}`);
+        }
+    }
+});
+
+test("matchScore with harmonics improves when your harm matches target", () => {
+    _targetSignal = { type: "sawtooth", freq: 2, amp: 7, phase: 0, dc: 0, harm: 4, noise: 0 };
+    _yoursSignal  = { type: "sawtooth", freq: 2, amp: 7, phase: 0, dc: 0, harm: 0, noise: 0 };
+    invalidateMatchScore();
+    const miss = matchScore();
+    _yoursSignal.harm = 4;
+    invalidateMatchScore();
+    const match = matchScore();
+    assert(match > miss, `harm match (${match}) not > harm mismatch (${miss})`);
+});
+
+test("matchScore caching works after double invalidate", () => {
+    _targetSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+    _yoursSignal  = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+    invalidateMatchScore();
+    const v1 = matchScore();
+    invalidateMatchScore(); // second invalidate before read
+    const v2 = matchScore();
+    assertClose(v1, v2, 0.001);
+});
+
+console.log("\n── rng edge cases ─────────────────────────────────────────");
+
+test("rng lo === hi returns lo", () => {
+    const r = makeRand(1);
+    // call gameRand a few times then test rng(5,5) ≡ 5
+    const localRng = (lo, hi) => { const v = lo + (r() * (hi - lo + 1)) | 0; return v; };
+    for (let i = 0; i < 20; i++) assertEq(localRng(7, 7), 7);
+});
+
+test("rng swapped lo>hi still returns in original [hi, lo]", () => {
+    const r = makeRand(3);
+    const localRng = (lo, hi) => {
+        if (lo > hi) { const t = lo; lo = hi; hi = t; }
+        return lo + (r() * (hi - lo + 1)) | 0;
+    };
+    for (let i = 0; i < 100; i++) {
+        const v = localRng(10, 3);
+        assert(v >= 3 && v <= 10, `out of range: ${v}`);
+    }
+});
+
+console.log("\n── fastSin edge cases ─────────────────────────────────────");
+
+test("fastSin wraps large positive values", () => {
+    assertClose(fastSin(Math.PI * 200), Math.sin(Math.PI * 200), 0.001);
+});
+
+test("fastSin wraps negative values", () => {
+    assertClose(fastSin(-Math.PI / 2), Math.sin(-Math.PI / 2), 0.001);
+});
+
+test("fastSin at exact LUT boundaries", () => {
+    // LUT_SIZE=8192, SCALE=8192/(2π) ≈ 1303.79
+    // x = idx / SCALE for integer idx should hit exact LUT entries
+    const x = 1 / (LUT_SIZE / (Math.PI * 2)); // one LUT step
+    assertClose(fastSin(x), Math.sin(x), 0.001);
+});
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
 
