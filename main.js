@@ -1719,6 +1719,10 @@ let _lastTime = 0;
 const YOURS_SIGNAL_WOBBLE_PHASES = [1.3, Math.PI * 0.5, Math.PI * 0.618, Math.PI * 0.85, Math.PI];
 const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
 
+// Per-wave wobble personality profiles (TODO #1)
+const WOBBLE_TARGET = { amp: 3.5, freq: 3.0, speed: 0.0012 };
+const WOBBLE_YOURS = { amp: 2.0, freq: 5.5, speed: 0.0025 };
+
 function loop(ts) {
 	const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
 	_elapsedTime += dt;
@@ -1771,31 +1775,31 @@ function loop(ts) {
 		const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
 		_ctx.globalAlpha = 0.25 * (1 - release);
-		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0);
+		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, WOBBLE_TARGET, lockT);
 
 		const flash = Math.max(0, 1 - lockT / 0.35);
 		_ctx.globalAlpha = flash * 0.7;
-		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE);
+		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
 
 		const settle = Math.min(lockT / 0.25, 1);
 		_ctx.globalAlpha = 0.4 + 0.6 * settle;
-		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE);
+		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2);
+			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
 		} else if (Round.roundNo % 2 === 0) {
 			_ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2);
+			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
 		} else {
 			_ctx.globalAlpha = 0.15 + 0.6 * t;
-			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2);
+			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, WOBBLE_TARGET, lockT);
 		}
 
 		_ctx.globalAlpha = 0.4 + 0.6 * t;
-		if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
-		else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
-		else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE);
+		if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
 	}
 
 	_ctx.globalAlpha = 1;
@@ -1813,7 +1817,7 @@ function loop(ts) {
  * 3. Branch Hoisting: MoveTo is called before the loop to remove internal conditionals.
  * 4. Fast Wrapping: Replaces modulo (%) with subtraction for phase accumulation.
  */
-function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
+function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts = {}, lockT = 0) {
 	const halfH = H * 0.5,
 		yOffset = halfH - 10,
 		invW = 1 / W;
@@ -1828,10 +1832,26 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
 	// the y-position of each pixel column with a time-varying sine —
 	// essentially adding a secondary wobble on top of the existing sample() output.
 
-	const wobbleAmp = 2.5; // pixels of jelly displacement
-	const wobbleFreq = 4.0; // spatial frequency (wiggles across width)
-	const wobbleSpeed = 0.0018; // time scaling — tune for buttery vs snappy
+	// #1: Per-wave wobble personality (with sensible defaults)
+	const baseAmp = wobbleOpts.amp ?? 2.5;
+	const baseFreq = wobbleOpts.freq ?? 4.0;
+	const baseSpeed = wobbleOpts.speed ?? 0.0018;
+
+	// #3: Wobble frequency drift over time — gives a breathing quality
+	const wobbleFreq = baseFreq + fastSin(_elapsedTime * 0.0003) * 1.5;
+	const wobbleSpeed = baseSpeed;
 	const t = _elapsedTime * wobbleSpeed + wobblePhase;
+
+	// #2: Score-reactive wobble amplitude — jelly calms as match improves
+	const scoreFactor = 1 - matchScore();
+
+	// #4: Urgency amp spike — wave panics when time is low
+	const urgencyBoost = Round.timeLeft <= 8 ? 1 + (8 - Round.timeLeft) * 0.15 : 1;
+
+	// #5: Lock-in freeze — jelly solidifies on win
+	const lockFactor = lockT > 0 ? 1 - lockT : 1;
+
+	const wobbleAmp = baseAmp * scoreFactor * urgencyBoost * lockFactor;
 
 	// ─── MATH SIMPLIFICATION ────────────────────────────────────────────────
 	// We want the LUT index.
@@ -1901,6 +1921,15 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0) {
 
 	_ctx.stroke();
 }
+
+// TODO: More jelly squirms. Here's where juice actually lives in this game beyond `drawWave`:
+// **Already has moments but no squirm:**
+// **1. The meter fill bar** — it's a `scaleX` transform updated every frame via `updateMeter()`. A CSS `transition` already smooths it, but you could drive a `scaleY` wobble from JS on change — squishes vertically when it jumps, like a liquid level settling. One rAF pulse on score change.
+// **2. The radar rings on lock-in** (`loop()` around line 1205) — currently perfect circles expanding outward. Making them ellipses that breathe (`radiusX ≠ radiusY`, oscillating) or adding a slight wobble to the radius itself (`rad + sin(angle) * wobble`) would make the lock feel more organic.
+// **3. `showScorePop()`** — the `+pts` element is DOM-only right now, animated purely by CSS. Adding a CSS custom property driven by JS at spawn time (`--pop-skew`, `--pop-squash`) that decays via a short rAF loop would make each pop feel physically distinct.
+// **4. The stamp layer** — stamps appear and vanish via CSS animation. A random `--stamp-rot` is already set. You could also randomize `--stamp-scale-start` so each stamp squashes in from a different direction, like it was slapped on wet.
+// **5. The feedback text** — on state change (`"Getting close…"`, `"LOCKED IN"`) it just overwrites. A brief CSS class with a `transform: skewX()` keyframe on text change would give it a snap-to feel.
+// **Highest value pair to do next:** the meter fill squash (#1) and the lock radar wobble (#2) — both are already in the rAF loop so no new DOM overhead, and they hit at the two most emotionally loaded moments (progress and victory). Want to start there?
 
 // ─── FLASH + SCORE POP ───────────────────────────────────────────────────────
 
