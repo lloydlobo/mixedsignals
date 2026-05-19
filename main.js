@@ -3198,18 +3198,29 @@ _prefetchBGM(BGM_POOL.menu[0]).then(() => {
 renderStartScreen();
 showScreen("start");
 
-/**
- * 🛰️ ZENITH STEALTH LOADER
- * Listens for "gainz" and dynamically imports/runs the audit suite.
- * NOTE: Currently perf.js is in root dir. SUGGESTION: /js/debug/perf.js
- */
-(function() {
+// Old assumption:
+//  game math expensive
+//
+// Current reality:
+//  browser systems expensive
+//
+// Canvas capture and DOM writes are now your engine. Everything else is noise.
+
+// /**
+//  * 🛰️ ZENITH STEALTH LOADER
+//  * Listens for "zenith" and dynamically imports/runs the audit suite.
+//  * NOTE: Currently perf-zenith.js is in root dir. SUGGESTION: /js/debug/perf-zenith.js
+//  */
+(function () {
+    // --- BRIDGE FOR ZENITH AUDIT ---
+    Object.assign(window, { matchScore, buildTarget, syncLabels, readSliders, drawWave, fastSin, _sfxNote, });
+
     let buffer = "";
-    const secret = "gainz";
+    const secret = "zenith";
     window.addEventListener('keydown', function loader(e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
-        
+
         if (buffer === secret) {
             // 1. If already loaded, just re-run the audit
             if (window.perfAudit) {
@@ -3222,12 +3233,63 @@ showScreen("start");
             console.log("%c 🛰️ FETCHING AUDIT SUITE... ", "color: #3498db; font-weight: bold;");
             const s = document.createElement('script');
             // Cache busting: ?v= allows you to see updates immediately after a push
-            s.src = '/perf.js?v=' + Date.now(); 
-            s.onload = () => { 
+            s.src = '/perf-zenith.js?v=' + Date.now();
+            s.onload = () => {
                 console.log("%c 🔓 ZENITH SUITE READY ", "color: #00ff00; font-weight: bold;");
-                window.perfAudit.runAll(); 
+                window.perfAudit.runAll();
             };
             document.head.appendChild(s);
         }
     });
 })();
+
+
+/**
+ * 🛰 STEALTH PERF LOADER
+ *
+ * Type:
+ *
+ * deepscan
+ *
+ * Dynamically loads perf-deepscan.js
+ * and runs diagnostics.
+ */
+(function(){
+    Object.assign(window,{ matchScore, buildTarget, syncLabels, readSliders, drawWave, fastSin, _sfxNote });
+    let buffer="";
+    const secret="deepscan";
+    window.addEventListener( "keydown", async function(e){
+            if( e.target.tagName==="INPUT" || e.target.tagName==="TEXTAREA") return;
+            buffer= ( buffer+ e.key.toLowerCase())
+            .slice( -secret.length);
+
+            if(buffer!==secret) return;
+            console.log( "%c🛰 DIAGNOSTIC INVOKED", "color:#00ffff;font-weight:bold");
+
+            // already loaded
+            if(window.perfAuditDeepScan){
+                console.log( "%c🔄 RE-RUNNING", "color:#f1c40f;font-weight:bold");
+                await perfAuditDeepScan.runAll();
+                return;
+            }
+            console.log( "%c📡 FETCHING PERF", "color:#3498db;font-weight:bold");
+            const s= document.createElement( "script");
+            s.src= "/perf-deepscan.js?v=" +Date.now();
+            s.onload=async()=>{
+                console.log( "%c🔓 SUITE READY", "color:#00ff00;font-weight:bold");
+                await perfAuditDeepScan.runAll();
+            };
+            document.head.appendChild(s);
+        }
+    );
+})();
+// New audit interpretation:
+//
+// Final hierarchy
+// Replay Capture     65.3ms
+// syncLabels          0.22ms
+// drawWave            0.05ms
+// readSliders         0.01ms
+// matchScore          ~0
+//
+// You effectively have one real bottleneck and one medium one.
