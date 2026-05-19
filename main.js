@@ -1123,6 +1123,10 @@ function spawnStamp(type) {
 	const deg = (stampRand() * 16 - 8).toFixed(1);
 	el.style.setProperty("--stamp-rot", `rotate(${deg}deg)`);
 
+	// Random scale start: squishes in from a different size each time
+	const scaleStart = (1.2 + stampRand() * 1.0).toFixed(2);
+	el.style.setProperty("--stamp-scale-start", `scale(${scaleStart})`);
+
 	layer.appendChild(el);
 	_activeStamp = el;
 
@@ -1712,6 +1716,9 @@ function getScrollPeriod() {
 
 let _lastTime = 0;
 
+let _meterSquashT = 0;
+let _meterWinSlinkyT = 0;
+
 // 1.3 is roughly a quarter-period offset — enough that they drift visibly
 // against each other without ever being perfectly opposed. You can also
 // try Math.PI * 0.5 (exact quarter phase) or Math.PI (fully opposed,
@@ -1766,8 +1773,9 @@ function loop(ts) {
 		_ctx.globalAlpha = Math.max(0, 0.25 * (1 - lockT / 0.6));
 		for (let r = 0; r < 3; r++) {
 			const rad = (lockT * W * 0.5 + r * 20) % (W * 0.5);
+			const wobble = fastSin(_elapsedTime * 0.008 + r * 2.1) * 3;
 			_ctx.beginPath();
-			_ctx.arc(W * 0.5, H * 0.5, rad, 0, Math.PI * 2);
+			_ctx.arc(W * 0.5, H * 0.5, Math.max(1, rad + wobble), 0, Math.PI * 2);
 			_ctx.strokeStyle = "#66ff88";
 			_ctx.lineWidth = 1.5;
 			_ctx.stroke();
@@ -1803,6 +1811,23 @@ function loop(ts) {
 	}
 
 	_ctx.globalAlpha = 1;
+
+	const mFill = UI.displays.fill;
+	if (_meterWinSlinkyT > 0 && mFill) {
+		_meterWinSlinkyT -= dt;
+		if (_meterWinSlinkyT < 0) _meterWinSlinkyT = 0;
+		const pct2 = Math.round(matchScore() * 100);
+		const progress = 1 - _meterWinSlinkyT / 600;
+		const amp = 0.35 * Math.exp(-progress * 3.5);
+		const squash = 1 - amp * Math.cos(progress * Math.PI * 5);
+		mFill.style.transform = `scaleX(${pct2 * 0.01}) scaleY(${squash})`;
+	} else if (_meterSquashT > 0 && mFill) {
+		_meterSquashT -= dt;
+		if (_meterSquashT < 0) _meterSquashT = 0;
+		const pct2 = Math.round(matchScore() * 100);
+		const squash = 1 - (_meterSquashT / 300) * 0.3;
+		mFill.style.transform = `scaleX(${pct2 * 0.01}) scaleY(${squash})`;
+	}
 
 	_lastTime = ts;
 	animRaf = requestAnimationFrame(loop);
@@ -1922,15 +1947,6 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 	_ctx.stroke();
 }
 
-// TODO: More jelly squirms. Here's where juice actually lives in this game beyond `drawWave`:
-// **Already has moments but no squirm:**
-// **1. The meter fill bar** — it's a `scaleX` transform updated every frame via `updateMeter()`. A CSS `transition` already smooths it, but you could drive a `scaleY` wobble from JS on change — squishes vertically when it jumps, like a liquid level settling. One rAF pulse on score change.
-// **2. The radar rings on lock-in** (`loop()` around line 1205) — currently perfect circles expanding outward. Making them ellipses that breathe (`radiusX ≠ radiusY`, oscillating) or adding a slight wobble to the radius itself (`rad + sin(angle) * wobble`) would make the lock feel more organic.
-// **3. `showScorePop()`** — the `+pts` element is DOM-only right now, animated purely by CSS. Adding a CSS custom property driven by JS at spawn time (`--pop-skew`, `--pop-squash`) that decays via a short rAF loop would make each pop feel physically distinct.
-// **4. The stamp layer** — stamps appear and vanish via CSS animation. A random `--stamp-rot` is already set. You could also randomize `--stamp-scale-start` so each stamp squashes in from a different direction, like it was slapped on wet.
-// **5. The feedback text** — on state change (`"Getting close…"`, `"LOCKED IN"`) it just overwrites. A brief CSS class with a `transform: skewX()` keyframe on text change would give it a snap-to feel.
-// **Highest value pair to do next:** the meter fill squash (#1) and the lock radar wobble (#2) — both are already in the rAF loop so no new DOM overhead, and they hit at the two most emotionally loaded moments (progress and victory). Want to start there?
-
 // ─── FLASH + SCORE POP ───────────────────────────────────────────────────────
 
 function flash(color) {
@@ -1948,6 +1964,31 @@ function showScorePop(points) {
 	pop.textContent = `+${points}`;
 	scoreEl.parentElement.style.position = "relative";
 	scoreEl.parentElement.appendChild(pop);
+
+	const skew = (Math.random() * 12 - 6).toFixed(1);
+	const squash = (0.85 + Math.random() * 0.1).toFixed(2);
+	const s0 = +squash;
+	pop.style.transform = `translateY(0) skewX(${skew}deg) scaleY(${s0})`;
+	pop.style.opacity = "1";
+
+	const startT = performance.now();
+	const duration = 500;
+	function animPop() {
+		const t = Math.min((performance.now() - startT) / duration, 1);
+		const p = 1 - t;
+		const skewDeg = (skew * p).toFixed(1);
+		let scaleY;
+		if (t < 0.35) {
+			scaleY = s0 + (1.12 - s0) * (t / 0.35);
+		} else {
+			scaleY = 1.12 - 0.12 * ((t - 0.35) / 0.65);
+		}
+		pop.style.transform = `translateY(${-36 * t}px) skewX(${skewDeg}deg) scaleY(${scaleY})`;
+		pop.style.opacity = 1 - t;
+		if (t < 1) requestAnimationFrame(animPop);
+	}
+	requestAnimationFrame(animPop);
+
 	setTimeout(() => pop.remove(), 800);
 	const gi = UI.gameInner;
 	if (Session.screenShake) {
@@ -1969,10 +2010,11 @@ function updateMeter() {
 
 		UI.displays.pct.textContent = `${pct}%`;
 
+		_meterSquashT = 300;
 		const fill = UI.displays.fill;
 		// DEPRECATE: fill.style.width = `${pct}%`;
 		//            CSS add: min-width: 100%; lol (kinda works)
-		fill.style.transform = `scaleX(${pct * 0.01})`;
+		fill.style.transform = `scaleX(${pct * 0.01}) scaleY(0.7)`;
 		fill.style.background = pct > 80 ? "var(--green)" : pct > 50 ? "var(--amber)" : "var(--red)";
 	}
 
@@ -1986,6 +2028,7 @@ function updateMeter() {
 			return;
 		}
 		Round.won = true; // Don't freeze sliders during tutorial — step checks may not have passed yet
+		_meterWinSlinkyT = 600;
 		Round._lockAnimStart = performance.now();
 		clearInterval(timerInterval);
 		const gain = CONFIG.BASE_REWARD + Math.ceil(Round.timeLeft * CONFIG.TIME_BONUS_RATE);
@@ -1993,6 +2036,9 @@ function updateMeter() {
 		showScorePop(gain);
 		fb.textContent = `LOCKED IN +${gain} pts`;
 		fb.className = "feedback win";
+		fb.classList.remove("feedback-snap");
+		void fb.offsetWidth;
+		fb.classList.add("feedback-snap");
 		flash("var(--green)");
 		SFX.lock();
 		spawnStamp("success");
@@ -2002,6 +2048,9 @@ function updateMeter() {
 		if (Session.tutorialActive) return;
 		fb.textContent = "Getting close…";
 		fb.className = "feedback close";
+		fb.classList.remove("feedback-snap");
+		void fb.offsetWidth;
+		fb.classList.add("feedback-snap");
 		if (!Round._wasCloseSfx) {
 			SFX.close();
 			Round._wasCloseSfx = true;
@@ -2010,6 +2059,9 @@ function updateMeter() {
 		if (Session.tutorialActive) return;
 		fb.textContent = "Match the target signal.";
 		fb.className = "feedback";
+		fb.classList.remove("feedback-snap");
+		void fb.offsetWidth;
+		fb.classList.add("feedback-snap");
 		Round._wasCloseSfx = false;
 	}
 	updateMixState();

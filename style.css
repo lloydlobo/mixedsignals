@@ -489,23 +489,14 @@ body {
 #game-inner.shake       { animation: shake 0.5s ease-out; }
 #game-inner.shake-light { animation: shakeLight 0.3s ease-out; }
 
-@keyframes scorePop {
-    0%   { transform: translateY(0);     opacity: 1;   font-size: 1em;   }
-    50%  { transform: translateY(-18px); opacity: 0.9; font-size: 1.3em; }
-    100% { transform: translateY(-36px); opacity: 0;   font-size: 1em;   }
-}
-
 .score-pop {
     position: absolute;
-    /* top: -10px; */
-    /* right: 80px; */
     top: 40px;
     right: 10px;
     color: var(--green);
     font-family: var(--font-ui);
     font-weight: 900;
     pointer-events: none;
-    animation: scorePop 0.8s ease-out forwards;
     z-index: 10;
 }
 
@@ -912,6 +903,28 @@ input[type=range]::-moz-range-thumb {
 .feedback.win   { color: var(--green); }
 .feedback.close { color: var(--amber); }
 .feedback.bad   { color: var(--coral); }
+
+.feedback-snap {
+    animation: feedbackSnap 0.3s ease-out;
+}
+
+.feedback-snap-ripple {
+    animation: feedbackSnapRipple 0.35s ease-out;
+}
+
+@keyframes feedbackSnap {
+    0%   { transform: skewX(-10deg); }
+    55%  { transform: skewX(3deg); }
+    100% { transform: skewX(0deg); }
+}
+
+@keyframes feedbackSnapRipple {
+    0%   { transform: skewX(-10deg) scaleY(0.85); }
+    25%  { transform: skewX(5deg) scaleY(1.06); }
+    50%  { transform: skewX(-2deg) scaleY(0.97); }
+    75%  { transform: skewX(1deg) scaleY(1.01); }
+    100% { transform: skewX(0deg) scaleY(1); }
+}
 
 .hint-log {
     position: absolute;
@@ -1843,7 +1856,7 @@ canvas#mg-canvas {
 }
 
 @keyframes stamp-in {
-    0%   { opacity: 0;    transform: var(--stamp-rot) scale(1.8) translateY(-6px); }
+    0%   { opacity: 0;    transform: var(--stamp-rot) var(--stamp-scale-start, scale(1.8)) translateY(-6px); }
     16%  { opacity: 1;    transform: var(--stamp-rot) scale(0.88) translateY(2px); }
     30%  { opacity: 1;    transform: var(--stamp-rot) scale(1.06) translateY(0px); }
     44%  { opacity: 1;    transform: var(--stamp-rot) scale(0.97) translateY(0px); }
