@@ -2452,8 +2452,14 @@ function startTimer() {
 	el.className = "timer-ring-label";
 	if (grace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
 
-	timerInterval = setInterval(() => {
-		Round.timeLeft--;
+	const _timerStart = performance.now();
+	const _totalMs = total * 1000;
+
+	function _timerTick() {
+		const elapsed = performance.now() - _timerStart;
+		const remaining = Math.max(0, _totalMs - elapsed);
+		Round.timeLeft = Math.ceil(remaining / 1000);
+
 		ring.style.strokeDashoffset = C * (1 - Round.timeLeft / total);
 		const urgent = !Session.assistDisableUrgent && !grace && Round.timeLeft <= 8;
 		el.textContent = Round.timeLeft;
@@ -2476,14 +2482,17 @@ function startTimer() {
 		const tw = document.querySelector(".timer-ring-wrap");
 		if (tw) tw.classList.toggle("urgent", urgent);
 		if (Round.timeLeft <= 0 && !Round.won) {
-			clearInterval(timerInterval);
 			if (grace) {
 				UI.displays.feedback.textContent = "Time's up. Now it counts.";
 			} else if (!Session.assistInfiniteTime) {
 				gameOver();
 			}
+			return;
 		}
-	}, 1000);
+		timerInterval = setTimeout(_timerTick, 100);
+	}
+
+	timerInterval = setTimeout(_timerTick, 100);
 }
 
 // ─── LOOP CONTROL ────────────────────────────────────────────────────────────
