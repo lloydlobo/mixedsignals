@@ -1737,6 +1737,11 @@ b {
 .stamp-fail    { color: var(--cream); background: var(--red-dark);      border-color: var(--red-deep); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .stamp-success { color: var(--bg); background: var(--cream); border-color: #b8a882; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
  
+/* Combo streaks — escalating energy: green → gold → platinum */
+.stamp-combo_2 { color: var(--bg); background: #33cc77; border-color: #1f9955; text-shadow: 0 1px 0 rgba(255,255,255,0.2); }
+.stamp-combo_3 { color: var(--bg); background: #f0b030; border-color: #c48a1a; text-shadow: 0 1px 0 rgba(255,255,255,0.2); }
+.stamp-combo_5 { color: var(--cream); background: #5a4a8a; border-color: #3d2f66; text-shadow: 0 1px 2px rgba(0,0,0,0.4); box-shadow: 0 0 24px rgba(200,160,255,0.5), 0 4px 0 rgba(0,0,0,0.5); }
+
 /* Broke variants — ghost of the real thing. Smaller, dashed, faded.
    Like the machine ran out of ink. */
 .stamp-hint_broke {
