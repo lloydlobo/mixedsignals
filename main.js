@@ -99,30 +99,35 @@ const LEVELS = [
 // ─── CEREMONIES ──────────────────────────────────────────────────────────────
 // Each level that introduces a new mechanic gets a ceremony (shown once).
 // Map key = level index (0-based).
+// luMsg is shown on the level-up screen as a preview before the ceremony.
 const CEREMONIES = {
 	2: {
 		tag: "PHASE",
 		color: "var(--blue)",
 		title: "PHASE UNLOCKED",
 		desc: "Phase shifts the wave in time — a horizontal offset. At 180° the shape flips entirely. Align to match.",
+		luMsg: "Phase unlocked — shift the waveform forward or backward in time.",
 	},
 	3: {
 		tag: "DC",
 		color: "var(--amber)",
 		title: "DC OFFSET UNLOCKED",
 		desc: "DC offset raises or lowers the wave center — like shifting the baseline. Watch the zero line drift.",
+		luMsg: "DC Offset unlocked — raise or lower the waveform baseline.",
 	},
 	4: {
 		tag: "PWM/AM",
 		color: "var(--coral)",
 		title: "PWM & AM UNLOCKED",
 		desc: "PWM varies pulse width for a fizzy edge. AM rides a carrier wave — amplitude becomes the signal itself.",
+		luMsg: "PWM & AM unlocked — two new wave types with unique modulation.",
 	},
 	5: {
 		tag: "HARM",
 		color: "var(--green)",
 		title: "HARMONICS UNLOCKED",
 		desc: "Harmonics layer overtones above the fundamental. Each adds texture and body to the wave.",
+		luMsg: "Harmonics unlocked — layer overtones to shape richer waveforms.",
 	},
 };
 
@@ -2718,14 +2723,22 @@ function showLevelUpScreen() {
 	exitLevel();
 	UI.displays.luTitle.textContent = `LEVEL ${Session.level + 1}`;
 	const lv = LEVELS[Session.level];
-	const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
-	// TODO: POLISH: Use screen transition like that Sine worm game (bitcrusher, distortion) [Digital Squirm Processing](https://ldjam.com/events/ludum-dare/59/digital-squirm-processing)
-	//       This is now ceremonies... However, needs animation like the link above uses
-	// Wavy vignette wobbly screen reveal of param
-	const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
-	const warmupStr = lv.freeplay ? " Free warmup round to explore." : "";
-	const graceStr = lv.grace ? " First round has no time penalty." : "";
-	UI.displays.luMsg.textContent = [paramStr, graceStr, warmupStr].filter(Boolean).join(" ") || "Good luck.";
+
+	let msg = "";
+	if (hasPendingCeremony()) {
+		msg = CEREMONIES[Session.level].luMsg;
+	} else {
+		const newParams = ["phase", "dc", "harm", "noise"].filter(k => lv[k]);
+		const paramStr = newParams.length ? `New: ${newParams.join(", ")}.` : "";
+		msg = paramStr;
+	}
+
+	const graceStr = lv.grace ? "First round has no time penalty." : "";
+	const warmupStr = lv.freeplay ? "Free warmup round to explore." : "";
+	const extras = [graceStr, warmupStr].filter(Boolean);
+	if (extras.length) msg += (msg ? " " : "") + extras.join(" ");
+
+	UI.displays.luMsg.textContent = msg || "Good luck.";
 	showScreen("levelup");
 	SFX.levelUp();
 }

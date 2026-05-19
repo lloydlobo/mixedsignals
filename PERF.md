@@ -84,7 +84,7 @@ Feature does not exist in `main.js` (only in perf benchmarking tools).
 
 ## ✅ Zenith Audit — Actual Measured Results
 
-```
+```text
 Total Frame Pressure: 0.068ms | Target: PRO (144Hz)
 ```
 
@@ -104,7 +104,7 @@ Total Frame Pressure: 0.068ms | Target: PRO (144Hz)
 
 ## ✅ Deepscan Ground Truth — Instrumented Results
 
-```
+```text
 Frame avg: 16.66ms  |  p95: 16.70ms  |  worst: 16.80ms  |  budget: 24.99ms  |  longFrames: 0
 Memory: 3.93 MB used / 6.98 MB total
 ```
