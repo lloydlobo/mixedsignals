@@ -1718,6 +1718,8 @@ let _lastTime = 0;
 
 let _meterSquashT = 0;
 let _meterWinSlinkyT = 0;
+let _springAmp = 0.08, _springFreq = 6, _springSettle = 0.10;
+let _celebTargetAmp = 0.12, _celebTargetFreq = 4, _celebYoursAmp = 0.15, _celebYoursFreq = 5;
 
 // 1.3 is roughly a quarter-period offset — enough that they drift visibly
 // against each other without ever being perfectly opposed. You can also
@@ -1756,7 +1758,16 @@ function loop(ts) {
 	let lockT = 0;
 	if (Round._lockAnimStart > 0) {
 		// Freeze scroll at lock moment for micro-replay effect
-		if (Round._lockScrollPos < 0) Round._lockScrollPos = scroll;
+		if (Round._lockScrollPos < 0) {
+			Round._lockScrollPos = scroll;
+			_springAmp = 0.06 + Math.random() * 0.05;
+			_springFreq = 4 + Math.random() * 4;
+			_springSettle = 0.08 + Math.random() * 0.05;
+			_celebTargetAmp = 0.08 + Math.random() * 0.07;
+			_celebTargetFreq = 3 + Math.random() * 3;
+			_celebYoursAmp = 0.10 + Math.random() * 0.10;
+			_celebYoursFreq = 4 + Math.random() * 4;
+		}
 		lockT = Math.min((ts - Round._lockAnimStart) / LOCK_DUR, 1);
 		if (lockT >= 1) {
 			Round._lockAnimStart = 0;
@@ -1768,8 +1779,8 @@ function loop(ts) {
 	if (Round._lockScrollPos >= 0) {
 		const t2 = lockT;
 		const decay = Math.exp(-t2 * 2);
-		const osc = Math.cos(t2 * Math.PI * 6);
-		_scrollOff = -0.08 * decay * osc + 0.10 * (1 - Math.exp(-t2 * 2.5));
+		const osc = Math.cos(t2 * Math.PI * _springFreq);
+		_scrollOff = -_springAmp * decay * osc + _springSettle * (1 - Math.exp(-t2 * 2.5));
 	}
 	const repScroll = Round._lockScrollPos >= 0 ? (Round._lockScrollPos + _scrollOff + 1) % 1 : scroll;
 
@@ -1792,15 +1803,15 @@ function loop(ts) {
 		const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
 		_ctx.globalAlpha = 0.25 * (1 - release);
-		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, WOBBLE_TARGET, lockT);
+		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, { ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq }, lockT);
 
 		const flash = Math.max(0, 1 - lockT / 0.35);
 		_ctx.globalAlpha = flash * 0.7;
-		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT);
 
 		const settle = Math.min(lockT / 0.25, 1);
 		_ctx.globalAlpha = 0.4 + 0.6 * settle;
-		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
@@ -1882,8 +1893,10 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 	// #4: Urgency amp spike — wave panics when time is low
 	const urgencyBoost = Round.timeLeft <= 8 ? 1 + (8 - Round.timeLeft) * 0.15 : 1;
 
-	// #5: Lock-in freeze — jelly solidifies on win
-	const lockFactor = lockT > 0 ? 1 - lockT : 1;
+	// #5: Lock-in freeze — jelly solidifies on win with celebration dance
+	const celebAmp = wobbleOpts.celebAmp ?? 0;
+	const celebFreq = wobbleOpts.celebFreq ?? 0;
+	const lockFactor = lockT > 0 ? 1 - lockT + celebAmp * Math.sin(lockT * Math.PI * celebFreq) * (1 - lockT) : 1;
 
 	const wobbleAmp = baseAmp * scoreFactor * urgencyBoost * lockFactor;
 
