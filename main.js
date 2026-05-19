@@ -464,7 +464,7 @@ function initEvents() {
 			}
 			return;
 		}
-		const num = parseInt(e.key);
+		const num = parseInt(e.key, 10);
 		if (num >= 1 && num <= 6 && currentScreen() === "game" && !Round.won) {
 			const btns = document.querySelectorAll(".type-btn");
 			if (btns[num - 1]) {
@@ -665,7 +665,7 @@ function rng(lo, hi) {
 }
 
 const pick = rng => arr => arr[Math.floor(rng() * arr.length)];
-const gamePick = pick(gameRand);
+const gamePick = pick(gameRand); // FIXME: UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
@@ -792,6 +792,7 @@ function startMusic() {
 	audio.play();
 }
 
+// FIXME: UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function setVolume(v) {
 	Session.volume = Math.max(0, Math.min(1, v));
 	UI.audio.volume = Session.volume;
@@ -2833,7 +2834,7 @@ const MG_DIFFICULTY = [
 let mgRaf = null,
 	mgDone = false,
 	mgOnDone = null,
-	mgBonusPts = 0;
+	mgBonusPts = 0; // FIXME: mgBonusPts UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
 let mgState = {};
 
 const $mg = id => document.getElementById(id);
@@ -3253,7 +3254,7 @@ function mgPulseStart(cfg) {
 	let hits = 0,
 		startT = Date.now(),
 		lastBeatT = Date.now(),
-		beatCount = 0;
+		beatCount = 0; // TODO: beatCount UNUSED... use it!!!
 	let flashOn = false;
 	let offBeatMsgTimeout = null;
 
