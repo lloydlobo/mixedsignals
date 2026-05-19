@@ -234,7 +234,7 @@ const DEFAULT_SETTINGS = () => ({
     assistEasyMatch: false, assistNoFail: false,
 });
 function freshSave() {
-    return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() };
+    return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS(), telemetry: [] };
 }
 function writeSave(data) { lsSet(SAVE_KEY, JSON.stringify(data)); }
 function loadSave() {
@@ -316,6 +316,15 @@ function recordLevelComplete(completedLevel, runScore) {
     const save = loadSave();
     save.highestLevel = Math.max(save.highestLevel, completedLevel + 1);
     save.bestScores[completedLevel] = Math.max(save.bestScores[completedLevel], runScore);
+    if (!save.telemetry) save.telemetry = [];
+    save.telemetry.push({
+        level: completedLevel,
+        rounds: 5,
+        hintsUsed: 0,
+        skipsUsed: 0,
+        score: runScore,
+        timeRemaining: 10,
+    });
     writeSave(save);
 }
 
@@ -971,6 +980,70 @@ test("fastSin at exact LUT boundaries", () => {
     // x = idx / SCALE for integer idx should hit exact LUT entries
     const x = 1 / (LUT_SIZE / (Math.PI * 2)); // one LUT step
     assertClose(fastSin(x), Math.sin(x), 0.001);
+});
+
+console.log("\n── self-validating source sync ─────────────────────────────");
+
+test("CONFIG values match main.js source", () => {
+    const fs = require("fs");
+    const src = fs.readFileSync("./main.js", "utf8");
+    const m = src.match(/const CONFIG = Object\.freeze\(\{([\s\S]*?)\}\);/);
+    assert(m, "could not find CONFIG in main.js");
+    // Extract key: value pairs from the match
+    const srcConfig = {};
+    const lineRe = /(\w+):\s*([^,\n]+)/g;
+    let match;
+    while ((match = lineRe.exec(m[1])) !== null) {
+        srcConfig[match[1]] = match[2].trim();
+    }
+    for (const key of Object.keys(CONFIG)) {
+        assert(key in srcConfig, `CONFIG.${key} missing in main.js source`);
+        assertEq(CONFIG[key], Number(srcConfig[key]), `CONFIG.${key} mismatch: ${CONFIG[key]} vs ${srcConfig[key]}`);
+    }
+});
+
+test("LEVELS.length matches main.js source", () => {
+    const fs = require("fs");
+    const src = fs.readFileSync("./main.js", "utf8");
+    const m = src.match(/const LEVELS = \[([\s\S]*?)\];/);
+    assert(m, "could not find LEVELS in main.js");
+    const braceRe = /\{[\s\S]*?\}/g;
+    const srcCount = (m[1].match(braceRe) || []).length;
+    assertEq(LEVELS.length, srcCount, `LEVELS.length mismatch: ${LEVELS.length} vs ${srcCount}`);
+});
+
+console.log("\n── telemetry ────────────────────────────────────────────────");
+
+test("recordLevelComplete appends telemetry entry", () => {
+    localStorage.clear();
+    const save = freshSave();
+    writeSave(save);
+    recordLevelComplete(0, 150);
+    const loaded = loadSave();
+    assert(Array.isArray(loaded.telemetry), "telemetry should be an array");
+    assertEq(loaded.telemetry.length, 1, "should have 1 telemetry entry");
+    assertEq(loaded.telemetry[0].level, 0);
+    assertEq(loaded.telemetry[0].score, 150);
+});
+
+test("telemetry preserves multiple entries across levels", () => {
+    localStorage.clear();
+    const save = freshSave();
+    writeSave(save);
+    recordLevelComplete(0, 100);
+    recordLevelComplete(1, 200);
+    recordLevelComplete(0, 300);
+    const loaded = loadSave();
+    assertEq(loaded.telemetry.length, 3);
+    assertEq(loaded.telemetry[0].level, 0);
+    assertEq(loaded.telemetry[1].level, 1);
+    assertEq(loaded.telemetry[2].level, 0);
+});
+
+test("freshSave initializes telemetry as empty array", () => {
+    const s = freshSave();
+    assert(Array.isArray(s.telemetry), "telemetry should be an array");
+    assertEq(s.telemetry.length, 0);
 });
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
