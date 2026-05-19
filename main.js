@@ -1732,6 +1732,19 @@ const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
 const WOBBLE_TARGET = { amp: 3.5, freq: 3.0, speed: 0.0012 };
 const WOBBLE_YOURS = { amp: 2.0, freq: 5.5, speed: 0.0025 };
 
+// Each waveform type has its own celebration dance personality
+const CELEBRATION_PROFILES = {
+	sine:     { targetAmp: 0.08, targetFreq: 4.0, yoursAmp: 0.10, yoursFreq: 5.0 },
+	square:   { targetAmp: 0.20, targetFreq: 1.5, yoursAmp: 0.25, yoursFreq: 2.0 },
+	sawtooth: { targetAmp: 0.15, targetFreq: 5.0, yoursAmp: 0.18, yoursFreq: 6.0 },
+	triangle: { targetAmp: 0.07, targetFreq: 3.0, yoursAmp: 0.09, yoursFreq: 4.0 },
+	pwm:      { targetAmp: 0.22, targetFreq: 1.2, yoursAmp: 0.28, yoursFreq: 1.8 },
+	am:       { targetAmp: 0.12, targetFreq: 6.0, yoursAmp: 0.15, yoursFreq: 7.0 },
+};
+
+const RIPPLE_FREQ = 0.008;
+const RIPPLE_SPEED = 4;
+
 function loop(ts) {
 	const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
 	_elapsedTime += dt;
@@ -1763,10 +1776,11 @@ function loop(ts) {
 			_springAmp = 0.06 + Math.random() * 0.05;
 			_springFreq = 4 + Math.random() * 4;
 			_springSettle = 0.08 + Math.random() * 0.05;
-			_celebTargetAmp = 0.08 + Math.random() * 0.07;
-			_celebTargetFreq = 3 + Math.random() * 3;
-			_celebYoursAmp = 0.10 + Math.random() * 0.10;
-			_celebYoursFreq = 4 + Math.random() * 4;
+			const profile = CELEBRATION_PROFILES[targetSignal?.type] ?? CELEBRATION_PROFILES.sine;
+			_celebTargetAmp = profile.targetAmp;
+			_celebTargetFreq = profile.targetFreq;
+			_celebYoursAmp = profile.yoursAmp;
+			_celebYoursFreq = profile.yoursFreq;
 		}
 		lockT = Math.min((ts - Round._lockAnimStart) / LOCK_DUR, 1);
 		if (lockT >= 1) {
@@ -1774,6 +1788,8 @@ function loop(ts) {
 			Round._lockScrollPos = -1;
 		}
 	}
+
+	const _impactStr = lockT > 0 ? Math.max(0, 1 - lockT * 2.5) : 0;
 
 	let _scrollOff = 0;
 	if (Round._lockScrollPos >= 0) {
@@ -1803,15 +1819,15 @@ function loop(ts) {
 		const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
 		_ctx.globalAlpha = 0.25 * (1 - release);
-		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, { ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq }, lockT);
+		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, { ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq }, lockT, _impactStr);
 
 		const flash = Math.max(0, 1 - lockT / 0.35);
 		_ctx.globalAlpha = flash * 0.7;
-		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT);
+		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT, _impactStr);
 
 		const settle = Math.min(lockT / 0.25, 1);
 		_ctx.globalAlpha = 0.4 + 0.6 * settle;
-		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT);
+		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT, _impactStr);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
@@ -1862,7 +1878,7 @@ function loop(ts) {
  * 3. Branch Hoisting: MoveTo is called before the loop to remove internal conditionals.
  * 4. Fast Wrapping: Replaces modulo (%) with subtraction for phase accumulation.
  */
-function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts = {}, lockT = 0) {
+function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts = {}, lockT = 0, impactStr = 0) {
 	const halfH = H * 0.5,
 		yOffset = halfH - 10,
 		invW = 1 / W;
@@ -1920,6 +1936,11 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 	_ctx.lineWidth = lineW || 1.8;
 	_ctx.beginPath();
 
+	// ─── IMPACT RIPPLE (lock celebration) ───────────────────────────────────
+	const _impactActive = impactStr > 0;
+	const _halfW = W * 0.5;
+	const _impactPhase = lockT * RIPPLE_SPEED;
+
 	// ─── HOIST INITIALIZATION (BRANCH ELIMINATION) ──────────────────────────
 	// Handle px = 0 explicitly so we don't have an if-statement in the loop.
 	// Direct lookup: floor the index and wrap it with the MASK bitwise.
@@ -1941,7 +1962,10 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 		// --- Sample A ---
 		if (sigPhase >= 1.0) sigPhase -= 1.0; // Fast modulo subtraction
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
-		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+		const _dxA = Math.abs(px - _halfW);
+		const _fA = Math.max(0, 1 - _dxA / _halfW * 2);
+		const _rA = _impactActive ? impactStr * fastSin(_dxA * RIPPLE_FREQ + _impactPhase) * _fA * _fA * _fA : 0;
+		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _rA);
 
 		lutIndex += lutStep;
 		sigPhase += phaseStep;
@@ -1949,7 +1973,10 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 		// --- Sample B ---
 		if (sigPhase >= 1.0) sigPhase -= 1.0;
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
-		_ctx.lineTo(px + step, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+		const _dxB = Math.abs(px + step - _halfW);
+		const _fB = Math.max(0, 1 - _dxB / _halfW * 2);
+		const _rB = _impactActive ? impactStr * fastSin(_dxB * RIPPLE_FREQ + _impactPhase) * _fB * _fB * _fB : 0;
+		_ctx.lineTo(px + step, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _rB);
 
 		lutIndex += lutStep;
 		sigPhase += phaseStep;
@@ -1960,7 +1987,10 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 	for (; px <= W; px += step) {
 		if (sigPhase >= 1.0) sigPhase -= 1.0;
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
-		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly);
+		const _dx = Math.abs(px - _halfW);
+		const _f = Math.max(0, 1 - _dx / _halfW * 2);
+		const _r = _impactActive ? impactStr * fastSin(_dx * RIPPLE_FREQ + _impactPhase) * _f * _f * _f : 0;
+		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _r);
 
 		lutIndex += lutStep;
 		sigPhase += phaseStep;
