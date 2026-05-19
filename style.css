@@ -1206,9 +1206,16 @@ input[type=range]::-moz-range-thumb {
     padding: 4px 10px;
     border-radius: 20px;
     transition: all .15s;
+    border: none;
+    background: none;
 }
  
 .credits-title:hover { color: var(--cream); }
+
+.credits-title:focus-visible {
+    outline: 2px solid var(--cream);
+    outline-offset: 2px;
+}
  
 .credits-popup {
     display: none;
@@ -1230,7 +1237,9 @@ input[type=range]::-moz-range-thumb {
     box-shadow: 0 6px 20px rgba(0,0,0,0.5);
 }
  
-.credits-wrap:hover .credits-popup { display: block; }
+.credits-wrap:hover .credits-popup,
+.credits-wrap:focus-within .credits-popup,
+.credits-wrap.open .credits-popup { display: block; }
  
 .credits-section {
     margin-bottom: 10px;

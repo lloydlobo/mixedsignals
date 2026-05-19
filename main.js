@@ -411,6 +411,26 @@ function initEvents() {
 	// Playback toggle buttons
 	["target", "yours", "ab"].forEach(mode => void UI.playback[mode]?.addEventListener("click", () => setPlaybackMode(_pbMode === mode ? "off" : mode)));
 
+	// Credits popup toggle — keyboard + click accessible
+	const creditsBtn = document.getElementById("btn-credits");
+	const creditsWrap = document.querySelector(".credits-wrap");
+	if (creditsBtn && creditsWrap) {
+		creditsBtn.addEventListener("click", () => {
+			creditsWrap.classList.toggle("open");
+		});
+		document.addEventListener("keydown", e => {
+			if (e.key === "Escape" && creditsWrap.classList.contains("open")) {
+				creditsWrap.classList.remove("open");
+				creditsBtn.focus();
+			}
+		});
+		document.addEventListener("click", e => {
+			if (creditsWrap.classList.contains("open") && !creditsWrap.contains(e.target)) {
+				creditsWrap.classList.remove("open");
+			}
+		});
+	}
+
 	// Pointer gate for beating audio — touch/hold scope to hear the mix
 	const overlay = UI.canvas;
 	if (overlay) {

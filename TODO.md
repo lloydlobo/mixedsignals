@@ -133,6 +133,9 @@ yours osc  ──┘
 - [ ] Add `package.json` with lint (ESLint) and typecheck (`tsc --noEmit` / JSDoc) scripts
 - [ ] Remove `window._testMG` debug global from production code
 - [ ] Resolve `wrangler.jsonc` schema reference (`$schema` points to `node_modules/wrangler/config-schema.json` which doesn't exist locally)
+- [ ] Consume `gamePick` — replace `valid[rng(0, valid.length-1)]` (buildTarget, l.2347) and `unrevealedIndices[rng(0, unrevealedIndices.length-1)]` (useHint, l.3033) with `gamePick(valid)` / `gamePick(unrevealedIndices)`
+- [ ] Consume `mgBonusPts` — read in `showLevelUpScreen()` (~l.2658), append bonus amount to `UI.displays.luMsg` text
+- [ ] Consume `beatCount` — use in `mgFinish()` scoring formula (~ll.3509, 3534) for accuracy-based rewards (ratio of `hits` to total `beatCount`)
 
 ### Medium priority
 
