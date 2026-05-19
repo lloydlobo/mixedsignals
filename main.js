@@ -1331,64 +1331,74 @@ function sample(sig, t, addNoise) {
     return (amp * 0.1) * v + (dc ?? 0) * 0.1;
 }
 
+// ─── MATCH SCORE ────────────────────────────────────────────────────────────
+
 /**
  * Zenith matchScore (v2.0)
  * Uses Phase Accumulators to eliminate 200 multiplications per call.
  * Logic is unrolled to remove the overhead of the sample() wrapper.
  */
 function matchScore() {
-    if (!_matchScoreDirty) return _cachedMatchScore;
+	if (!_matchScoreDirty) return _cachedMatchScore;
 
-    const tS = targetSignal, yS = yoursSignal;
-    const invS = INV_SCORE_SAMPLES;
-    const TWO_PI = 6.283185307179586;
+	const tS = targetSignal ?? buildTarget(),
+		yS = yoursSignal;
 
-    // ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
-    // Pre-calculate initial phases [0, 1]
-    let uT = (tS.phase / 360) % 1; if (uT < 0) uT += 1;
-    let uY = (yS.phase / 360) % 1; if (uY < 0) uY += 1;
+	const invS = INV_SCORE_SAMPLES;
+	const TWO_PI = 6.283185307179586;
 
-    // Pre-calculate fixed phase steps (increments) per sample
-    const sT = tS.freq * invS;
-    const sY = yS.freq * invS;
+	// ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
+	// Pre-calculate initial phases [0, 1]
+	let uT = (tS.phase / 360) % 1;
+	if (uT < 0) uT += 1;
+	let uY = (yS.phase / 360) % 1;
+	if (uY < 0) uY += 1;
 
-    // Hoist variables into local registers for the CPU
-    const samplerT = SAMPLERS[tS.type], samplerY = SAMPLERS[yS.type];
-    const ampT = tS.amp * 0.1, ampY = yS.amp * 0.1;
-    const dcT = (tS.dc ?? 0) * 0.1, dcY = (yS.dc ?? 0) * 0.1;
-    const hT = tS.harm, hY = yS.harm;
+	// Pre-calculate fixed phase steps (increments) per sample
+	const sT = tS.freq * invS;
+	const sY = yS.freq * invS;
 
-    let dSum = 0;
+	// Hoist variables into local registers for the CPU
+	const samplerT = SAMPLERS[tS.type],
+		samplerY = SAMPLERS[yS.type];
+	const ampT = tS.amp * 0.1,
+		ampY = yS.amp * 0.1;
+	const dcT = (tS.dc ?? 0) * 0.1,
+		dcY = (yS.dc ?? 0) * 0.1;
+	const hT = tS.harm,
+		hY = yS.harm;
 
-    // ─── THE HOT LOOP ──────────────────────────────────────────────────────
-    // This loop is now branchless and multiplication-lite.
-    for (let i = 0; i < SCORE_SAMPLES; i++) {
-        // Target Signal (Specialized Inlined Sampling)
-        const xT = uT * TWO_PI;
-        let vT = samplerT(xT, uT, hT);
-        if (hT && tS.type !== "am") vT += (hT * 0.1) * fastSin(xT * 3);
-        const valT = vT * ampT + dcT;
+	let dSum = 0;
 
-        // Yours Signal (Specialized Inlined Sampling)
-        const xY = uY * TWO_PI;
-        let vY = samplerY(xY, uY, hY);
-        if (hY && yS.type !== "am") vY += (hY * 0.1) * fastSin(xY * 3);
-        const valY = vY * ampY + dcY;
+	// ─── THE HOT LOOP ──────────────────────────────────────────────────────
+	// This loop is now branchless and multiplication-lite.
+	for (let i = 0; i < SCORE_SAMPLES; i++) {
+		// Target Signal (Specialized Inlined Sampling)
+		const xT = uT * TWO_PI;
+		let vT = samplerT(xT, uT, hT);
+		if (hT && tS.type !== "am") vT += hT * 0.1 * fastSin(xT * 3);
+		const valT = vT * ampT + dcT;
 
-        // Absolute Difference
-        const diff = valT - valY;
-        dSum += diff < 0 ? -diff : diff;
+		// Yours Signal (Specialized Inlined Sampling)
+		const xY = uY * TWO_PI;
+		let vY = samplerY(xY, uY, hY);
+		if (hY && yS.type !== "am") vY += hY * 0.1 * fastSin(xY * 3);
+		const valY = vY * ampY + dcY;
 
-        // LINEAR ACCUMULATION (Instead of i * step)
-        uT = (uT + sT) % 1;
-        uY = (uY + sY) % 1;
-    }
+		// Absolute Difference
+		const diff = valT - valY;
+		dSum += diff < 0 ? -diff : diff;
 
-    // Wrap-up and cache
-    const raw = 1 - dSum * SCORE_SCALE;
-    _cachedMatchScore = raw < 0 ? 0 : raw > 1 ? 1 : raw;
-    _matchScoreDirty = false;
-    return _cachedMatchScore;
+		// LINEAR ACCUMULATION (Instead of i * step)
+		uT = (uT + sT) % 1;
+		uY = (uY + sY) % 1;
+	}
+
+	// Wrap-up and cache
+	const raw = 1 - dSum * SCORE_SCALE;
+	_cachedMatchScore = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+	_matchScoreDirty = false;
+	return _cachedMatchScore;
 }
 
 // ─── MATCH SCORE (CACHED) ─────────────────────────────────────────────────────
@@ -1396,23 +1406,8 @@ function matchScore() {
 const SCORE_SAMPLES = 96, INV_SCORE_SAMPLES = 1 / 96, SCORE_SCALE = 1 / (2 * 96);
 let _cachedMatchScore = 0, _matchScoreDirty = true;
 
-function invalidateMatchScore() { _matchScoreDirty = true; }
-
-function matchScore() {
-    if (!_matchScoreDirty) return _cachedMatchScore;
-    let d0 = 0, d1 = 0, d2 = 0, d3 = 0;
-    for (let i = 0; i < SCORE_SAMPLES; i += 4) {
-        const s0 = sample(targetSignal, i * INV_SCORE_SAMPLES, false) - sample(yoursSignal, i * INV_SCORE_SAMPLES, false);
-        const s1 = sample(targetSignal, (i + 1) * INV_SCORE_SAMPLES, false) - sample(yoursSignal, (i + 1) * INV_SCORE_SAMPLES, false);
-        const s2 = sample(targetSignal, (i + 2) * INV_SCORE_SAMPLES, false) - sample(yoursSignal, (i + 2) * INV_SCORE_SAMPLES, false);
-        const s3 = sample(targetSignal, (i + 3) * INV_SCORE_SAMPLES, false) - sample(yoursSignal, (i + 3) * INV_SCORE_SAMPLES, false);
-        d0 += s0 < 0 ? -s0 : s0; d1 += s1 < 0 ? -s1 : s1;
-        d2 += s2 < 0 ? -s2 : s2; d3 += s3 < 0 ? -s3 : s3;
-    }
-    const raw = 1 - (d0 + d1 + d2 + d3) * SCORE_SCALE;
-    _cachedMatchScore = raw < 0 ? 0 : raw > 1 ? 1 : raw;
-    _matchScoreDirty = false;
-    return _cachedMatchScore;
+function invalidateMatchScore() {
+	_matchScoreDirty = true;
 }
 
 // Noise widens the win threshold: noisy targets are easier to lock in.
