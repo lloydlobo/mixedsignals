@@ -1685,15 +1685,26 @@ function updateParamArrows() {
 	const affordable = !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
 
 	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
-		arrows.forEach(el => { el.textContent = ""; el.className = "param-arrow"; });
+		arrows.forEach(el => {
+			el.textContent = "";
+			el.className = "param-arrow";
+		});
 		return;
 	}
 
 	const gradient = paramGradient();
-	if (!gradient) { arrows.forEach(el => { el.textContent = ""; }); return; }
+	if (!gradient) {
+		arrows.forEach(el => {
+			el.textContent = "";
+		});
+		return;
+	}
 
 	if (yoursSignal.type !== targetSignal.type) {
-		arrows.forEach(el => { el.textContent = ""; el.className = "param-arrow"; });
+		arrows.forEach(el => {
+			el.textContent = "";
+			el.className = "param-arrow";
+		});
 		return;
 	}
 
@@ -1708,7 +1719,7 @@ function updateParamArrows() {
 		} else {
 			el.textContent = g.dir > 0 ? "↑" : "↓";
 			const strong = g.magnitude > 0.05;
-			el.className = "param-arrow " + (strong ? "arrow-strong" : "arrow-soft");
+			el.className = `param-arrow ${strong ? "arrow-strong" : "arrow-soft"}`;
 		}
 	});
 }
@@ -1795,8 +1806,13 @@ let _lastTime = 0;
 
 let _meterSquashT = 0;
 let _meterWinSlinkyT = 0;
-let _springAmp = 0.08, _springFreq = 6, _springSettle = 0.10;
-let _celebTargetAmp = 0.12, _celebTargetFreq = 4, _celebYoursAmp = 0.15, _celebYoursFreq = 5;
+let _springAmp = 0.08,
+	_springFreq = 6,
+	_springSettle = 0.1;
+let _celebTargetAmp = 0.12,
+	_celebTargetFreq = 4,
+	_celebYoursAmp = 0.15,
+	_celebYoursFreq = 5;
 
 // 1.3 is roughly a quarter-period offset — enough that they drift visibly
 // against each other without ever being perfectly opposed. You can also
@@ -1811,12 +1827,12 @@ const WOBBLE_YOURS = { amp: 2.0, freq: 5.5, speed: 0.0025 };
 
 // Each waveform type has its own celebration dance personality
 const CELEBRATION_PROFILES = {
-	sine:     { targetAmp: 0.08, targetFreq: 4.0, yoursAmp: 0.10, yoursFreq: 5.0 },
-	square:   { targetAmp: 0.20, targetFreq: 1.5, yoursAmp: 0.25, yoursFreq: 2.0 },
+	sine: { targetAmp: 0.08, targetFreq: 4.0, yoursAmp: 0.1, yoursFreq: 5.0 },
+	square: { targetAmp: 0.2, targetFreq: 1.5, yoursAmp: 0.25, yoursFreq: 2.0 },
 	sawtooth: { targetAmp: 0.15, targetFreq: 5.0, yoursAmp: 0.18, yoursFreq: 6.0 },
 	triangle: { targetAmp: 0.07, targetFreq: 3.0, yoursAmp: 0.09, yoursFreq: 4.0 },
-	pwm:      { targetAmp: 0.22, targetFreq: 1.2, yoursAmp: 0.28, yoursFreq: 1.8 },
-	am:       { targetAmp: 0.12, targetFreq: 6.0, yoursAmp: 0.15, yoursFreq: 7.0 },
+	pwm: { targetAmp: 0.22, targetFreq: 1.2, yoursAmp: 0.28, yoursFreq: 1.8 },
+	am: { targetAmp: 0.12, targetFreq: 6.0, yoursAmp: 0.15, yoursFreq: 7.0 },
 };
 
 const RIPPLE_FREQ = 0.008;
@@ -1896,15 +1912,49 @@ function loop(ts) {
 		const release = Math.min(Math.max((lockT - 0.1) / 0.6, 0), 1);
 
 		_ctx.globalAlpha = 0.25 * (1 - release);
-		if (targetSignal !== null) drawWave(targetSignal, "#448855", W, H, repScroll, 1.5, 0, { ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq }, lockT, _impactStr);
+		if (targetSignal !== null)
+			drawWave(
+				targetSignal,
+				"#448855",
+				W,
+				H,
+				repScroll,
+				1.5,
+				0,
+				{ ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq },
+				lockT,
+				_impactStr,
+			);
 
 		const flash = Math.max(0, 1 - lockT / 0.35);
 		_ctx.globalAlpha = flash * 0.7;
-		drawWave(yoursSignal, "#66ff88", W, H, repScroll, 3 + 2 * flash, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT, _impactStr);
+		drawWave(
+			yoursSignal,
+			"#66ff88",
+			W,
+			H,
+			repScroll,
+			3 + 2 * flash,
+			YOURS_SIGNAL_WOBBLE_PHASE,
+			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			lockT,
+			_impactStr,
+		);
 
 		const settle = Math.min(lockT / 0.25, 1);
 		_ctx.globalAlpha = 0.4 + 0.6 * settle;
-		drawWave(yoursSignal, WAVE_COLORS.yours, W, H, repScroll, 2, YOURS_SIGNAL_WOBBLE_PHASE, { ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq }, lockT, _impactStr);
+		drawWave(
+			yoursSignal,
+			WAVE_COLORS.yours,
+			W,
+			H,
+			repScroll,
+			2,
+			YOURS_SIGNAL_WOBBLE_PHASE,
+			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			lockT,
+			_impactStr,
+		);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
@@ -2040,7 +2090,7 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 		if (sigPhase >= 1.0) sigPhase -= 1.0; // Fast modulo subtraction
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
 		const _dxA = Math.abs(px - _halfW);
-		const _fA = Math.max(0, 1 - _dxA / _halfW * 2);
+		const _fA = Math.max(0, 1 - (_dxA / _halfW) * 2);
 		const _rA = _impactActive ? impactStr * fastSin(_dxA * RIPPLE_FREQ + _impactPhase) * _fA * _fA * _fA : 0;
 		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _rA);
 
@@ -2051,7 +2101,7 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 		if (sigPhase >= 1.0) sigPhase -= 1.0;
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
 		const _dxB = Math.abs(px + step - _halfW);
-		const _fB = Math.max(0, 1 - _dxB / _halfW * 2);
+		const _fB = Math.max(0, 1 - (_dxB / _halfW) * 2);
 		const _rB = _impactActive ? impactStr * fastSin(_dxB * RIPPLE_FREQ + _impactPhase) * _fB * _fB * _fB : 0;
 		_ctx.lineTo(px + step, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _rB);
 
@@ -2065,7 +2115,7 @@ function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts =
 		if (sigPhase >= 1.0) sigPhase -= 1.0;
 		jelly = SIN_LUT[(lutIndex | 0) & MASK] * wobbleAmp;
 		const _dx = Math.abs(px - _halfW);
-		const _f = Math.max(0, 1 - _dx / _halfW * 2);
+		const _f = Math.max(0, 1 - (_dx / _halfW) * 2);
 		const _r = _impactActive ? impactStr * fastSin(_dx * RIPPLE_FREQ + _impactPhase) * _f * _f * _f : 0;
 		_ctx.lineTo(px, halfH - sample(sig, sigPhase, true) * yOffset + jelly + _r);
 
