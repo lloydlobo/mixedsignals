@@ -402,9 +402,7 @@ function initEvents() {
 	UI.sliderContainer?.addEventListener("input", recompute);
 
 	// Playback toggle buttons
-	["target", "yours", "ab"].forEach(mode => {
-		UI.playback[mode]?.addEventListener("click", () => setPlaybackMode(_pbMode === mode ? "off" : mode));
-	});
+	["target", "yours", "ab"].forEach(mode => void UI.playback[mode]?.addEventListener("click", () => setPlaybackMode(_pbMode === mode ? "off" : mode)));
 
 	// Pointer gate for beating audio — touch/hold scope to hear the mix
 	const overlay = UI.canvas;
@@ -914,9 +912,7 @@ const _LOCK_VARIANTS = [
 			[659, 0.07],
 			[784, 0.14],
 			[1047, 0.21],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.22 + Math.floor(stampRand() * 4));
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.22 + Math.floor(stampRand() * 4)));
 	},
 
 	// B: "smug little nod" — 3 notes, last one wobbles like it's pleased with itself
@@ -925,9 +921,7 @@ const _LOCK_VARIANTS = [
 			[440, 0],
 			[554, 0.08],
 			[659, 0.16],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.26);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.26));
 		// wobble on the last note
 		const o = ac.createOscillator(),
 			g = ac.createGain();
@@ -952,9 +946,7 @@ const _LOCK_VARIANTS = [
 			[659, 0.14],
 			[523, 0.2],
 			[784, 0.28],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.2);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.2));
 	},
 
 	// D: "soft bloop" — just 2 notes, understated, like a quiet thumbs up
@@ -962,9 +954,7 @@ const _LOCK_VARIANTS = [
 		[
 			[440, 0],
 			[659, 0.1],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.28, 6);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.28, 6));
 	},
 
 	// E: "wobbly high five" — 3 notes climbing, last one slides up a bit, triumphant but goofy
@@ -973,9 +963,7 @@ const _LOCK_VARIANTS = [
 			[523, 0],
 			[784, 0.09],
 			[1047, 0.18],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.2);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, _LOCK_GAIN, 0.2));
 		const o = ac.createOscillator(),
 			g = ac.createGain();
 		o.type = "triangle";
@@ -1031,9 +1019,7 @@ const SFX = {
 			[220, 0],
 			[175, 0.11],
 			[130, 0.24],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, 0.11, 0.22, 3));
 	},
 
 	skip: () => _sfxNote({ type: "triangle", freq: 330, freqEnd: 200, freqRampTime: 0.12, gainStart: 0, gain: 0.12, dur: 0.2 }),
@@ -1069,9 +1055,7 @@ const SFX = {
 			[494, 0.2],
 			[659, 0.32],
 			[880, 0.44],
-		].forEach(([f, t]) => {
-			_warmNote(ac, f, ac.currentTime + t, 0.12, 0.12);
-		});
+		].forEach(([f, t]) => void _warmNote(ac, f, ac.currentTime + t, 0.12, 0.12));
 	},
 
 	nav: () => _sfxNote({ freq: 660, gain: 0.08, dur: 0.04 }),
@@ -1515,9 +1499,7 @@ function updateYoursPlayback() {
 
 function _updatePlaybackUI() {
 	const modes = ["target", "yours", "ab"];
-	modes.forEach(mode => {
-		UI.playback[mode]?.classList.toggle("active", _pbMode === mode && _playbackActive);
-	});
+	modes.forEach(mode => void UI.playback[mode]?.classList.toggle("active", _pbMode === mode && _playbackActive));
 }
 
 // ─── MATH ────────────────────────────────────────────────────────────────────
@@ -2052,9 +2034,7 @@ function recompute() {
 
 function setType(btn) {
 	if (Round.won) return; // NOTE: Freeze waveform type buttons on lock-in
-	document.querySelectorAll(".type-btn").forEach(b => {
-		b.classList.remove("active");
-	});
+	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("active"));
 	btn.classList.add("active");
 	yoursSignal.type = btn.dataset.t;
 	invalidateMatchScore();
@@ -2162,9 +2142,7 @@ function resetYours() {
 		const el = document.getElementById(`sl-${k}`);
 		if (el) el.value = yoursSignal[k];
 	});
-	document.querySelectorAll(".type-btn").forEach(b => {
-		b.classList.toggle("active", b.dataset.t === "sine");
-	});
+	document.querySelectorAll(".type-btn").forEach(b => void b.classList.toggle("active", b.dataset.t === "sine"));
 	invalidateMatchScore();
 	recompute();
 }
@@ -2612,9 +2590,7 @@ function goToMenu() {
 	exitLevel();
 	if (Session.tutorialActive) {
 		Session.tutorialActive = false;
-		document.querySelectorAll(".tutorial-glow").forEach(el => {
-			el.classList.remove("tutorial-glow");
-		});
+		document.querySelectorAll(".tutorial-glow").forEach(el => void el.classList.remove("tutorial-glow"));
 		UI.buttons.skipTut.classList.add("hidden");
 	}
 	Round.won = false;
@@ -2721,9 +2697,7 @@ function checkTutorial() {
 }
 
 function highlightControl() {
-	document.querySelectorAll(".tutorial-glow").forEach(el => {
-		el.classList.remove("tutorial-glow");
-	});
+	document.querySelectorAll(".tutorial-glow").forEach(el => void el.classList.remove("tutorial-glow"));
 	const id = TUTORIAL_CONTROLS[Session.tutorialStep];
 	if (id) {
 		document.getElementById(id)?.classList.add("tutorial-glow");
@@ -3537,10 +3511,33 @@ function initLogoScope() {
 
 	const mobile = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
 
+	/* 
+		Current evidence from your browser + your machine:
+
+		classic for      clear winner
+		forEach          second
+		for...of         last
+
+		For your game code specifically:
+
+		document
+			.querySelectorAll('[filter="url(#logoGlowSoft)"]')
+			.forEach(n=>void n.removeAttribute("filter"));
+
+		is compact, but if this runs frequently:
+
+		const nodes =
+			document.querySelectorAll(
+				'[filter="url(#logoGlowSoft)"]'
+			);
+
+		for(let i=0;i<nodes.length;i++)
+			nodes[i].removeAttribute("filter");
+
+		is now empirically justified rather than folklore-based.
+	*/
 	if (mobile) {
-		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => {
-			n.removeAttribute("filter");
-		});
+		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => void n.removeAttribute("filter"));
 	}
 
 	const scale = mobile ? 0.5 : 1;
