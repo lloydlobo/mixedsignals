@@ -302,6 +302,11 @@ function initUI() {
 	UI.levelSelectGrid = document.getElementById("level-select-grid");
 	UI.typeButtons = document.getElementById("type-btns");
 	UI.sliderContainer = document.querySelector(".param-list");
+	UI.scopeWrap = document.querySelector(".scope-wrap");
+	UI.timerRingWrap = document.querySelector(".timer-ring-wrap");
+	UI.scorePop = document.createElement("div");
+	UI.scorePop.className = "score-pop";
+	UI.scorePop.style.display = "none";
 }
 
 // ─── DISPATCH ──────────────────────────────────────────────────
@@ -415,8 +420,7 @@ function initEvents() {
 			_pointerGate.gain.cancelScheduledValues(ac.currentTime);
 			_pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
 			_pointerGate.gain.linearRampToValueAtTime(PB.BEAT_VOL, ac.currentTime + PB.GATE_ATTACK);
-			const wrap = document.querySelector(".scope-wrap");
-			if (wrap) wrap.classList.add("held");
+			if (UI.scopeWrap) UI.scopeWrap.classList.add("held");
 			overlay.classList.add("held");
 		});
 		const closeGate = () => {
@@ -425,8 +429,7 @@ function initEvents() {
 			_pointerGate.gain.cancelScheduledValues(ac.currentTime);
 			_pointerGate.gain.setValueAtTime(_pointerGate.gain.value, ac.currentTime);
 			_pointerGate.gain.linearRampToValueAtTime(0, ac.currentTime + PB.GATE_RELEASE);
-			const wrap = document.querySelector(".scope-wrap");
-			if (wrap) wrap.classList.remove("held");
+			if (UI.scopeWrap) UI.scopeWrap.classList.remove("held");
 			overlay.classList.remove("held");
 		};
 		overlay.addEventListener("pointerup", closeGate);
@@ -1484,10 +1487,9 @@ function setPlaybackMode(mode) {
 	_setVol(_chYours, y);
 	_updatePlaybackUI();
 
-	const wrap = document.querySelector(".scope-wrap");
-	if (wrap) {
-		wrap.classList.remove("glow-target", "glow-yours", "glow-ab");
-		if (mode !== "off") wrap.classList.add(`glow-${mode}`);
+	if (UI.scopeWrap) {
+		UI.scopeWrap.classList.remove("glow-target", "glow-yours", "glow-ab");
+		if (mode !== "off") UI.scopeWrap.classList.add(`glow-${mode}`);
 	}
 }
 
@@ -2131,9 +2133,9 @@ function flash(color) {
 function showScorePop(points) {
 	const scoreEl = UI.displays.score;
 	if (!scoreEl) return;
-	const pop = document.createElement("div");
-	pop.className = "score-pop";
+	const pop = UI.scorePop;
 	pop.textContent = `+${points}`;
+	pop.style.display = "block";
 	scoreEl.parentElement.style.position = "relative";
 	scoreEl.parentElement.appendChild(pop);
 
@@ -2157,11 +2159,14 @@ function showScorePop(points) {
 		}
 		pop.style.transform = `translateY(${-36 * t}px) skewX(${skewDeg}deg) scaleY(${scaleY})`;
 		pop.style.opacity = 1 - t;
-		if (t < 1) requestAnimationFrame(animPop);
+		if (t < 1) {
+			requestAnimationFrame(animPop);
+			return;
+		}
+		pop.style.display = "none";
 	}
 	requestAnimationFrame(animPop);
 
-	setTimeout(() => pop.remove(), 800);
 	const gi = UI.gameInner;
 	if (Session.screenShake) {
 		gi.classList.add("shake-light");
@@ -2241,24 +2246,36 @@ function updateMeter() {
 
 // ─── INPUT HANDLERS (rAF-throttled) ──────────────────────────────────────────
 
+function setText(el, v) {
+	const s = String(v);
+	if (el.__v === s) return;
+	el.__v = s;
+	el.textContent = s;
+}
+function setAria(el, v) {
+	if (el.__a === v) return;
+	el.__a = v;
+	el.setAttribute("aria-valuetext", v);
+}
+
 function syncLabels() {
-	document.querySelectorAll("[data-param]").forEach(el => {
-		const param = el.dataset.param;
-		const unit = el.dataset.unit || "";
-		const raw = +el.value;
-		const label = document.querySelector(`[data-for="${param}"]`);
-		if (!label) return;
+	for (const [param, slider] of Object.entries(UI.sliders)) {
+		if (!slider) continue;
+		const unit = slider.dataset.unit || "";
+		const raw = +slider.value;
+		const label = UI.labels[param];
+		if (!label) continue;
 		if (unit === "Hz") {
-			label.textContent = `${raw} Hz`;
-			el.setAttribute("aria-valuetext", `${raw} Hz`);
+			setText(label, `${raw} Hz`);
+			setAria(slider, `${raw} Hz`);
 		} else if (unit === "°") {
-			label.textContent = `${raw}°`;
-			el.setAttribute("aria-valuetext", `${raw}°`);
+			setText(label, `${raw}°`);
+			setAria(slider, `${raw}°`);
 		} else {
-			label.textContent = (raw / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION);
-			el.setAttribute("aria-valuetext", (raw / 10).toFixed(1));
+			setText(label, (raw / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION));
+			setAria(slider, (raw / 10).toFixed(1));
 		}
-	});
+	}
 }
 
 function scheduleRender() {
@@ -2437,9 +2454,8 @@ function startTimer() {
 
 	// Grace theme: tint meter + scope-wrap to match the new param
 	const meterFill = UI.displays.fill;
-	const scopeWrap = document.querySelector(".scope-wrap");
 	if (meterFill) meterFill.style.background = graceColor ?? "";
-	if (scopeWrap) scopeWrap.classList.toggle("grace-active", grace);
+	if (UI.scopeWrap) UI.scopeWrap.classList.toggle("grace-active", grace);
 
 	el.textContent = Round.timeLeft;
 	el.className = "timer-ring-label";
@@ -2468,12 +2484,9 @@ function startTimer() {
 				Round._lastUrgentSfx = now;
 			}
 		}
-		const wrap = document.querySelector(".scope-wrap");
-		if (wrap) wrap.classList.toggle("urgent", urgent);
-		const cv = document.getElementById("c-overlay");
-		if (cv) cv.classList.toggle("urgent", urgent);
-		const tw = document.querySelector(".timer-ring-wrap");
-		if (tw) tw.classList.toggle("urgent", urgent);
+		if (UI.scopeWrap) UI.scopeWrap.classList.toggle("urgent", urgent);
+		if (UI.canvas) UI.canvas.classList.toggle("urgent", urgent);
+		if (UI.timerRingWrap) UI.timerRingWrap.classList.toggle("urgent", urgent);
 		if (Round.timeLeft <= 0 && !Round.won) {
 			if (grace) {
 				UI.displays.feedback.textContent = "Time's up. Now it counts.";
@@ -2520,8 +2533,7 @@ function exitLevel() {
 	resetTensionFilter();
 	const meterFill = UI.displays.fill;
 	if (meterFill) meterFill.style.background = "";
-	const scopeWrap = document.querySelector(".scope-wrap");
-	if (scopeWrap) scopeWrap.classList.remove("grace-active");
+	if (UI.scopeWrap) UI.scopeWrap.classList.remove("grace-active");
 	const reveal = document.getElementById("target-reveal");
 	if (reveal) reveal.classList.add("hidden");
 }
@@ -2542,12 +2554,9 @@ function enterLevel() {
 	const feedback = UI.displays.feedback;
 	feedback.textContent = "Match the target signal.";
 	feedback.className = "feedback";
-	const wrap = document.querySelector(".scope-wrap");
-	if (wrap) wrap.classList.remove("urgent");
-	const cv = document.getElementById("c-overlay");
-	if (cv) cv.classList.remove("urgent");
-	const tw = document.querySelector(".timer-ring-wrap");
-	if (tw) tw.classList.remove("urgent");
+	if (UI.scopeWrap) UI.scopeWrap.classList.remove("urgent");
+	if (UI.canvas) UI.canvas.classList.remove("urgent");
+	if (UI.timerRingWrap) UI.timerRingWrap.classList.remove("urgent");
 	startTimer();
 	startSignalPlayback();
 	startLoop();
@@ -3012,14 +3021,10 @@ function useHint() {
 		return;
 	}
 	const lv = LEVELS[Session.level];
-	const hints = [
-		`type: ${targetSignal.type}`,
-		`freq: ${targetSignal.freq} Hz`,
-		`amp: ${(targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`,
-		...(lv.phase ? [`phase: ${targetSignal.phase}°`] : []),
-		...(lv.dc && targetSignal.dc !== 0 ? [`dc: ${(targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`] : []),
-		...(lv.harm && targetSignal.harm > 0 ? [`harmonic: ${(targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`] : []),
-	];
+	const hints = [`type: ${targetSignal.type}`, `freq: ${targetSignal.freq} Hz`, `amp: ${(targetSignal.amp / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`];
+	if (lv.phase) hints.push(`phase: ${targetSignal.phase}°`);
+	if (lv.dc && targetSignal.dc !== 0) hints.push(`dc: ${(targetSignal.dc / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`);
+	if (lv.harm && targetSignal.harm > 0) hints.push(`harmonic: ${(targetSignal.harm / 10).toFixed(CONFIG.FIXED_STEPS_PRECISION)}`);
 	const unrevealedIndices = hints.map((_, i) => i).filter(i => !Round._revealedHints.has(i));
 	const feedback = UI.displays.feedback;
 	if (unrevealedIndices.length === 0) {
