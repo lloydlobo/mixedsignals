@@ -1764,7 +1764,14 @@ function loop(ts) {
 		}
 	}
 
-	const repScroll = Round._lockScrollPos >= 0 ? Round._lockScrollPos : scroll;
+	let _scrollOff = 0;
+	if (Round._lockScrollPos >= 0) {
+		const t2 = lockT;
+		const decay = Math.exp(-t2 * 2);
+		const osc = Math.cos(t2 * Math.PI * 6);
+		_scrollOff = -0.08 * decay * osc + 0.10 * (1 - Math.exp(-t2 * 2.5));
+	}
+	const repScroll = Round._lockScrollPos >= 0 ? (Round._lockScrollPos + _scrollOff + 1) % 1 : scroll;
 
 	const YOURS_SIGNAL_WOBBLE_PHASE = YOURS_SIGNAL_WOBBLE_PHASES[Math.min(Math.min(5, MAX_YOURS_SIGNAL_WOBBLE_PHASES), Session.level)]; // Decrease wobbling as rounds get harder
 
@@ -1772,8 +1779,10 @@ function loop(ts) {
 		// Radar ring emanates from scope center during lock
 		_ctx.globalAlpha = Math.max(0, 0.25 * (1 - lockT / 0.6));
 		for (let r = 0; r < 3; r++) {
-			const rad = (lockT * W * 0.5 + r * 20) % (W * 0.5);
-			const wobble = fastSin(_elapsedTime * 0.008 + r * 2.1) * 3;
+			const t = lockT;
+			const smoothLock = t * t * (3 - 2 * t);
+			const rad = smoothLock * W * 0.55 + r * 20;
+			const wobble = fastSin(_elapsedTime * 0.008 + r * 2.1) * 3 * (1 - t);
 			_ctx.beginPath();
 			_ctx.arc(W * 0.5, H * 0.5, Math.max(1, rad + wobble), 0, Math.PI * 2);
 			_ctx.strokeStyle = "#66ff88";
