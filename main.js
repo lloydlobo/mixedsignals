@@ -165,6 +165,9 @@ const Round = {
 	roundNo: 0,
 	timeLeft: 0,
 	won: false,
+	combo: 0,
+	_hintsUsed: 0,
+	_skipsUsed: 0,
 	_lockAnimStart: 0,
 	_lockScrollPos: -1,
 	_lastPct: 0,
@@ -177,6 +180,9 @@ const Round = {
 	reset() {
 		this.timeLeft = 0;
 		this.won = false;
+		this.combo = 0;
+		this._hintsUsed = 0;
+		this._skipsUsed = 0;
 		this._lockAnimStart = 0;
 		this._lockScrollPos = -1;
 		this._lastPct = 0;
@@ -520,7 +526,7 @@ function lsSet(key, value) {
 const SAVE_KEY = "mixedSignalsSave";
 
 function freshSave() {
-	return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS() };
+	return { highestLevel: 0, bestScores: new Array(LEVELS.length).fill(0), seenCeremonies: [], settings: DEFAULT_SETTINGS(), telemetry: [] };
 }
 const DEFAULT_SETTINGS = () => ({
 	bgmMuted: false,
@@ -585,6 +591,15 @@ function recordLevelComplete(completedLevel, runScore) {
 	const save = loadSave();
 	save.highestLevel = Math.max(save.highestLevel, completedLevel + 1);
 	save.bestScores[completedLevel] = Math.max(save.bestScores[completedLevel], runScore);
+	if (!save.telemetry) save.telemetry = [];
+	save.telemetry.push({
+		level: completedLevel,
+		rounds: Round.roundNo,
+		hintsUsed: Round._hintsUsed,
+		skipsUsed: Round._skipsUsed,
+		score: runScore,
+		timeRemaining: Round.timeLeft,
+	});
 	writeSave(save);
 }
 
@@ -1104,11 +1119,14 @@ const SFX = {
 
 const STAMP_WORDS = {
 	hint: ["BLIP", "PING", "TRACE", "WARMER"],
-	hint_broke: ["NO SIGNAL", "FLAT BROKE", "INSUFFICIENT", "LOW FUNDS"] /* can't afford now */,
+	hint_broke: ["NO SIGNAL", "FLAT BROKE", "INSUFFICIENT", "LOW FUNDS"],
 	skip: ["ZONK", "STATIC", "DRIFT", "NOPE"],
-	skip_broke: ["NOPE", "NO CREDIT", "HELD", "LOCKED OUT"] /* can't afford now */,
+	skip_broke: ["NOPE", "NO CREDIT", "HELD", "LOCKED OUT"],
 	fail: ["DESYNC", "FZZZT", "LOST LOCK", "OVERLOAD"],
 	success: ["LOCKED", "CLEAN", "DIALED", "SMOOTH"],
+	combo_2: ["NICE", "SOLID", "ON FIRE", "DOUBLED"],
+	combo_3: ["GREAT", "SMOKIN", "CRUSHING", "Tearin it up"],
+	combo_5: ["AMAZING", "LEGENDARY", "FLAWLESS", "PLATINUM"],
 };
 
 let _activeStamp = null;
@@ -2228,7 +2246,9 @@ function updateMeter() {
 		_meterWinSlinkyT = 600;
 		Round._lockAnimStart = performance.now();
 		clearInterval(timerInterval);
-		const gain = CONFIG.BASE_REWARD + Math.ceil(Round.timeLeft * CONFIG.TIME_BONUS_RATE);
+		const comboMult = 1 + Round.combo * 0.1;
+		const gain = Math.floor((CONFIG.BASE_REWARD + Math.ceil(Round.timeLeft * CONFIG.TIME_BONUS_RATE)) * comboMult);
+		Round.combo++;
 		dispatch({ type: "SCORE_ADD", payload: gain });
 		showScorePop(gain);
 		fb.textContent = `LOCKED IN +${gain} pts`;
@@ -2239,6 +2259,9 @@ function updateMeter() {
 		flash("var(--green)");
 		SFX.lock();
 		spawnStamp("success");
+		if (Round.combo === 5) spawnStamp("combo_5");
+		else if (Round.combo === 3) spawnStamp("combo_3");
+		else if (Round.combo === 2) spawnStamp("combo_2");
 		if (navigator.vibrate) navigator.vibrate(100);
 		setTimeout(() => nextRound(), 1800);
 	} else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
@@ -2577,6 +2600,24 @@ function enterLevel() {
 	if (UI.scopeWrap) UI.scopeWrap.classList.remove("urgent");
 	if (UI.canvas) UI.canvas.classList.remove("urgent");
 	if (UI.timerRingWrap) UI.timerRingWrap.classList.remove("urgent");
+
+	const lv = LEVELS[Session.level];
+	if (!Session.freePlayActive && !lv.freeplay && !Session.tutorialActive) {
+		const save = loadSave();
+		const telemetry = (save.telemetry || []).filter(t => t.level === Session.level);
+		if (telemetry.length >= 3) {
+			let totalCompletion = 0;
+			for (const t of telemetry) totalCompletion += lv.time - t.timeRemaining;
+			const avgCompletion = totalCompletion / telemetry.length;
+			const ratio = avgCompletion / lv.time;
+			if (ratio < 0.6) {
+				lv.time = Math.max(10, lv.time - 2);
+			} else if (ratio > 0.9) {
+				lv.time = Math.min(60, lv.time + 2);
+			}
+		}
+	}
+
 	startTimer();
 	startSignalPlayback();
 	startLoop();
@@ -3055,6 +3096,7 @@ function useHint() {
 		return;
 	}
 	dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
+	Round._hintsUsed++;
 	const idx = unrevealedIndices[rng(0, unrevealedIndices.length - 1)];
 	Round._revealedHints.add(idx);
 	feedback.textContent = `hint: ${hints[idx]}`;
@@ -3073,6 +3115,7 @@ function skipRound() {
 		return;
 	}
 	dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_SKIP });
+	Round._skipsUsed++;
 	SFX.skip();
 	spawnStamp("skip");
 	setTimeout(() => nextRound(), 600); /* delay */
@@ -3376,7 +3419,7 @@ function mgNeedleStart(cfg) {
 	let tryNo = 0,
 		bestPts = 0,
 		MAX_TRIES = 3;
-	let phaseOffset = Math.random() * Math.PI * 2;
+	let phaseOffset = gameRand() * Math.PI * 2;
 
 	const btn = $mg("mg-btn");
 	btn.textContent = "STOP";
@@ -3395,7 +3438,7 @@ function mgNeedleStart(cfg) {
 			mgFinish(bestPts, bestPts > 0 ? `LOCKED! +${bestPts} pts` : "MISSED THE ZONE", bestPts > 0);
 		} else {
 			baseSpeed = Math.min(speedLimit, baseSpeed + 0.15);
-			phaseOffset = Math.random() * Math.PI * 2;
+			phaseOffset = gameRand() * Math.PI * 2;
 			started = Date.now();
 			btn.textContent = "STOP";
 			btn.disabled = false;
@@ -3415,7 +3458,7 @@ function mgNeedleStart(cfg) {
 		let raw = fastSin(t * (speed + drift) * Math.PI * 2 + phaseOffset);
 		const k = 0.6;
 		raw = Math.tanh(raw * (1 + k)) / Math.tanh(1 + k);
-		if (Math.random() < 0.5) {
+		if (gameRand() < 0.5) {
 			raw += 0.03 * fastSin(t * 6);
 		}
 		needlePos = 0.5 + 0.5 * raw;
@@ -3647,7 +3690,7 @@ function mgNoiseStart(cfg) {
 
 		const c = $mg("mg-canvas");
 		const W = c.offsetWidth || 400;
-		bursts.push({ x: Math.random() * W, y: Math.random() * 110, start: performance.now() });
+		bursts.push({ x: gameRand() * W, y: gameRand() * 110, start: performance.now() });
 		shakeUntil = performance.now() + 100;
 
 		if (noise < 0.1 && !noiseCleared) {
@@ -3689,7 +3732,7 @@ function mgNoiseStart(cfg) {
 
 		ctx.save();
 		if (shaking) {
-			ctx.translate(2 * (Math.random() - 0.5), 2 * (Math.random() - 0.5));
+			ctx.translate(2 * (gameRand() - 0.5), 2 * (gameRand() - 0.5));
 		}
 
 		ctx.clearRect(-5, -5, W + 10, H + 10);
@@ -3718,12 +3761,12 @@ function mgNoiseStart(cfg) {
 		if (noise > 0.05) {
 			ctx.globalAlpha = noise;
 			for (let x = 0; x < W; x += 2) {
-				const amp = (Math.random() - 0.5) * H * 0.7 * noise;
+				const amp = (gameRand() - 0.5) * H * 0.7 * noise;
 				const y = H / 2 + amp;
 				ctx.beginPath();
 				ctx.moveTo(x, H / 2);
 				ctx.lineTo(x, y);
-				ctx.strokeStyle = `hsl(${140 + Math.random() * 40},60%,${40 + Math.random() * 20}%)`;
+				ctx.strokeStyle = `hsl(${140 + gameRand() * 40},60%,${40 + gameRand() * 20}%)`;
 				ctx.lineWidth = 1.5;
 				ctx.stroke();
 			}
