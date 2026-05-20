@@ -36,6 +36,8 @@ interface SaveSettings {
     assistInfiniteTime: boolean;
     assistEasyMatch: boolean;
     assistNoFail: boolean;
+    assistParamGuide: boolean;
+    assistScoreGated: boolean;
 }
 
 interface TelemetryEntry {
@@ -144,6 +146,8 @@ interface SessionState {
     assistInfiniteTime: boolean;
     assistEasyMatch: boolean;
     assistNoFail: boolean;
+    assistParamGuide: boolean;
+    assistScoreGated: boolean;
     sfxVolume: number;
     postGameFreeplay: boolean;
 }
@@ -337,7 +341,8 @@ declare function stopSignalPlayback(): void;
 declare function setPlaybackMode(mode: PlaybackMode): void;
 declare function updateYoursPlayback(): void;
 declare function _updatePlaybackUI(): void;
-declare function toggleMute(sfx?: boolean): void;
+declare function toggleMute(): void;
+declare function toggleSfxMute(): void;
 declare function startMusic(): void;
 
 declare function sample(sig: Signal, t: number, addNoise: boolean): number;
@@ -365,6 +370,7 @@ declare function drawWave(sig: Signal, color: string, W: number, H: number, scro
 declare function loop(ts: DOMHighResTimeStamp): void;
 declare function flash(color: string): void;
 declare function showScorePop(points: number): void;
+declare function normalizePhase(phase: number): number;
 
 declare function runMiniGame(completedLevel: number, onDone: () => void): void;
 declare function mgStart(cfg: any, mg: any): void;
