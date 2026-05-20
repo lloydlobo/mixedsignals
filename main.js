@@ -32,7 +32,6 @@ const SIG_SCALE = Object.freeze({
 	NOISE_RANGE: 0.8,
 });
 
-// TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
 	target: "rgba(200,190,170,0.35)",
 	yours: "#f5efe0",
@@ -1646,10 +1645,6 @@ const SAMPLERS = Object.freeze({
 	am: (x, _u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
 });
 
-// TODO: Add to types.d.ts
-//       Compact version:
-//           const u = (phase / 360) % 1;
-//           return u < 0 ? u + 1 : u;
 function normalizePhase(phase) {
 	let u = phase / 360; 
 	if (u >= 1) u -= 1;
@@ -1986,9 +1981,9 @@ function loop(ts) {
 		// Freeze scroll at lock moment for micro-replay effect
 		if (Round._lockScrollPos < 0) {
 			Round._lockScrollPos = scroll;
-			_springAmp = 0.06 + Math.random() * 0.05;
-			_springFreq = 4 + Math.random() * 4;
-			_springSettle = 0.08 + Math.random() * 0.05;
+			_springAmp = 0.06 + gameRand() * 0.05;
+			_springFreq = 4 + gameRand() * 4;
+			_springSettle = 0.08 + gameRand() * 0.05;
 			const profile = CELEBRATION_PROFILES[targetSignal?.type] ?? CELEBRATION_PROFILES.sine;
 			_celebTargetAmp = profile.targetAmp;
 			_celebTargetFreq = profile.targetFreq;
@@ -2264,8 +2259,8 @@ function showScorePop(points) {
 	scoreEl.parentElement.style.position = "relative";
 	scoreEl.parentElement.appendChild(pop);
 
-	const skew = (Math.random() * 12 - 6).toFixed(1);
-	const squash = (0.85 + Math.random() * 0.1).toFixed(2);
+	const skew = (gameRand() * 12 - 6).toFixed(1);
+	const squash = (0.85 + gameRand() * 0.1).toFixed(2);
 	const s0 = +squash;
 	pop.style.transform = `translateY(0) skewX(${skew}deg) scaleY(${s0})`;
 	pop.style.opacity = "1";

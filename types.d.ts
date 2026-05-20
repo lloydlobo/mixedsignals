@@ -260,6 +260,9 @@ declare var mgOnDone: (() => void) | null;
 declare var mgBonusPts: number;
 declare var mgState: MgState;
 declare var _logoScopeRAF: number | null;
+declare var _logoElapsedTime: number;
+declare var _logoLastTime: number;
+declare var _lastLogoFrame: number;
 
 declare function showScreen(screen: Screen): void;
 declare function currentScreen(): Screen;
