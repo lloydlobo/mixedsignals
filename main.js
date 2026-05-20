@@ -479,6 +479,7 @@ function initEvents() {
 	document.addEventListener(
 		"click",
 		() => {
+			actx();
 			if (!Session.muted) startMusic();
 		},
 		{ once: true },
@@ -724,6 +725,13 @@ const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
 
+// TODO: Add different bgm state?
+//       FIXME: When in freeplay after finishing all levels, (OR ATLEAST HAVE A TOGGLE TO ->) keep the music consistent when moving from menu to freeplay, cause I love that music
+//       SIDE NOTE: Settings is not a change is state though, it is an overlay-modal, so doesn't make sense to change music... 
+//                  In that case we can use a microphone like filter (lowpass and highpass) let just the reverb playout...
+
+const BGM_FADE_DURATION = 1; // seconds
+
 const BGM_STATE = {
 	MENU: "menu",
 	GAMEPLAY: "gameplay",
@@ -771,6 +779,7 @@ function _prefetchBGM(filename) {
 
 const _poolLastIndex = { menu: -1, gameplay: -1, result: -1 };
 let _bgmState = null;
+let _bgmFadeTimeout = null;
 
 function _pickFromPool(pool, stateKey) {
 	let next;
@@ -781,18 +790,37 @@ function _pickFromPool(pool, stateKey) {
 	return pool[next];
 }
 
-function _playFromPool(pool, stateKey) {
+function _fadeBGM(toGain, duration = BGM_FADE_DURATION) {
+	const ac = actx();
+	const now = ac.currentTime;
+	MIX.bgm.gain.setValueAtTime(MIX.bgm.gain.value, now);
+	MIX.bgm.gain.linearRampToValueAtTime(toGain, now + duration);
+}
+
+function _playFromPool(pool, stateKey, fadeIn = false) {
 	const audio = UI.audio;
 	const next = _pickFromPool(pool, stateKey);
 	audio.src = _bgmSrc(next);
-	if (!Session.muted) audio.play();
+	if (!Session.muted) {
+		if (fadeIn) MIX.bgm.gain.value = 0;
+		audio.play();
+		if (fadeIn) _fadeBGM(Session.volume);
+	}
 }
 
 function transitionBGM(state) {
 	if (state === _bgmState) return;
+	if (_bgmFadeTimeout) clearTimeout(_bgmFadeTimeout);
+	const prevState = _bgmState;
 	_bgmState = state;
 	const pool = BGM_POOL[state] ?? BGM_POOL.menu;
-	_playFromPool(pool, state);
+	if (prevState !== null) {
+		_fadeBGM(0);
+	}
+	_bgmFadeTimeout = setTimeout(() => {
+		_bgmFadeTimeout = null;
+		_playFromPool(pool, state, true);
+	}, prevState !== null ? BGM_FADE_DURATION * 1000 : 0);
 	if (state === BGM_STATE.GAMEPLAY) {
 		for (const t of BGM_POOL.gameplay) _prefetchBGM(t);
 	}
@@ -819,8 +847,13 @@ function initAudio() {
 	if (MIX.sfx) MIX.sfx.gain.value = Session.sfxVolume;
 	const audio = UI.audio,
 		btn = UI.buttons.mute;
-	audio.muted = Session.muted;
-	audio.volume = Session.volume;
+	const ac = actx();
+	try {
+		ac.createMediaElementSource(audio).connect(MIX.bgm);
+	} catch {}
+	MIX.bgm.gain.value = Session.muted ? 0 : Session.volume;
+	audio.volume = 1;
+	audio.muted = false;
 	if (btn) {
 		btn.textContent = "BGM";
 		btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
@@ -831,10 +864,8 @@ function initAudio() {
 		sfxBtn.style.color = Session.sfxMuted ? "var(--text-dim)" : "var(--blue)";
 	}
 	audio.addEventListener("ended", () => {
-		if (!Session.muted) {
-			const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
-			_playFromPool(pool, _bgmState);
-		}
+		const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
+		_playFromPool(pool, _bgmState, true);
 	});
 }
 
@@ -844,8 +875,10 @@ function startMusic() {
 	if (!audio.src || audio.ended) {
 		const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
 		audio.src = _bgmSrc(_pickFromPool(pool, _bgmState));
+		MIX.bgm.gain.value = 0;
 	}
 	audio.play();
+	_fadeBGM(Session.volume);
 }
 
 function toggleMute() {
@@ -853,7 +886,7 @@ function toggleMute() {
 	const audio = UI.audio,
 		btn = UI.buttons.mute;
 	SFX.toggle(!Session.muted);
-	audio.muted = Session.muted;
+	if (_bgmFadeTimeout) clearTimeout(_bgmFadeTimeout);
 	const save = loadSave();
 	save.settings.bgmMuted = Session.muted;
 	writeSave(save);
@@ -867,9 +900,19 @@ function toggleMute() {
 		stg.classList.toggle("on", !Session.muted);
 	}
 	if (Session.muted) {
-		if (!audio.paused) audio.pause();
+		_fadeBGM(0);
+		_bgmFadeTimeout = setTimeout(() => {
+			_bgmFadeTimeout = null;
+			if (!audio.paused) audio.pause();
+		}, BGM_FADE_DURATION * 1000);
 	} else {
-		if (currentScreen() === "game") startMusic();
+		if (audio.ended || !audio.src) {
+			const pool = BGM_POOL[_bgmState] ?? BGM_POOL.menu;
+			audio.src = _bgmSrc(_pickFromPool(pool, _bgmState));
+		}
+		MIX.bgm.gain.value = 0;
+		audio.play();
+		_fadeBGM(Session.volume);
 	}
 }
 
@@ -2843,7 +2886,7 @@ function onSettingsVolChange(key, sessionKey, slider) {
 	if (sessionKey) Session[sessionKey] = val;
 	if (key === "bgmVolume") {
 		Session.volume = val;
-		UI.audio.volume = val;
+		if (!Session.muted) MIX.bgm.gain.value = val;
 	}
 	if (key === "sfxVolume") {
 		Session.sfxVolume = val;
