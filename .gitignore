@@ -5,8 +5,10 @@
 .env*
 !.env.example
 
-# temp files
-_archive/
-
 # node_modules
 node_modules
+
+# temp files
+_archive/
+.swp
+_tmp*
