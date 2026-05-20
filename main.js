@@ -730,7 +730,7 @@ const stampPick = pick(stampRand);
 
 // TODO: Add different bgm state?
 //       FIXME: When in freeplay after finishing all levels, (OR ATLEAST HAVE A TOGGLE TO ->) keep the music consistent when moving from menu to freeplay, cause I love that music
-//       SIDE NOTE: Settings is not a change is state though, it is an overlay-modal, so doesn't make sense to change music... 
+//       SIDE NOTE: Settings is not a change is state though, it is an overlay-modal, so doesn't make sense to change music...
 //                  In that case we can use a microphone like filter (lowpass and highpass) let just the reverb playout...
 
 const BGM_FADE_DURATION = 1; // seconds
@@ -822,10 +822,13 @@ function transitionBGM(state) {
 	if (prevState !== null) {
 		_fadeBGM(0);
 	}
-	_bgmFadeTimeout = setTimeout(() => {
-		_bgmFadeTimeout = null;
-		_playFromPool(pool, state, true);
-	}, prevState !== null ? BGM_FADE_DURATION * 1000 : 0);
+	_bgmFadeTimeout = setTimeout(
+		() => {
+			_bgmFadeTimeout = null;
+			_playFromPool(pool, state, true);
+		},
+		prevState !== null ? BGM_FADE_DURATION * 1000 : 0,
+	);
 	if (state === BGM_STATE.GAMEPLAY) {
 		for (const t of BGM_POOL.gameplay) _prefetchBGM(t);
 	}
@@ -1643,6 +1646,17 @@ const SAMPLERS = Object.freeze({
 	am: (x, _u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
 });
 
+// TODO: Add to types.d.ts
+//       Compact version:
+//           const u = (phase / 360) % 1;
+//           return u < 0 ? u + 1 : u;
+function normalizePhase(phase) {
+	let u = phase / 360; 
+	if (u >= 1) u -= 1;
+	else if (u < 0) u += 1;
+	return u; 
+}
+
 function sample(sig, t, addNoise) {
 	if (!sig) return 0;
 	const { type, freq, phase, amp, harm, noise, dc } = sig;
@@ -1671,33 +1685,35 @@ function matchScore() {
 	const tS = targetSignal ?? buildTarget(),
 		yS = yoursSignal;
 
-	const invS = INV_SCORE_SAMPLES;
 	const TWO_PI = Math.PI * 2;
-
-	// ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
-	// Pre-calculate initial phases [0, 1]
-	let uT = (tS.phase / 360) % 1;
-	if (uT < 0) uT += 1;
-	let uY = (yS.phase / 360) % 1;
-	if (uY < 0) uY += 1;
-
-	// Pre-calculate fixed phase steps (increments) per sample
-	const sT = tS.freq * invS;
-	const sY = yS.freq * invS;
+	const invS = INV_SCORE_SAMPLES;
 
 	// Hoist variables into local registers for the CPU
-	const samplerT = SAMPLERS[tS.type],
-		samplerY = SAMPLERS[yS.type];
+	const samplerT = SAMPLERS[tS.type];
+	const samplerY = SAMPLERS[yS.type];
+
+	if (!samplerT) throw new Error(`Unhandled waveform: "${tS.type}"`);
+	if (!samplerY) throw new Error(`Unhandled waveform: "${yS.type}"`);
 	if (!samplerT || !samplerY) {
 		_matchScoreDirty = false;
 		return 0;
 	}
-	const ampT = tS.amp * SIG_SCALE.AMP,
-		ampY = yS.amp * SIG_SCALE.AMP;
-	const dcT = (tS.dc ?? 0) * SIG_SCALE.DC,
-		dcY = (yS.dc ?? 0) * SIG_SCALE.DC;
-	const hT = tS.harm,
-		hY = yS.harm;
+
+	// ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
+	// Pre-calculate initial phases [0, 1]
+	let uT = normalizePhase(tS.phase);
+	let uY = normalizePhase(yS.phase);
+
+	// Pre-calculate fixed phase steps (increments) per sample
+	const stepT = tS.freq * invS;
+	const stepY = yS.freq * invS;
+
+	const ampT = tS.amp * SIG_SCALE.AMP;
+	const ampY = yS.amp * SIG_SCALE.AMP;
+	const dcT = (tS.dc ?? 0) * SIG_SCALE.DC;
+	const dcY = (yS.dc ?? 0) * SIG_SCALE.DC;
+	const harmT = tS.harm;
+	const harmY = yS.harm;
 
 	let dSum = 0;
 
@@ -1706,14 +1722,14 @@ function matchScore() {
 	for (let i = 0; i < SCORE_SAMPLES; i++) {
 		// Target Signal (Specialized Inlined Sampling)
 		const xT = uT * TWO_PI;
-		let vT = samplerT(xT, uT, hT);
-		if (hT && tS.type !== "am") vT += hT * SIG_SCALE.HARM * fastSin(xT * SIG_SCALE.HARM_MULTIPLE);
+		let vT = samplerT(xT, uT, harmT);
+		if (harmT && tS.type !== "am") vT += harmT * SIG_SCALE.HARM * fastSin(xT * SIG_SCALE.HARM_MULTIPLE);
 		const valT = vT * ampT + dcT;
 
 		// Yours Signal (Specialized Inlined Sampling)
 		const xY = uY * TWO_PI;
-		let vY = samplerY(xY, uY, hY);
-		if (hY && yS.type !== "am") vY += hY * SIG_SCALE.HARM * fastSin(xY * SIG_SCALE.HARM_MULTIPLE);
+		let vY = samplerY(xY, uY, harmY);
+		if (harmY && yS.type !== "am") vY += harmY * SIG_SCALE.HARM * fastSin(xY * SIG_SCALE.HARM_MULTIPLE);
 		const valY = vY * ampY + dcY;
 
 		// Absolute Difference
@@ -1721,15 +1737,15 @@ function matchScore() {
 		dSum += diff < 0 ? -diff : diff;
 
 		// LINEAR ACCUMULATION (Instead of i * step)
-		uT += sT;
+		uT += stepT;
 		if (uT >= 1) uT -= 1;
-		uY += sY;
+		uY += stepY;
 		if (uY >= 1) uY -= 1;
 	}
 
 	// Wrap-up and cache
 	const raw = 1 - dSum * SCORE_SCALE;
-	_cachedMatchScore = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+	_cachedMatchScore = raw < 0 ? 0 : raw > 1 ? 1 : raw; // Compact: Math.min(1, Math.max(0, raw));
 	_matchScoreDirty = false;
 	return _cachedMatchScore;
 }
