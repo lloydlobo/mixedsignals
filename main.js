@@ -307,6 +307,12 @@ function initUI() {
 		deadMsg: document.getElementById("dead-msg"),
 		luTitle: document.getElementById("lu-title"),
 		luMsg: document.getElementById("lu-msg"),
+		luScore: document.getElementById("lu-score"),
+		luBest: document.getElementById("lu-best"),
+		luRounds: document.getElementById("lu-rounds"),
+		luCombo: document.getElementById("lu-combo"),
+		luHints: document.getElementById("lu-hints"),
+		luSkips: document.getElementById("lu-skips"),
 		unlockMsg: document.getElementById("unlock-msg"),
 		screenDead: document.getElementById("screen-dead"),
 	};
@@ -739,16 +745,18 @@ const BGM_STATE = {
 };
 
 const BGM_POOL = {
-	menu: [
-		"pietix-art-pop-exp-2-510302.mp3",
-		"slimeyfox-after-hours-arcade-487277.mp3",
-		"musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
-	],
+	menu: ["pietix-cinematic-arthouse-room-with-open-doors-4-535342.mp3"],
 	gameplay: [
 		"penguinmusic-penguinmusic-modern-chillout-future-calm-12641.mp3",
 		"databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
 		"penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3",
 	],
+	settings: ["pietix-cinematic-aloha-lounge-rumba-2-535338.mp3"], // TODO: IMPLEMENT
+	credits: [
+		"pietix-art-pop-exp-2-510302.mp3",
+		"musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
+		"slimeyfox-after-hours-arcade-487277.mp3",
+	], // TODO: IMPLEMENT
 	result: null,
 };
 
@@ -2780,6 +2788,13 @@ function nextRound() {
 }
 
 function showLevelUpScreen() {
+	// Snapshot level stats before exitLevel() resets Round
+	const runScore = Session.score - Session.levelStartScore;
+	const levelRounds = Round.roundNo - 1;
+	const combo = Round.combo;
+	const hintsUsed = Round._hintsUsed;
+	const skipsUsed = Round._skipsUsed;
+
 	transitionBGM(BGM_STATE.MENU);
 	exitLevel();
 	UI.displays.luTitle.textContent = `LEVEL ${Session.level + 1}`;
@@ -2800,6 +2815,16 @@ function showLevelUpScreen() {
 	if (extras.length) msg += (msg ? " " : "") + extras.join(" ");
 
 	UI.displays.luMsg.textContent = msg || "Good luck.";
+
+	const save = loadSave();
+	const bestScore = save.bestScores[Session.level] || 0;
+	if (UI.displays.luScore) UI.displays.luScore.textContent = runScore;
+	if (UI.displays.luBest) UI.displays.luBest.textContent = bestScore;
+	if (UI.displays.luRounds) UI.displays.luRounds.textContent = levelRounds;
+	if (UI.displays.luCombo) UI.displays.luCombo.textContent = combo;
+	if (UI.displays.luHints) UI.displays.luHints.textContent = hintsUsed;
+	if (UI.displays.luSkips) UI.displays.luSkips.textContent = skipsUsed;
+
 	showScreen("levelup");
 	SFX.levelUp();
 }

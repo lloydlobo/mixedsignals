@@ -1991,6 +1991,40 @@ input[type="range"]::-moz-range-thumb {
 	line-height: 1.8;
 }
 
+/* ── LEVEL-UP STATS GRID ───────────────────────────────────────────── */
+.lu-stats-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	gap: 8px;
+	margin: 18px 0;
+	width: 260px;
+}
+
+.lu-stat {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 6px 8px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.lu-stat-label {
+	font-size: 9px;
+	color: var(--text-dim);
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.lu-stat-value {
+	font-size: 16px;
+	font-weight: 700;
+	color: var(--cyan);
+	font-family: var(--font-mono);
+}
+
 /* ── NOISE ATMOSPHERE INDICATOR ─────────────────────────────────────────────
    Small visual cue in the scope label area when target has noise.
    JS adds .has-noise to .scope-wrap; CSS animates a subtle static texture. */
