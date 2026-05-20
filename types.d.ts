@@ -337,7 +337,6 @@ declare function stopSignalPlayback(): void;
 declare function setPlaybackMode(mode: PlaybackMode): void;
 declare function updateYoursPlayback(): void;
 declare function _updatePlaybackUI(): void;
-declare function setVolume(v: number): void;
 declare function toggleMute(sfx?: boolean): void;
 declare function startMusic(): void;
 
