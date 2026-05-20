@@ -229,9 +229,6 @@ const Session = {
 	assistParamGuide: false,
 	assistScoreGated: false,
 	sfxVolume: 0.4,
-	// FIXME: postGameFreeplay: This needs to have unlimited rounds (currently it adopts whatever the last round had/has)
-	// FIXME: postGameFreeplay: Timer also counts down till it stops at 0 and then shows the following feedback
-	// FIXME: postGameFreeplay: Feedback says "TIME'S UP. NOW IT COUNTS." - however it is freeplay
 	postGameFreeplay: false,
 };
 
@@ -341,20 +338,20 @@ function dispatch(action) {
 	switch (action.type) {
 		case "SCORE_ADD":
 			Session.score += action.payload;
-			UI.displays.score.textContent = Session.score;
+			UI.displays.score.textContent = Session.postGameFreeplay ? "∞" : Session.score;
 			break;
 		case "SCORE_SET":
 			Session.score = action.payload;
-			UI.displays.score.textContent = Session.score;
+			UI.displays.score.textContent = Session.postGameFreeplay ? "∞" : Session.score;
 			break;
 		case "SCORE_DEDUCT":
 			Session.score = Math.max(0, Session.score - action.payload);
-			UI.displays.score.textContent = Session.score;
+			UI.displays.score.textContent = Session.postGameFreeplay ? "∞" : Session.score;
 			break;
 		case "SCORE_RESET":
 			Session.score = 0;
 			Session.levelStartScore = 0;
-			UI.displays.score.textContent = Session.score;
+			UI.displays.score.textContent = Session.postGameFreeplay ? "∞" : Session.score;
 			break;
 		case "LEVEL_SET":
 			Session.level = action.payload;
@@ -1789,7 +1786,7 @@ function paramGradient() {
 function updateParamArrows() {
 	const arrows = document.querySelectorAll(".param-arrow");
 	const guideOn = Session.assistParamGuide;
-	const affordable = !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
+	const affordable = Session.postGameFreeplay || !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
 
 	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
 		arrows.forEach(el => {
@@ -2540,7 +2537,7 @@ function resetYours() {
 function applyLevelUI() {
 	const lv = LEVELS[Session.level];
 	UI.labels.level.textContent = Session.postGameFreeplay ? "∞" : Session.level + 1;
-	UI.displays.roundTotal.textContent = lv.rounds;
+	UI.displays.roundTotal.textContent = Session.postGameFreeplay ? "∞" : lv.rounds;
 	UI.controls.phase.style.opacity = lv.phase ? "1" : ".3";
 	UI.controls.dc.style.opacity = lv.dc ? "1" : ".3";
 	UI.controls.harm.classList.toggle("hidden", !lv.harm);
@@ -2692,7 +2689,9 @@ function enterLevel() {
 		}
 	}
 
-	startTimer();
+	if (!Session.postGameFreeplay) {
+		startTimer();
+	}
 	startSignalPlayback();
 	startLoop();
 }
@@ -2747,10 +2746,17 @@ function nextRound() {
 	Round.won = false;
 	Round._lockAnimStart = 0;
 	dispatch({ type: "ROUND_NEXT" });
+
+	if (Session.postGameFreeplay) {
+		enterLevel();
+		return;
+	}
+
 	if (Session.level >= LEVELS.length) {
 		dispatch({ type: "LEVEL_SET", payload: LEVELS.length - 1 });
 		dispatch({ type: "ROUND_SET", payload: 1 });
 		Session.postGameFreeplay = true;
+		UI.displays.score.textContent = "∞";
 		startFreePlay();
 		const feedback = UI.displays.feedback;
 		feedback.textContent = `All ${LEVELS.length} levels unlocked. Feel Free To Explore.`;
@@ -3175,7 +3181,7 @@ function endTutorial() {
 
 function useHint() {
 	if (!Round._revealedHints) Round._revealedHints = new Set();
-	if (Round.won || Session.score < CONFIG.COST_HINT) {
+	if (Round.won || (!Session.postGameFreeplay && Session.score < CONFIG.COST_HINT)) {
 		SFX.hintBroke();
 		spawnStamp("hint_broke");
 		return;
@@ -3194,7 +3200,9 @@ function useHint() {
 		spawnStamp("hint");
 		return;
 	}
-	dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
+	if (!Session.postGameFreeplay) {
+		dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
+	}
 	Round._hintsUsed++;
 	const idx = unrevealedIndices[rng(0, unrevealedIndices.length - 1)];
 	Round._revealedHints.add(idx);
@@ -3208,12 +3216,14 @@ function useHint() {
 }
 
 function skipRound() {
-	if (Session.score < CONFIG.COST_SKIP) {
+	if (!Session.postGameFreeplay && Session.score < CONFIG.COST_SKIP) {
 		SFX.skipBroke();
 		spawnStamp("skip_broke");
 		return;
 	}
-	dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_SKIP });
+	if (!Session.postGameFreeplay) {
+		dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_SKIP });
+	}
 	Round._skipsUsed++;
 	SFX.skip();
 	spawnStamp("skip");
