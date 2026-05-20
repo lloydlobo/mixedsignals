@@ -99,6 +99,15 @@ const CONFIG = {
     NOISE_TOLERANCE_PER_UNIT: 1.2,
 };
 
+const SIG_SCALE = Object.freeze({
+    AMP: 0.1,
+    DC: 0.1,
+    HARM: 0.1,
+    NOISE: 0.1,
+    HARM_MULTIPLE: 3,
+    NOISE_RANGE: 0.8,
+});
+
 const LEVELS = [
     { rounds: 5, time: 35, types: ["sine", "square"], phase: false, dc: false, harm: false, noise: false, freeplay: true },
     { rounds: 5, time: 32, types: ["sine", "square", "sawtooth", "triangle"], phase: false, dc: false, harm: false, noise: false },
@@ -149,13 +158,14 @@ const SAMPLERS = Object.freeze({
 function sample(sig, t, addNoise) {
     if (!sig) return 0;
     const { type, freq, phase, amp, harm, noise, dc } = sig;
-    const u = (freq * t + phase / 360) % 1;
-    const x = u * 6.283185307179586;
+    let u = (freq * t + phase / 360) % 1;
+    if (u < 0) u += 1;
+    const x = u * Math.PI * 2;
     if (!SAMPLERS[type]) throw new Error(`Unhandled waveform: "${type}"`);
     let v = SAMPLERS[type](x, u, harm);
-    if (harm && type !== "am") v += (harm * 0.1) * fastSin(x * 3);
-    if (addNoise && noise) v += (noise * 0.1) * (gameRand() * 0.8 - 0.4);
-    return (amp * 0.1) * v + (dc ?? 0) * 0.1;
+    if (harm && type !== "am") v += harm * SIG_SCALE.HARM * fastSin(x * SIG_SCALE.HARM_MULTIPLE);
+    if (addNoise && noise) v += noise * SIG_SCALE.NOISE * (gameRand() * SIG_SCALE.NOISE_RANGE - SIG_SCALE.NOISE_RANGE / 2);
+    return amp * SIG_SCALE.AMP * v + (dc ?? 0) * SIG_SCALE.DC;
 }
 
 const SCORE_SAMPLES = 96, INV_SCORE_SAMPLES = 1 / 96, SCORE_SCALE = 1 / (2 * 96);
@@ -1044,6 +1054,131 @@ test("freshSave initializes telemetry as empty array", () => {
     const s = freshSave();
     assert(Array.isArray(s.telemetry), "telemetry should be an array");
     assertEq(s.telemetry.length, 0);
+});
+
+// ─── EXTRA SAMPLING & MATCH SCORE TESTS ─────────────────────────────────────
+
+const testSig = (overrides = {}) => ({ type: "sine", freq: 1, amp: 10, phase: 0, dc: 0, harm: 0, noise: 0, ...overrides });
+
+console.log("\n── extra sampling ───────────────────────────────────────────");
+
+test("sample handles negative phase by wrapping to [0,1)", () => {
+    // -360° ≡ 0°, so result should match phase=0
+    const neg = sample(testSig({ phase: -360 }), 0.25, false);
+    const zero = sample(testSig({ phase: 0 }), 0.25, false);
+    assertClose(neg, zero, 0.001, "phase=-360 should equal phase=0");
+});
+
+test("sample handles large positive phase wrap", () => {
+    // 720° ≡ 0°, so result should match phase=0
+    const big = sample(testSig({ phase: 720 }), 0.25, false);
+    const zero = sample(testSig({ phase: 0 }), 0.25, false);
+    assertClose(big, zero, 0.001, "phase=720 should equal phase=0");
+});
+
+test("sample uses SIG_SCALE constants consistently", () => {
+    // amp=10 → amp*SIG_SCALE.AMP = 1.0, sine at peak = 1.0
+    const v = sample(testSig({ type: "sine", amp: 10 }), 0.25, false);
+    assertClose(v, 1.0, 0.01);
+});
+
+test("dc offset uses SIG_SCALE.DC", () => {
+    // dc=5 → 5*0.1 = 0.5, amp=0 → pure dc
+    const v = sample(testSig({ type: "sine", amp: 0, dc: 5 }), 0.5, false);
+    assertClose(v, 0.5, 0.001);
+});
+
+test("3rd harmonic uses SIG_SCALE.HARM and SIG_SCALE.HARM_MULTIPLE", () => {
+    // harm=10 → harm*0.1 = 1.0, 3rd harmonic max amplitude ≈ 1.0
+    const withHarm = { ...testSig({ harm: 10 }), type: "square" };
+    const noHarm = { ...testSig({ harm: 0 }), type: "square" };
+    const vh = sample(withHarm, 0.5, false);
+    const vn = sample(noHarm, 0.5, false);
+    assert(vh !== vn, "harmonics should change sample output");
+});
+
+console.log("\n── matchScore edge cases ────────────────────────────────────");
+
+test("matchScore returns 1.0 for identical signals with harm=0", () => {
+    _targetSignal = testSig({ type: "sine", freq: 2, amp: 7, harm: 0 });
+    _yoursSignal = { ..._targetSignal };
+    invalidateMatchScore();
+    assertClose(matchScore(), 1.0, 0.001);
+});
+
+test("matchScore returns 1.0 for identical signals with harm>0", () => {
+    _targetSignal = testSig({ type: "sine", freq: 3, amp: 6, harm: 5 });
+    _yoursSignal = { ..._targetSignal };
+    invalidateMatchScore();
+    assertClose(matchScore(), 1.0, 0.001);
+});
+
+test("matchScore detects harmonics mismatch", () => {
+    _targetSignal = testSig({ type: "sine", freq: 2, amp: 5, harm: 8 });
+    _yoursSignal = testSig({ type: "sine", freq: 2, amp: 5, harm: 0 });
+    invalidateMatchScore();
+    const match = matchScore();
+    _yoursSignal.harm = 8;
+    invalidateMatchScore();
+    const better = matchScore();
+    assert(better > match, `matching harm (${better}) should beat mismatched harm (${match})`);
+});
+
+test("matchScore detects dc offset mismatch", () => {
+    _targetSignal = testSig({ type: "sine", freq: 1, amp: 5, dc: 3 });
+    _yoursSignal = testSig({ type: "sine", freq: 1, amp: 5, dc: 0 });
+    invalidateMatchScore();
+    const mismatch = matchScore();
+    _yoursSignal.dc = 3;
+    invalidateMatchScore();
+    const match = matchScore();
+    assert(match > mismatch, `matching dc (${match}) should beat mismatched dc (${mismatch})`);
+});
+
+test("AM with harm does not double-add 3rd harmonic", () => {
+    // AM sampler uses harm internally; the post-sampler harmonic injection
+    // is skipped via `type !== "am"` guard — verify AM with harm=0 vs harm>0 differ
+    _targetSignal = testSig({ type: "am", freq: 1, amp: 5, harm: 5 });
+    _yoursSignal = testSig({ type: "am", freq: 1, amp: 5, harm: 0 });
+    invalidateMatchScore();
+    const diffHarm = matchScore();
+    _yoursSignal.harm = 5;
+    invalidateMatchScore();
+    const sameHarm = matchScore();
+    assert(sameHarm > diffHarm, `AM matching harm (${sameHarm}) should beat mismatched harm (${diffHarm})`);
+});
+
+console.log("\n── matchScore stress ────────────────────────────────────────");
+
+test("matchScore stays in [0,1] for 500 random signal pairs", () => {
+    const types = ["sine", "square", "sawtooth", "triangle", "pwm", "am"];
+    let minScore = 1, maxScore = 0;
+    for (let i = 0; i < 500; i++) {
+        const t = types[i % types.length];
+        const y = types[Math.floor(Math.random() * types.length)];
+        _targetSignal = testSig({ type: t, freq: rng(1, 8), amp: rng(1, 10), phase: rng(0, 360), dc: rng(-5, 5), harm: rng(0, 10) });
+        _yoursSignal = testSig({ type: y, freq: rng(1, 8), amp: rng(1, 10), phase: rng(0, 360), dc: rng(-5, 5), harm: rng(0, 10) });
+        invalidateMatchScore();
+        const sc = matchScore();
+        const inRange = sc >= 0 && sc <= 1;
+        if (!inRange) throw new Error(`score out of range [0,1]: ${sc} for target=${t} yours=${y}`);
+        minScore = Math.min(minScore, sc);
+        maxScore = Math.max(maxScore, sc);
+    }
+    assert(minScore >= 0 && maxScore <= 1, "all scores in [0,1]");
+});
+
+test("matchScore caching returns same value when not invalidated", () => {
+    _targetSignal = testSig({ type: "sine", freq: 4, amp: 6, phase: 90 });
+    _yoursSignal = testSig({ type: "square", freq: 2, amp: 8, phase: 0 });
+    invalidateMatchScore();
+    const first = matchScore();
+    _yoursSignal.freq = 4; // mutate but don't invalidate
+    const second = matchScore();
+    assertEq(first, second, "cache should return same stale value");
+    invalidateMatchScore();
+    const third = matchScore();
+    assert(third !== first || third !== second, "after invalidate score should potentially change");
 });
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────

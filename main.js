@@ -23,6 +23,15 @@ const CONFIG = Object.freeze({
 	NOISE_TOLERANCE_PER_UNIT: 1.2,
 });
 
+const SIG_SCALE = Object.freeze({
+	AMP: 0.1,
+	DC: 0.1,
+	HARM: 0.1,
+	NOISE: 0.1,
+	HARM_MULTIPLE: 3,
+	NOISE_RANGE: 0.8,
+});
+
 // TODO: POLISH: If grace, use grace like colors
 const WAVE_COLORS = {
 	target: "rgba(200,190,170,0.35)",
@@ -1589,13 +1598,14 @@ const SAMPLERS = Object.freeze({
 function sample(sig, t, addNoise) {
 	if (!sig) return 0;
 	const { type, freq, phase, amp, harm, noise, dc } = sig;
-	const u = (freq * t + phase / 360) % 1;
-	const x = u * 6.283185307179586;
+	let u = (freq * t + phase / 360) % 1;
+	if (u < 0) u += 1;
+	const x = u * Math.PI * 2;
 	if (!SAMPLERS[type]) throw new Error(`Unhandled waveform: "${type}"`);
 	let v = SAMPLERS[type](x, u, harm);
-	if (harm && type !== "am") v += harm * 0.1 * fastSin(x * 3);
-	if (addNoise && noise) v += noise * 0.1 * (gameRand() * 0.8 - 0.4);
-	return amp * 0.1 * v + (dc ?? 0) * 0.1;
+	if (harm && type !== "am") v += harm * SIG_SCALE.HARM * fastSin(x * SIG_SCALE.HARM_MULTIPLE);
+	if (addNoise && noise) v += noise * SIG_SCALE.NOISE * (gameRand() * SIG_SCALE.NOISE_RANGE - SIG_SCALE.NOISE_RANGE / 2);
+	return amp * SIG_SCALE.AMP * v + (dc ?? 0) * SIG_SCALE.DC;
 }
 
 // ─── MATCH SCORE ────────────────────────────────────────────────────────────
@@ -1604,6 +1614,8 @@ function sample(sig, t, addNoise) {
  * Zenith matchScore (v2.0)
  * Uses Phase Accumulators to eliminate 200 multiplications per call.
  * Logic is unrolled to remove the overhead of the sample() wrapper.
+ * Note: matchScore intentionally does NOT add noise.
+ * Noise is visual/atmospheric — scoring uses clean samples only.
  */
 function matchScore() {
 	if (!_matchScoreDirty) return _cachedMatchScore;
@@ -1612,7 +1624,7 @@ function matchScore() {
 		yS = yoursSignal;
 
 	const invS = INV_SCORE_SAMPLES;
-	const TWO_PI = 6.283185307179586;
+	const TWO_PI = Math.PI * 2;
 
 	// ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
 	// Pre-calculate initial phases [0, 1]
@@ -1628,10 +1640,14 @@ function matchScore() {
 	// Hoist variables into local registers for the CPU
 	const samplerT = SAMPLERS[tS.type],
 		samplerY = SAMPLERS[yS.type];
-	const ampT = tS.amp * 0.1,
-		ampY = yS.amp * 0.1;
-	const dcT = (tS.dc ?? 0) * 0.1,
-		dcY = (yS.dc ?? 0) * 0.1;
+	if (!samplerT || !samplerY) {
+		_matchScoreDirty = false;
+		return 0;
+	}
+	const ampT = tS.amp * SIG_SCALE.AMP,
+		ampY = yS.amp * SIG_SCALE.AMP;
+	const dcT = (tS.dc ?? 0) * SIG_SCALE.DC,
+		dcY = (yS.dc ?? 0) * SIG_SCALE.DC;
 	const hT = tS.harm,
 		hY = yS.harm;
 
@@ -1643,13 +1659,13 @@ function matchScore() {
 		// Target Signal (Specialized Inlined Sampling)
 		const xT = uT * TWO_PI;
 		let vT = samplerT(xT, uT, hT);
-		if (hT && tS.type !== "am") vT += hT * 0.1 * fastSin(xT * 3);
+		if (hT && tS.type !== "am") vT += hT * SIG_SCALE.HARM * fastSin(xT * SIG_SCALE.HARM_MULTIPLE);
 		const valT = vT * ampT + dcT;
 
 		// Yours Signal (Specialized Inlined Sampling)
 		const xY = uY * TWO_PI;
 		let vY = samplerY(xY, uY, hY);
-		if (hY && yS.type !== "am") vY += hY * 0.1 * fastSin(xY * 3);
+		if (hY && yS.type !== "am") vY += hY * SIG_SCALE.HARM * fastSin(xY * SIG_SCALE.HARM_MULTIPLE);
 		const valY = vY * ampY + dcY;
 
 		// Absolute Difference
@@ -1657,8 +1673,10 @@ function matchScore() {
 		dSum += diff < 0 ? -diff : diff;
 
 		// LINEAR ACCUMULATION (Instead of i * step)
-		uT = (uT + sT) % 1;
-		uY = (uY + sY) % 1;
+		uT += sT;
+		if (uT >= 1) uT -= 1;
+		uY += sY;
+		if (uY >= 1) uY -= 1;
 	}
 
 	// Wrap-up and cache
