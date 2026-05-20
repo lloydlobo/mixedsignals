@@ -1770,10 +1770,10 @@ function updateParamArrows() {
 		if (!g) return;
 
 		if (g.dir === 0) {
-			el.textContent = "·";
+			el.textContent = "•";
 			el.className = "param-arrow arrow-ok";
 		} else {
-			el.textContent = g.dir > 0 ? "↑" : "↓";
+			el.textContent = g.dir > 0 ? "▲" : "▼";
 			const strong = g.magnitude > 0.05;
 			el.className = `param-arrow ${strong ? "arrow-strong" : "arrow-soft"}`;
 		}
