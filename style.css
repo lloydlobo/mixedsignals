@@ -1581,36 +1581,34 @@ input[type="range"]::-moz-range-thumb {
 	font-style: italic;
 }
 
-.credits-track {
-	font-size: 9px;
-	margin-bottom: 6px;
-	padding-bottom: 6px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+.credits-tracks {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 2px 16px;
 }
 
-.credits-track:last-child {
-	border-bottom: none;
-	margin-bottom: 0;
-	padding-bottom: 0;
+.credits-track {
+	font-size: 9px;
+	line-height: 1.5;
+	padding: 3px 6px;
+	border-radius: 4px;
+	transition: background 0.2s;
+	color: var(--text-dim);
+}
+
+.credits-track:hover {
+	background: rgba(255, 255, 255, 0.04);
 }
 
 .credits-track-title {
-	font-weight: 500;
-	color: var(--text-dim);
-	font-size: 10px;
-}
-
-.credits-track-artist {
-	color: var(--text-mute);
-	font-size: 9px;
-	margin-top: 1px;
+	color: var(--cream);
 }
 
 .credits-track-license {
 	color: var(--text-mute);
 	font-size: 8px;
 	opacity: 0.6;
-	margin-top: 1px;
+	margin-left: 2px;
 }
 
 .credits-thanks {
