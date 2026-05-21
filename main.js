@@ -486,6 +486,8 @@ function initEvents() {
 		},
 		{ once: true },
 	);
+	document.addEventListener("pointerdown", _initAudioOnGesture, { once: true });
+	document.addEventListener("keydown", _initAudioOnGesture, { once: true });
 	window.addEventListener("blur", () => {
 		_lastTime = 0;
 		_elapsedTime = 0;
@@ -722,7 +724,7 @@ function rng(lo, hi) {
 }
 
 const pick = rng => arr => arr[Math.floor(rng() * arr.length)];
-const gamePick = pick(gameRand); // FIXME: UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+const gamePick = pick(gameRand);
 const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
@@ -806,8 +808,8 @@ function _playFromPool(pool, stateKey, fadeIn = false) {
 	const next = _pickFromPool(pool, stateKey);
 	audio.src = _bgmSrc(next);
 	if (!Session.muted) {
-		if (fadeIn) MIX.bgm.gain.value = 0;
-		audio.play();
+		if (fadeIn && MIX.bgm) MIX.bgm.gain.value = 0;
+		_tryPlayAudio();
 		if (fadeIn) _fadeBGM(Session.volume);
 	}
 }
@@ -850,17 +852,24 @@ Session.assistParamGuide = _initSettings.assistParamGuide;
 Session.assistScoreGated = _initSettings.assistScoreGated;
 
 function initAudio() {
-	createMixGraph();
-	if (MIX.sfx) MIX.sfx.gain.value = Session.sfxVolume;
 	const audio = UI.audio,
 		btn = UI.buttons.mute;
-	const ac = actx();
-	try {
-		ac.createMediaElementSource(audio).connect(MIX.bgm);
-	} catch {}
-	MIX.bgm.gain.value = Session.muted ? 0 : Session.volume;
 	audio.volume = 1;
 	audio.muted = false;
+
+	function wire() {
+		if (!_actx || !MIX.master) return;
+		if (MIX.sfx) MIX.sfx.gain.value = Session.sfxVolume;
+		try {
+			_actx.createMediaElementSource(audio).connect(MIX.bgm);
+		} catch {}
+		MIX.bgm.gain.value = Session.muted ? 0 : Session.volume;
+	}
+
+	createMixGraph();
+	wire();
+	if (!_audioReady) _pendingAudioInit.push(wire);
+
 	if (btn) {
 		btn.textContent = "BGM";
 		btn.style.color = Session.muted ? "var(--text-dim)" : "var(--blue)";
@@ -953,11 +962,29 @@ const AudioCtx = (() => {
 })();
 
 let _actx = null;
+let _audioReady = false;
+const _pendingAudioInit = [];
+
+function _flushPendingAudio() {
+	for (const fn of _pendingAudioInit) fn();
+	_pendingAudioInit.length = 0;
+}
+
+function _initAudioOnGesture() {
+	if (_audioReady) return;
+	_audioReady = true;
+	_actx = new AudioCtx();
+	_flushPendingAudio();
+}
 
 function actx() {
-	if (!_actx) _actx = new AudioCtx();
-	if (_actx.state === "suspended") _actx.resume();
 	return _actx;
+}
+
+function _tryPlayAudio() {
+	UI.audio.play().catch(() => {
+		UI.audio.addEventListener("canplay", () => UI.audio.play().catch(() => {}), { once: true });
+	});
 }
 
 let _lastSliderSfx = 0;
@@ -1289,7 +1316,11 @@ let _clarityFilter = null;
 
 function createMixGraph() {
 	if (MIX.master) return;
-	const ac = actx();
+	if (!_actx) {
+		_pendingAudioInit.push(() => createMixGraph());
+		return;
+	}
+	const ac = _actx;
 
 	MIX.target = ac.createGain();
 	MIX.yours = ac.createGain();
@@ -1645,17 +1676,17 @@ const SAMPLERS = Object.freeze({
 	am: (x, _u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
 });
 
-function normalizePhase(phase) {
-	let u = phase / 360; 
-	if (u >= 1) u -= 1;
-	else if (u < 0) u += 1;
-	return u; 
+const INV_360 = 1 / 360;
+
+function wrapUnit(u) {
+	u -= Math.floor(u);
+	return u;
 }
 
 function sample(sig, t, addNoise) {
 	if (!sig) return 0;
 	const { type, freq, phase, amp, harm, noise, dc } = sig;
-	let u = (freq * t + phase / 360) % 1;
+	let u = wrapUnit(freq * t + phase * INV_360);
 	if (u < 0) u += 1;
 	const x = u * Math.PI * 2;
 	if (!SAMPLERS[type]) throw new Error(`Unhandled waveform: "${type}"`);
@@ -1666,6 +1697,10 @@ function sample(sig, t, addNoise) {
 }
 
 // ─── MATCH SCORE ────────────────────────────────────────────────────────────
+
+function normalizePhase(phase) {
+	return wrapUnit(phase * INV_360);
+} // let u=phase/360; if(u>=1)u-=1;else if(u<0)u+=1;return u;
 
 /**
  * Zenith matchScore (v2.0)
@@ -2486,7 +2521,7 @@ function buildTarget() {
 	if (gameRand() < 0.4) {
 		const isDebut = Session.level in _DEBUT_ARCHETYPES;
 		const valid = ARCHETYPES.filter(a => a.levelMin <= Session.level && (!isDebut || _DEBUT_ARCHETYPES[Session.level].includes(a.name)));
-		if (valid.length) archetype = valid[rng(0, valid.length - 1)];
+		if (valid.length) archetype = gamePick(valid);
 	}
 
 	if (archetype) {
@@ -2830,6 +2865,7 @@ function showLevelUpScreen() {
 	const warmupStr = lv.freeplay ? "Free warmup round to explore." : "";
 	const extras = [graceStr, warmupStr].filter(Boolean);
 	if (extras.length) msg += (msg ? " " : "") + extras.join(" ");
+	if (mgBonusPts > 0) msg += `${msg ? " " : ""}Minigame bonus: +${mgBonusPts} pts.`;
 
 	UI.displays.luMsg.textContent = msg || "Good luck.";
 
@@ -3215,7 +3251,7 @@ function useHint() {
 		dispatch({ type: "SCORE_DEDUCT", payload: CONFIG.COST_HINT });
 	}
 	Round._hintsUsed++;
-	const idx = unrevealedIndices[rng(0, unrevealedIndices.length - 1)];
+	const idx = gamePick(unrevealedIndices);
 	Round._revealedHints.add(idx);
 	feedback.textContent = `hint: ${hints[idx]}`;
 	feedback.className = "feedback close";
@@ -3260,7 +3296,7 @@ const MG_DIFFICULTY = [
 let mgRaf = null,
 	mgDone = false,
 	mgOnDone = null,
-	mgBonusPts = 0; // FIXME: mgBonusPts UNUSED !!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+	mgBonusPts = 0;
 let mgState = {};
 
 const $mg = id => document.getElementById(id);
@@ -3676,7 +3712,7 @@ function mgPulseStart(cfg) {
 	let hits = 0,
 		startT = Date.now(),
 		lastBeatT = Date.now(),
-		beatCount = 0; // TODO: beatCount UNUSED... use it!!!
+		beatCount = 0;
 	let flashOn = false;
 	let offBeatMsgTimeout = null;
 
@@ -3719,7 +3755,7 @@ function mgPulseStart(cfg) {
 		const now = Date.now(),
 			elapsed = now - startT;
 		if (elapsed > 10000 && !mgDone) {
-			mgFinish(hits * 8, `Time's up. +${hits * 8} pts`, false);
+			mgFinish(hits * 8 + beatCount, `Time's up. +${hits * 8 + beatCount} pts`, false);
 			return;
 		}
 		const sinceLastBeat = now - lastBeatT;
@@ -3939,14 +3975,6 @@ function mgNoiseStart(cfg) {
 	}
 	tick();
 }
-
-// ── TEST SHORTCUT ─────────────────────────────────
-
-window._testMG = i => {
-	runMiniGame(i, () => {
-		showScreen("start");
-	});
-};
 
 // ── WAVE LIBRARY ──────────────────────────────────────────────
 

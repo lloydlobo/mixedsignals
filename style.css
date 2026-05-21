@@ -66,7 +66,7 @@ radii, typography), not browser capability indirection.
 	/* Text */
 	--text: #f0e8d8;
 	--text-dim: #7a7060;
-	--text-mute: #4a4438;
+	--text-mute: #92826c;
 
 	--color-surface-hover: #3e3830;
 	--color-coral-hover: #d4533e;
@@ -1121,6 +1121,11 @@ input[type="range"]::-moz-range-thumb {
 	transition:
 		transform 0.07s,
 		box-shadow 0.07s;
+}
+
+.sys-btn:focus-visible {
+	outline: 2px solid var(--cream);
+	outline-offset: 2px;
 }
 
 .sys-btn:active {
