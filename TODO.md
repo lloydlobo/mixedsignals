@@ -187,3 +187,16 @@ yours osc  ──┘
 - [x] Debut-archetype filter + weighted param selection + chaos jitter on re-encounter
 - [x] Audio channel: warm analog-feel sound effects, melodic lock variants
 - [x] Tutorial clarity improvements (glow effects, contrast, step locking)
+
+---
+
+## 🕯️ Pensieve — Credits hover personality
+
+All four credit sections now have distinct hover animations with the same underlying structure (scale 1.08, `::after` overlay, amber glow):
+
+| Section     | Cursor | Animation              | Direction           |
+|-------------|--------|------------------------|---------------------|
+| Playtesters | 🙏     | `signal-sweep`         | ↔ horizontal beam   |
+| Music       | 🎶     | `wave-pulse`           | ↕ vertical shimmer  |
+| AI Tools    | ⚡     | `zap-sweep`            | ⤡ diagonal sweep    |
+| Inspiration | 💡     | `glow-spark`           | ◎ radial pulse      |
