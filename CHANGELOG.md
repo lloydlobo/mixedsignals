@@ -5,6 +5,13 @@ All notable changes to Mixed Signals.
 ## [Unreleased]
 
 ### Features
+- Credits hover personality: each section has unique cursor emoji and sweep animation (🙏 horizontal, 🎶 vertical, ⚡ diagonal, 💡 radial pulse)
+- Playtester names in 4-column grid with amber glow and signal-sweep hover effect
+- Music credits compacted to single-line grid with cream-colored titles
+- Unify all credits sections to consistent 9px/1.5 body with cream-highlighted key nouns
+- Add credits for two uncredited Peter Koepke tracks (Cinematic Arthouse Room With Open Doors 4, Cinematic Aloha Lounge Rumba 2)
+
+### Features
 - Signal archetypes: 10 authored named presets (heartbeat, sonar, reactor, bell, thump, etc.) appear as targets with 40% chance, shown in scope badge
 - Grace theme system: per-level accent color (blue, amber, coral, green, dim) tints meter fill and scope-wrap during safe rounds
 - Micro replay: freeze-frame scroll capture on lock with expanding radar ring emanations from scope center
