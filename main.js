@@ -2323,9 +2323,14 @@ function showScorePop(points) {
 	requestAnimationFrame(animPop);
 
 	const gi = UI.gameInner;
+	const g = UI.game;
 	if (Session.screenShake) {
 		gi.classList.add("shake-light");
-		setTimeout(() => gi.classList.remove("shake-light"), 300);
+		g.classList.add("shake-light");
+		setTimeout(() => {
+			gi.classList.remove("shake-light");
+			g.classList.remove("shake-light");
+		}, 300);
 	}
 }
 
@@ -3065,9 +3070,14 @@ function gameOver() {
 	showScreen("dead");
 	SFX.fail();
 	const gi = UI.gameInner;
+	const g = UI.game;
 	if (Session.screenShake) {
 		gi.classList.add("shake");
-		setTimeout(() => gi.classList.remove("shake"), 500);
+		g.classList.add("shake");
+		setTimeout(() => {
+			gi.classList.remove("shake");
+			g.classList.remove("shake");
+		}, 500);
 		if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 	}
 }

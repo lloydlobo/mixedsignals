@@ -634,6 +634,62 @@ b {
 	animation: shakeLight 0.3s ease-out;
 }
 
+/* ── BRICK WOBBLE (outer shell) ───────────────────────────────────────────── */
+
+@keyframes brickWobble {
+	0%,
+	100% {
+		transform: rotate(-0.5deg) translate(0, 0);
+		box-shadow: 0 8px 0 color-mix(in oklch, var(--bg) 60%, black), 0 12px 40px rgba(0, 0, 0, 0.6);
+	}
+	15% {
+		transform: rotate(-2.8deg) translate(-3px, 1px);
+		box-shadow: 0 6px 0 color-mix(in oklch, var(--bg) 60%, black), 0 8px 32px rgba(0, 0, 0, 0.5);
+	}
+	30% {
+		transform: rotate(1.8deg) translate(3px, -1px);
+		box-shadow: 0 10px 0 color-mix(in oklch, var(--bg) 60%, black), 0 14px 44px rgba(0, 0, 0, 0.7);
+	}
+	45% {
+		transform: rotate(-2deg) translate(-2px, 1px);
+		box-shadow: 0 7px 0 color-mix(in oklch, var(--bg) 60%, black), 0 10px 36px rgba(0, 0, 0, 0.55);
+	}
+	60% {
+		transform: rotate(1.2deg) translate(2px, -1px);
+		box-shadow: 0 9px 0 color-mix(in oklch, var(--bg) 60%, black), 0 12px 40px rgba(0, 0, 0, 0.65);
+	}
+	75% {
+		transform: rotate(-0.6deg) translate(0, 0);
+		box-shadow: 0 8px 0 color-mix(in oklch, var(--bg) 60%, black), 0 12px 40px rgba(0, 0, 0, 0.6);
+	}
+	90% {
+		transform: rotate(0deg) translate(0, 0);
+	}
+}
+
+@keyframes brickWobbleLight {
+	0%,
+	100% {
+		transform: rotate(-0.5deg) translate(0, 0);
+	}
+	25% {
+		transform: rotate(-1.8deg) translate(-2px, 1px);
+	}
+	50% {
+		transform: rotate(0.8deg) translate(2px, -1px);
+	}
+	75% {
+		transform: rotate(-1deg) translate(-1px, 0);
+	}
+}
+
+#game.shake {
+	animation: brickWobble 0.5s ease-out;
+}
+#game.shake-light {
+	animation: brickWobbleLight 0.3s ease-out;
+}
+
 .score-pop {
 	position: absolute;
 	top: 40px;
