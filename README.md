@@ -16,6 +16,10 @@
 
 - **Lazy Day Stylish Futuristic Chill**: Music by <a href="https://pixabay.com/users/penguinmusic-24940186/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=239287">Oleksandr Stepanov</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=239287">Pixabay</a>
 
+- **Cinematic Arthouse Room With Open Doors 4**: Music by <a href="https://pixabay.com/users/pietix-54512977/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535342">Peter Koepke</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535342">Pixabay</a>
+
+- **Cinematic Aloha Lounge Rumba 2**: Music by <a href="https://pixabay.com/users/pietix-54512977/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535338">Peter Koepke</a> from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535338">Pixabay</a>
+
 ## Built With
 
 This project was developed collaboratively with AI assistants:
