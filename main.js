@@ -3293,6 +3293,32 @@ const MG_DIFFICULTY = [
 	{ peakSpeed: 0.006, peakTarget: 4, needleBase: 0.65, needleLimit: 1.5, pulseWindow: 100, noiseDecay: 0.025 },
 ];
 
+// ── MINIGAME CONSTANTS ──────────────────────────────
+const MG_PEAK_DURATION = 7000;
+const MG_PEAK_THRESHOLD = 0.85;
+const MG_PEAK_PERFECT_SCORE = 30;
+const MG_PEAK_PARTIAL_MULT = 8;
+
+const MG_NEEDLE_DURATION = 6000;
+const MG_NEEDLE_MAX_TRIES = 3;
+const MG_NEEDLE_GREEN_LO = 0.33;
+const MG_NEEDLE_GREEN_HI = 0.67;
+const MG_NEEDLE_SPEED_STEP = 0.15;
+const MG_NEEDLE_BASE_SCORE = 10;
+const MG_NEEDLE_PRECISION_MULT = 20;
+
+const MG_PULSE_BPM = 90;
+const MG_PULSE_TARGET = 4;
+const MG_PULSE_DURATION = 10000;
+const MG_PULSE_PERFECT_SCORE = 35;
+const MG_PULSE_PARTIAL_MULT = 8;
+
+const MG_NOISE_DURATION = 6500;
+const MG_NOISE_PERFECT_SCORE = 40;
+const MG_NOISE_REGEN_DELAY = 3000;
+const MG_NOISE_REGEN_RATE = 0.0001;
+const MG_NOISE_CLEAR_AT = 0.05;
+
 let mgRaf = null,
 	mgDone = false,
 	mgOnDone = null,
@@ -3433,8 +3459,8 @@ function mgPeakStart(cfg) {
 	const TARGET_HITS = cfg.peakTarget;
 	let hits = 0,
 		lastPeak = false,
-		startT = Date.now(),
-		duration = 7000;
+		startT = Date.now();
+	const duration = MG_PEAK_DURATION;
 	let peakHitThisWindow = false;
 	let missedTimeout = null;
 	mgState = { hits: 0, canHit: false, flashUntil: 0 };
@@ -3453,7 +3479,7 @@ function mgPeakStart(cfg) {
 		peakHitThisWindow = true;
 		mgState.canHit = false;
 		if (hits >= TARGET_HITS) {
-			mgFinish(30, "PERFECT TIMING!", true);
+			mgFinish(MG_PEAK_PERFECT_SCORE, "PERFECT TIMING!", true);
 			return;
 		}
 	};
@@ -3469,8 +3495,8 @@ function mgPeakStart(cfg) {
 		$mg("mg-bar").style.background = timeLeft > 0.4 ? "#00ffb4" : "#ff4554";
 
 		if (elapsed > duration) {
-			const pts = mgState.hits >= TARGET_HITS ? 30 : mgState.hits * 8;
-			mgFinish(pts, mgState.hits >= TARGET_HITS ? "PERFECT!" : `Missed some peaks. +${mgState.hits * 8} pts`, mgState.hits >= TARGET_HITS);
+			const pts = mgState.hits >= TARGET_HITS ? MG_PEAK_PERFECT_SCORE : mgState.hits * MG_PEAK_PARTIAL_MULT;
+			mgFinish(pts, mgState.hits >= TARGET_HITS ? "PERFECT!" : `Missed some peaks. +${mgState.hits * MG_PEAK_PARTIAL_MULT} pts`, mgState.hits >= TARGET_HITS);
 			return;
 		}
 
@@ -3482,7 +3508,7 @@ function mgPeakStart(cfg) {
 			H = c.height;
 		const t = now * cfg.peakSpeed;
 		const waveY = fastSin(t);
-		const isPeak = waveY > 0.85;
+		const isPeak = waveY > MG_PEAK_THRESHOLD;
 
 		ctx.clearRect(0, 0, W, H);
 
@@ -3565,16 +3591,16 @@ function mgPeakStart(cfg) {
 
 function mgNeedleStart(cfg) {
 	let started = Date.now();
-	const duration = 6000;
+	const duration = MG_NEEDLE_DURATION;
 	let baseSpeed = cfg.needleBase;
 	const speedLimit = cfg.needleLimit;
-	const GREEN_LO = 0.33,
-		GREEN_HI = 0.67;
+	const GREEN_LO = MG_NEEDLE_GREEN_LO,
+		GREEN_HI = MG_NEEDLE_GREEN_HI;
 	let stopped = false;
 	let needlePos = 0;
 	let tryNo = 0,
-		bestPts = 0,
-		MAX_TRIES = 3;
+		bestPts = 0;
+	const MAX_TRIES = MG_NEEDLE_MAX_TRIES;
 	let phaseOffset = gameRand() * Math.PI * 2;
 
 	const btn = $mg("mg-btn");
@@ -3586,14 +3612,14 @@ function mgNeedleStart(cfg) {
 		const inZone = needlePos >= GREEN_LO && needlePos <= GREEN_HI;
 		SFX.beep(inZone ? 880 : 220, 0.1, inZone ? 0.15 : 0.1);
 		const precision = inZone ? 1 - Math.abs(needlePos - 0.5) / 0.17 : 0;
-		const pts = inZone ? Math.round(10 + precision * 20) : 0;
+		const pts = inZone ? Math.round(MG_NEEDLE_BASE_SCORE + precision * MG_NEEDLE_PRECISION_MULT) : 0;
 		if (pts > bestPts) bestPts = pts;
 		tryNo++;
 		if (tryNo >= MAX_TRIES || inZone) {
 			stopped = true;
 			mgFinish(bestPts, bestPts > 0 ? `LOCKED! +${bestPts} pts` : "MISSED THE ZONE", bestPts > 0);
 		} else {
-			baseSpeed = Math.min(speedLimit, baseSpeed + 0.15);
+			baseSpeed = Math.min(speedLimit, baseSpeed + MG_NEEDLE_SPEED_STEP);
 			phaseOffset = gameRand() * Math.PI * 2;
 			started = Date.now();
 			btn.textContent = "STOP";
@@ -3705,9 +3731,9 @@ function mgNeedleStart(cfg) {
 // ── PULSE TAP ─────────────────────────────────────
 
 function mgPulseStart(cfg) {
-	const BPM = 90,
+	const BPM = MG_PULSE_BPM,
 		BEAT_MS = 60000 / BPM;
-	const TARGET = 4;
+	const TARGET = MG_PULSE_TARGET;
 	const WINDOW = cfg.pulseWindow;
 	let hits = 0,
 		startT = Date.now(),
@@ -3730,7 +3756,7 @@ function mgPulseStart(cfg) {
 			$mg("mg-status").textContent = `ON BEAT! ${hits}/${TARGET}`;
 			$mg("mg-status").className = "mg-status win";
 			if (hits >= TARGET) {
-				mgFinish(35, "PERFECT RHYTHM!", true);
+				mgFinish(MG_PULSE_PERFECT_SCORE, "PERFECT RHYTHM!", true);
 			}
 		} else {
 			if (offBeatMsgTimeout) clearTimeout(offBeatMsgTimeout);
@@ -3754,8 +3780,8 @@ function mgPulseStart(cfg) {
 		if (mgDone) return;
 		const now = Date.now(),
 			elapsed = now - startT;
-		if (elapsed > 10000 && !mgDone) {
-			mgFinish(hits * 8 + beatCount, `Time's up. +${hits * 8 + beatCount} pts`, false);
+		if (elapsed > MG_PULSE_DURATION && !mgDone) {
+			mgFinish(hits * MG_PULSE_PARTIAL_MULT + beatCount, `Time's up. +${hits * MG_PULSE_PARTIAL_MULT + beatCount} pts`, false);
 			return;
 		}
 		const sinceLastBeat = now - lastBeatT;
@@ -3827,9 +3853,9 @@ function mgPulseStart(cfg) {
 
 function mgNoiseStart(cfg) {
 	let noise = 1.0,
-		startT = Date.now(),
-		duration = 6500,
-		mashes = 0;
+		startT = Date.now();
+	const duration = MG_NOISE_DURATION;
+	let mashes = 0;
 	const DECAY = cfg.noiseDecay;
 	let bursts = [];
 	let shakeUntil = 0;
@@ -3855,8 +3881,8 @@ function mgNoiseStart(cfg) {
 			SFX.beep(1047, 0.15, 0.25);
 		}
 
-		if (noise <= 0.05) {
-			mgFinish(40, "SIGNAL CLEAR!", true);
+		if (noise <= MG_NOISE_CLEAR_AT) {
+			mgFinish(MG_NOISE_PERFECT_SCORE, "SIGNAL CLEAR!", true);
 		}
 	};
 
@@ -3866,7 +3892,7 @@ function mgNoiseStart(cfg) {
 		if (mgDone) return;
 		const pn = performance.now();
 		const elapsed = Date.now() - startT;
-		const regen = elapsed < 3000 ? 0 : 0.0001;
+		const regen = elapsed < MG_NOISE_REGEN_DELAY ? 0 : MG_NOISE_REGEN_RATE;
 		noise = Math.min(1, noise + regen);
 		const timeLeft = Math.max(0, 1 - elapsed / duration);
 		$mg("mg-bar").style.width = `${timeLeft * 100}%`;
