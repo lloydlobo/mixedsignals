@@ -129,18 +129,22 @@ yours osc  ──┘
 ### High priority
 
 - [ ] Extract shared constants (`CONFIG`, `LEVELS`, `CEREMONIES`, `ARCHETYPES`, `BGM_POOL`, `SAMPLERS`, `DEFAULT_SETTINGS`, `SAVE_KEY`, `smoothstep`, `sigmoid`, `dispatch`) into `const.js` — eliminates test/main.js drift
-- [ ] Delete stale `_archive/` directory (42 files, 2.8 MB)
+- [x] Delete stale `_archive/` directory (42 files, 2.8 MB)
 - [ ] Add `package.json` with lint (ESLint) and typecheck (`tsc --noEmit` / JSDoc) scripts
-- [ ] Remove `window._testMG` debug global from production code
+- [x] Remove `window._testMG` debug global from production code
 - [ ] Resolve `wrangler.jsonc` schema reference (`$schema` points to `node_modules/wrangler/config-schema.json` which doesn't exist locally)
-- [ ] Consume `gamePick` — replace `valid[rng(0, valid.length-1)]` (buildTarget, l.2347) and `unrevealedIndices[rng(0, unrevealedIndices.length-1)]` (useHint, l.3033) with `gamePick(valid)` / `gamePick(unrevealedIndices)`
-- [ ] Consume `mgBonusPts` — read in `showLevelUpScreen()` (~l.2658), append bonus amount to `UI.displays.luMsg` text
-- [ ] Consume `beatCount` — use in `mgFinish()` scoring formula (~ll.3509, 3534) for accuracy-based rewards (ratio of `hits` to total `beatCount`)
+- [x] Consume `gamePick` — replace `valid[rng(0, valid.length-1)]` (buildTarget, l.2347) and `unrevealedIndices[rng(0, unrevealedIndices.length-1)]` (useHint, l.3033) with `gamePick(valid)` / `gamePick(unrevealedIndices)`
+- [x] Consume `mgBonusPts` — read in `showLevelUpScreen()` (~l.2658), append bonus amount to `UI.displays.luMsg` text
+- [x] Consume `beatCount` — use in `mgFinish()` scoring formula (~ll.3509, 3534) for accuracy-based rewards (ratio of `hits` to total `beatCount`)
 
 ### Medium priority
 
-- [ ] Remove empty `resources/image/` directory
+- [x] Remove empty `resources/image/` directory
 - [x] Replace `Math.random()` calls in minigames (`mgNeedleStart` phaseOffset, noise bursts) with seeded game RNG for determinism
+- [x] Replace remaining `Math.random()` calls in rendering (`loop` spring, `showScorePop` squish) with seeded RNG
+- [x] Fix `postGameFreeplay` — unlimited rounds, infinite timer, free hints/skips
+- [x] Sync `types.d.ts` with `main.js` — `toggleMute`, `toggleSfxMute`, `SaveSettings`, `SessionState`, `normalizePhase`, logo scope vars
+- [x] Show per-level stats (score, best, rounds, combo, hints, skips) on level-up screen
 - [ ] Add keyboard focus indicators — buttons with `outline: none` have no visible focus fallback
 - [ ] Prune stale git branches (20 branches — 10 local + 10 remote, several unmerged)
 
