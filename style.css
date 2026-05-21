@@ -66,7 +66,7 @@ radii, typography), not browser capability indirection.
 	/* Text */
 	--text: #f0e8d8;
 	--text-dim: #7a7060;
-	--text-mute: #92826c;
+	--text-mute: #92826c; /* WCAG AA 4.70:1 on --bg — passes normal-text AA (4.5:1) */
 
 	--color-surface-hover: #3e3830;
 	--color-coral-hover: #d4533e;

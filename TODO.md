@@ -150,7 +150,7 @@ yours osc  ──┘
 
 ### Low priority
 
-- [ ] Check `--text-mute` (#4a4438) contrast against `--bg` (#1c1915) — may fail WCAG AA
+- [x] Check `--text-mute` (#92826c) contrast against `--bg` (#1c1915) — 4.70:1 passes AA (4.5:1), fails AAA (7:1). Muted text does not require AAA.
 - [ ] Extract minigame magic numbers (`BPM: 90`, `MAX_TRIES: 3`, noise regen `0.0001`) into named constants
 - [ ] Add JSDoc types to `applySignal`, `scheduleRender`, `syncLabels`, `readSliders`
 
