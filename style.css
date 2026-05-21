@@ -2266,6 +2266,11 @@ canvas#mg-canvas {
 		var(--shadow-sm);
 }
 
+.mg-action-btn:focus-visible {
+	outline: 2px solid var(--cream);
+	outline-offset: 2px;
+}
+
 .mg-action-btn:active {
 	transform: translateY(2px);
 	box-shadow: none;
