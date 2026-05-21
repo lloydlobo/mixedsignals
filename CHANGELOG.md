@@ -5,13 +5,11 @@ All notable changes to Mixed Signals.
 ## [Unreleased]
 
 ### Features
-- Credits hover personality: each section has unique cursor emoji and sweep animation (🙏 horizontal, 🎶 vertical, ⚡ diagonal, 💡 radial pulse)
+- Credits hover personality: each credit section has unique cursor emoji and sweep animation (🙏 horizontal, 🎶 vertical, ⚡ diagonal, 💡 radial pulse)
 - Playtester names in 4-column grid with amber glow and signal-sweep hover effect
 - Music credits compacted to single-line grid with cream-colored titles
 - Unify all credits sections to consistent 9px/1.5 body with cream-highlighted key nouns
 - Add credits for two uncredited Peter Koepke tracks (Cinematic Arthouse Room With Open Doors 4, Cinematic Aloha Lounge Rumba 2)
-
-### Features
 - Signal archetypes: 10 authored named presets (heartbeat, sonar, reactor, bell, thump, etc.) appear as targets with 40% chance, shown in scope badge
 - Grace theme system: per-level accent color (blue, amber, coral, green, dim) tints meter fill and scope-wrap during safe rounds
 - Micro replay: freeze-frame scroll capture on lock with expanding radar ring emanations from scope center
@@ -43,6 +41,10 @@ All notable changes to Mixed Signals.
 - Prefetch BGM tracks in background via fetch — game never blocks on audio load
 
 ### Fixes
+- Post-game freeplay: unlimited rounds, infinite timer, free hints/skips
+- Type drift in logo scope vars, stale TODOs, and missing seeded RNG in 5 `Math.random()` calls
+- Sync `types.d.ts` with `main.js` — `toggleMute`, `toggleSfxMute`, `assistParamGuide`, `assistScoreGated`, `normalizePhase`
+- Add keyboard focus-visible indicator to minigame action button
 - Show "CONTINUE (FREEPLAY)" instead of "CONTINUE (LV 8)" after all levels beaten
 - Show "∞" for level label during post-game freeplay instead of max-level number
 - Stop signal playback when level up screen is displayed
@@ -58,6 +60,9 @@ All notable changes to Mixed Signals.
 - Lower saturator drive from k=15 to k=2.5 to avoid audible distortion
 
 ### Refactoring
+- Consume `gamePick`/`mgBonusPts`/`beatCount`, centralize event listeners, fix audio gesture handling, WCAG contrast audit
+- Normalize phase calculation and improve `matchScore` function
+- Extract minigame magic numbers into named constants
 - Deduplicate initUI DOM lookups with collect() helper (~35 LoC saved)
 - Consolidate render constants (scroll, timing, lock duration, timer circumference) into RENDER namespace
 - Streamline sound effects with shared _sfxNote() config helper and extract makeRand() factory
@@ -66,6 +71,9 @@ All notable changes to Mixed Signals.
 - 5-pass refactor: dispatch owns score/level/round writes, BUTTON_ACTIONS table, scoped RNG, SAMPLERS lookup, data-attr sliders
 
 ### Documentation
+- Verify `--text-mute` (#92826c) WCAG contrast against `--bg` (#1c1915) — 4.70:1 passes AA
+- Update TODO.md to reflect completed codebase hygiene tasks
+- Add pensieve entry for credits hover personality
 - Add manual test checklist for browser and settings overlay (CHECKLIST.md)
 - Add bug fix log (FIXES.md)
 - Add 53 unit tests for signal math, scoring, dispatch, persistence, and RNG (mixed-signals.test.js)
