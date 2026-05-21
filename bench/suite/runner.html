@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>bench</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --border: #1e1e1e;
+      --accent: #c8f135;
+      --accent2: #35f1c8;
+      --danger: #f13535;
+      --muted: #444;
+      --text: #e8e8e8;
+      --text2: #666;
+      --mono: 'Courier New', monospace;
+      --serif: Georgia, serif;
+      --r: 4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      min-height: 100vh;
+      padding: 40px 32px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      margin-bottom: 32px;
+      border-left: 3px solid var(--accent);
+      padding-left: 16px;
+    }
+
+    header h1 {
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: normal;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    #bench-description {
+      color: var(--text2);
+      font-size: 12px;
+    }
+
+    /* ── CONTROLS ── */
+    .controls {
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      color: var(--text2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    select,
+    input[type=number] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 6px 10px;
+      border-radius: var(--r);
+      outline: none;
+      width: 180px;
+    }
+
+    select:focus,
+    input:focus {
+      border-color: var(--accent);
+    }
+
+    button#run {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: bold;
+      padding: 8px 24px;
+      border-radius: var(--r);
+      cursor: pointer;
+      letter-spacing: .04em;
+      transition: opacity .1s;
+      height: 34px;
+    }
+
+    button#run:hover {
+      opacity: .85;
+    }
+
+    button#run:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    /* ── STATUS ── */
+    #status {
+      color: var(--text2);
+      font-size: 12px;
+      min-height: 18px;
+      margin-bottom: 4px;
+    }
+
+    #status.running {
+      color: var(--accent2);
+    }
+
+    /* ── TABLE ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+    }
+
+    th {
+      text-align: left;
+      color: var(--text2);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 0 12px 10px;
+      border-bottom: 1px solid var(--border);
+      font-weight: normal;
+    }
+
+    th:not(:first-child) {
+      text-align: right;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #141414;
+      vertical-align: middle;
+    }
+
+    td:not(:first-child) {
+      text-align: right;
+    }
+
+    tr.winner td {
+      color: var(--accent);
+    }
+
+    tr.unsafe td {
+      opacity: .45;
+    }
+
+    .v-name {
+      color: var(--text);
+    }
+
+    .v-code {
+      color: var(--text2);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .unsafe-badge {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 10px;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      border-radius: 2px;
+      padding: 0 4px;
+      vertical-align: middle;
+      opacity: .7;
+    }
+
+    .bar-cell {
+      width: 160px;
+    }
+
+    .bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .bar {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--border);
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--muted);
+      transition: width .4s ease;
+    }
+
+    tr.winner .bar-fill {
+      background: var(--accent);
+    }
+
+    .rel {
+      font-size: 11px;
+    }
+
+    .rel.faster {
+      color: var(--accent);
+    }
+
+    .rel.slower {
+      color: var(--text2);
+    }
+
+    .rel.unsafe {
+      color: var(--danger);
+    }
+
+    /* ── NOTES ── */
+    #notes {
+      margin-top: 20px;
+      color: var(--text2);
+      font-size: 11px;
+      line-height: 1.9;
+      border-left: 2px solid var(--border);
+      padding-left: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1 id="bench-title">bench</h1>
+    <p id="bench-description"></p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>iterations</label>
+      <select id="iters">
+        <option value="1000000">1 000 000</option>
+        <option value="5000000" selected>5 000 000</option>
+        <option value="10000000">10 000 000</option>
+        <option value="50000000">50 000 000</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>input range</label>
+      <select id="range"></select>
+    </div>
+    <div class="control-group">
+      <label>runs (averaged)</label>
+      <input type="number" id="runs" value="5" min="1" max="20">
+    </div>
+    <button id="run" type="button">run</button>
+  </div>
+
+  <div id="status"></div>
+  <table id="results" class="hidden">
+    <thead>
+      <tr>
+        <th>variant</th>
+        <th>ops / sec</th>
+        <th>vs fastest</th>
+        <th class="bar-cell"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="notes" class="hidden"></div>
+
+  <script type="module">
+    // ─── CONFIG ──────────────────────────────────────────────────────────────────
+    // Point this at your compiled bench file.
+    // e.g. for wrapUnit: import def from './wrapUnit.bench.js'
+    // The runner.html is bench-agnostic — swap the import, everything else follows.
+
+    import def from './wrapUnit.bench.js';
+    import { run } from './core/bench.js';
+    import { INPUT_RANGES } from './core/inputs.js';
+
+    // ─── BOOT ────────────────────────────────────────────────────────────────────
+
+    document.getElementById('bench-title').textContent = def.name;
+
+    const rangeSelect = document.getElementById('range');
+    for (const r of INPUT_RANGES) {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.label;
+      if (r.id === 'near') opt.selected = true;
+      rangeSelect.appendChild(opt);
+    }
+
+    // ─── RUN ─────────────────────────────────────────────────────────────────────
+
+    document.getElementById('run').addEventListener('click', async () => {
+      const btn = document.getElementById('run');
+      const statusEl = document.getElementById('status');
+      const table = document.getElementById('results');
+      const tbody = document.getElementById('tbody');
+      const notesEl = document.getElementById('notes');
+
+      btn.disabled = true;
+      table.classList.add('hidden');
+      notesEl.classList.add('hidden');
+      tbody.innerHTML = '';
+
+      const config = {
+        iterations: parseInt(document.getElementById('iters').value, 10),
+        range: document.getElementById('range').value,
+        runs: Math.max(1, parseInt(document.getElementById('runs').value, 10) || 5),
+      };
+
+      const bench = await run(def, config, (msg) => {
+        statusEl.className = 'running';
+        statusEl.textContent = msg;
+      });
+
+      // ── RENDER ──────────────────────────────────────────────────────────────────
+      const fastest = bench.results[0].opsPerSec;
+
+      for (const [i, r] of bench.results.entries()) {
+        const ratio = r.opsPerSec / fastest;
+        const pct = (ratio * 100).toFixed(1);
+        const relDiff = ((1 - ratio) * 100);
+
+        let relStr, relClass;
+        if (i === 0 && !r.unsafe) {
+          relStr = 'fastest'; relClass = 'faster';
+        } else if (r.unsafe) {
+          relStr = 'unsafe for this range'; relClass = 'unsafe';
+        } else {
+          relStr = `${relDiff.toFixed(1)}% slower`; relClass = 'slower';
+        }
+
+        const unsafeBadge = r.unsafe
+          ? `<span class="unsafe-badge">unsafe</span>` : '';
+
+        const tr = document.createElement('tr');
+        if (i === 0 && !r.unsafe) tr.className = 'winner';
+        if (r.unsafe) tr.className = 'unsafe';
+
+        tr.innerHTML = `
+      <td>
+        <div class="v-name">${r.variant.name}${unsafeBadge}</div>
+        <div class="v-code">${r.variant.code}</div>
+      </td>
+      <td>${fmt(r.opsPerSec)}</td>
+      <td class="rel ${relClass}">${relStr}</td>
+      <td class="bar-cell">
+        <div class="bar-wrap">
+          <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>
+      </td>`;
+        tbody.appendChild(tr);
+      }
+
+      if (def.notes) {
+        notesEl.textContent =
+          `median of ${config.runs} runs · ${config.iterations.toLocaleString()} iterations · range: ${config.range} — ${def.notes}`;
+        notesEl.classList.remove('hidden');
+      }
+
+      table.classList.remove('hidden');
+      statusEl.className = '';
+      statusEl.textContent = 'done.';
+      btn.disabled = false;
+    });
+
+    // ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+    function fmt(n) {
+      if (n >= 1e9) return `${(n / 1e9).toFixed(2)} G`;
+      if (n >= 1e6) return `${(n / 1e6).toFixed(2)} M`;
+      return Math.round(n).toLocaleString();
+    }
+  </script>
+</body>
+
+</html>
