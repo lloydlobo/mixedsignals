@@ -2726,7 +2726,8 @@ function initControls(mode) {
 		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
 		tab.dataset.param = p.id;
-		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span>`;
+		const initPct = _trackPct(p);
+		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${initPct}%"></span>`;
 		tabsEl.appendChild(tab);
 	});
 
@@ -2782,10 +2783,12 @@ function initControls(mode) {
 		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
 		dragZone.setAttribute("aria-valuetext", `${_sliderFmt(p)} ${p.unit}`.trim());
 
-		// Update all tab value readouts
+		// Update all tab value readouts and progress tracks
 		params.forEach(param => {
 			const valEl = document.getElementById(`mpt-val-${param.id}`);
 			if (valEl) valEl.textContent = _sliderFmt(param);
+			const trackEl = document.getElementById(`mpt-track-${param.id}`);
+			if (trackEl) trackEl.style.setProperty("--pct", _trackPct(param) + "%");
 		});
 	}
 

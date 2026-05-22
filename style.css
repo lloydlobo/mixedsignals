@@ -2597,7 +2597,7 @@ canvas#mg-canvas {
 	background: none;
 	border: none;
 	border-right: 1px solid var(--surface);
-	padding: 6px 4px 5px;
+	padding: 6px 4px 0;
 	cursor: pointer;
 	display: flex;
 	flex-direction: column;
@@ -2638,6 +2638,18 @@ canvas#mg-canvas {
 	stroke-linecap: round;
 	stroke-linejoin: round;
 	overflow: visible;
+}
+
+.mpt-track {
+	flex-shrink: 0;
+	width: 100%;
+	height: 2px;
+	border-radius: 1px;
+	margin-top: auto;
+	background: linear-gradient(to right, color-mix(in srgb, var(--amber) 50%, transparent) var(--pct, 0%), transparent var(--pct, 0%));
+}
+.mobile-param-tab.locked .mpt-track {
+	opacity: 0.28;
 }
 
 .mobile-param-tab.active {
