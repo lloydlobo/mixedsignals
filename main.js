@@ -2627,7 +2627,6 @@ function _activeDragParams() {
  * Called on init, on resize when mode changes, and after applyLevelUI.
  */
 function initControls(mode) {
-	if (Session.tutorialActive && mode === "mobile") mode = "desktop";
 	if (_mobileCleanup) {
 		_mobileCleanup();
 		_mobileCleanup = null;
@@ -2666,9 +2665,10 @@ function initControls(mode) {
 	params.forEach((p, i) => {
 		const tab = document.createElement("button");
 		tab.className = "mobile-param-tab" + (i === 0 ? " active" : "");
-		if (p.id === "phase" && !lv.phase) tab.classList.add("locked");
-		if (p.id === "dc" && !lv.dc) tab.classList.add("locked");
+		if (p.id === "phase" && !lv.phase && !Session.tutorialActive) tab.classList.add("locked");
+		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
+		tab.dataset.param = p.id;
 		tab.innerHTML = `<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span>`;
 		tabsEl.appendChild(tab);
 	});
@@ -3366,6 +3366,7 @@ function startTutorial() {
 	SFX.nav();
 	Round._lockAnimStart = 0;
 	Session.tutorialActive = true;
+	initControls("mobile");
 	Session.tutorialStep = 0;
 	dispatch({ type: "SCORE_RESET" });
 	showScreen("game");
@@ -3411,11 +3412,18 @@ function lockControl(stepIndex) {
 	el.querySelectorAll("input, button").forEach(i => {
 		i.disabled = true;
 	});
+	// Also lock the matching mobile drag tab
+	const param = id.replace("ctrl-", "");
+	const mobileTab = document.querySelector(`.mobile-param-tab[data-param="${param}"]`);
+	if (mobileTab) {
+		mobileTab.classList.add("locked");
+		mobileTab.classList.remove("tutorial-glow");
+	}
 }
 
 function unlockAllTutorialControls() {
-	document.querySelectorAll(".tutorial-done, .tutorial-glow").forEach(el => {
-		el.classList.remove("tutorial-done", "tutorial-glow");
+	document.querySelectorAll(".tutorial-done, .tutorial-glow, .mobile-param-tab.locked").forEach(el => {
+		el.classList.remove("tutorial-done", "tutorial-glow", "locked");
 		el.querySelectorAll("input, button").forEach(i => {
 			i.disabled = false;
 		});
@@ -3437,6 +3445,10 @@ function highlightControl() {
 	const id = TUTORIAL_CONTROLS[Session.tutorialStep];
 	if (id) {
 		document.getElementById(id)?.classList.add("tutorial-glow");
+		// Also glow the matching mobile drag tab
+		const param = id.replace("ctrl-", "");
+		const mobileTab = document.querySelector(`.mobile-param-tab[data-param="${param}"]`);
+		if (mobileTab) mobileTab.classList.add("tutorial-glow");
 		UI.displays.feedback?.classList.add("tutorial-glow-text");
 	}
 }
