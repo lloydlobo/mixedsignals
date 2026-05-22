@@ -2734,21 +2734,19 @@ canvas#mg-canvas {
 	pointer-events: none;
 }
 
-@media (max-width: 520px) {
-	.hardware-grid {
-		display: block;
-	}
+.param-list {
+	display: none;
+}
 
-	.type-btns {
-		grid-template-columns: repeat(6, 1fr);
-		gap: 4px;
-	}
+.hardware-grid {
+	display: block;
+}
 
-	.type-btn {
-		padding: 8px 2px 6px;
-	}
+.type-btns {
+	grid-template-columns: repeat(6, 1fr);
+	gap: 4px;
+}
 
-	.param-list {
-		display: none;
-	}
+.type-btn {
+	padding: 8px 2px 6px;
 }

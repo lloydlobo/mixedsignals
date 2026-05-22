@@ -2607,7 +2607,7 @@ let _mobileCleanup = null;
 let _resizeDebounce = null;
 
 function _isMobile() {
-	return window.innerWidth <= MOBILE_BREAKPOINT;
+	return true;
 }
 
 /** Returns which DRAG_PARAMS are currently visible (not hidden/locked for this level). */
