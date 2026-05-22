@@ -2587,8 +2587,6 @@ function resetYours() {
 
 // ─── MOBILE DRAG CONTROLS ────────────────────────────────────────────────────
 
-const MOBILE_BREAKPOINT = 520;
-
 /**
  * Per-param config for the drag zone.
  * sensitivity: px of drag travel that spans the full [min, max] range.
@@ -2604,7 +2602,6 @@ const DRAG_PARAMS = [
 
 let _controlMode = null; // 'mobile' | 'desktop' | null
 let _mobileCleanup = null;
-let _resizeDebounce = null;
 
 function _isMobile() {
 	return true;
@@ -2722,6 +2719,8 @@ function initControls(mode) {
 		if (valueEl) valueEl.textContent = _sliderFmt(p);
 		if (unitEl)  unitEl.textContent  = p.unit;
 		if (fillEl)  fillEl.style.height = _trackPct(p) + "%";
+		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
+		dragZone.setAttribute("aria-valuetext", `${_sliderFmt(p)} ${p.unit}`.trim());
 
 		// Update all tab value readouts
 		params.forEach(param => {
@@ -2735,10 +2734,14 @@ function initControls(mode) {
 	function _onTabClick(e) {
 		const tab = e.target.closest(".mobile-param-tab");
 		if (!tab || tab.classList.contains("locked")) return;
+		SFX.nav();
 		activeParamIdx = +tab.dataset.paramIdx;
 		tabsEl.querySelectorAll(".mobile-param-tab").forEach((t, i) => {
 			t.classList.toggle("active", i === activeParamIdx);
 		});
+		const newP = params[activeParamIdx];
+		dragZone.setAttribute("aria-valuemin", newP.min);
+		dragZone.setAttribute("aria-valuemax", newP.max);
 		_updateDragDisplay();
 	}
 
@@ -2749,30 +2752,35 @@ function initControls(mode) {
 	let _dragStartY = null;
 	let _dragStartVal = null;
 
+	function _activeTabLocked() {
+		const activeTab = tabsEl.querySelector(`.mobile-param-tab[data-param="${params[activeParamIdx].id}"]`);
+		return activeTab?.classList.contains("locked");
+	}
+
+	function _writeSlider(p, val) {
+		const slider = document.getElementById(`sl-${p.id}`);
+		if (slider && +slider.value !== val) {
+			slider.value = val;
+			recompute();
+		}
+	}
+
 	function _onDragStart(clientY) {
-		if (Round.won) return;
+		if (Round.won || _activeTabLocked()) return;
 		_dragStartY = clientY;
 		_dragStartVal = _sliderVal(params[activeParamIdx]);
 	}
 
 	function _onDragMove(clientY) {
-		if (_dragStartY === null || Round.won) return;
+		if (_dragStartY === null || Round.won || _activeTabLocked()) return;
 		const p = params[activeParamIdx];
-		const dy = _dragStartY - clientY; // up = positive = increase
+		const dy = _dragStartY - clientY;
 		const range = p.max - p.min;
 		const delta = (dy / p.sensitivity) * range;
 		const raw = _dragStartVal + delta;
 		const snapped = Math.round(raw / p.step) * p.step;
 		const clamped = Math.min(p.max, Math.max(p.min, snapped));
-
-		// Write back to the hidden slider (keeps readSliders() as source of truth)
-		const slider = document.getElementById(`sl-${p.id}`);
-		if (slider && +slider.value !== clamped) {
-			slider.value = clamped;
-			// Trigger recompute through the existing path
-			recompute();
-		}
-
+		_writeSlider(p, clamped);
 		_updateDragDisplay();
 	}
 
@@ -2783,15 +2791,42 @@ function initControls(mode) {
 
 	function _onPointerDown(e) {
 		dragZone.setPointerCapture(e.pointerId);
+		document.body.style.overflow = "hidden";
 		_onDragStart(e.clientY);
 	}
 	function _onPointerMove(e) { _onDragMove(e.clientY); }
-	function _onPointerUp()   { _onDragEnd(); }
+	function _onPointerUp() {
+		document.body.style.overflow = "";
+		_onDragEnd();
+	}
 
 	dragZone.addEventListener("pointerdown", _onPointerDown);
 	dragZone.addEventListener("pointermove", _onPointerMove);
 	dragZone.addEventListener("pointerup",   _onPointerUp);
 	dragZone.addEventListener("pointercancel", _onDragEnd);
+
+	// ── KEYBOARD ─────────────────────────────────────────────────────────
+
+	dragZone.setAttribute("tabindex", "0");
+	dragZone.setAttribute("role", "slider");
+	dragZone.setAttribute("aria-valuemin", params[activeParamIdx].min);
+	dragZone.setAttribute("aria-valuemax", params[activeParamIdx].max);
+
+	function _onKeyDown(e) {
+		if (Round.won || _activeTabLocked()) return;
+		const p = params[activeParamIdx];
+		if (e.key === "ArrowUp") {
+			e.preventDefault();
+			_writeSlider(p, Math.min(p.max, _sliderVal(p) + p.step));
+			_updateDragDisplay();
+		} else if (e.key === "ArrowDown") {
+			e.preventDefault();
+			_writeSlider(p, Math.max(p.min, _sliderVal(p) - p.step));
+			_updateDragDisplay();
+		}
+	}
+
+	dragZone.addEventListener("keydown", _onKeyDown);
 
 	// ── CLEANUP FN ────────────────────────────────────────────────────────
 
@@ -2801,6 +2836,8 @@ function initControls(mode) {
 		dragZone.removeEventListener("pointermove", _onPointerMove);
 		dragZone.removeEventListener("pointerup",   _onPointerUp);
 		dragZone.removeEventListener("pointercancel", _onDragEnd);
+		dragZone.removeEventListener("keydown", _onKeyDown);
+		document.body.style.overflow = "";
 		wrap.remove();
 	};
 
@@ -3418,6 +3455,10 @@ function lockControl(stepIndex) {
 	if (mobileTab) {
 		mobileTab.classList.add("locked");
 		mobileTab.classList.remove("tutorial-glow");
+		// Auto-select next unlocked tab
+		const allTabs = document.querySelectorAll(".mobile-param-tab");
+		const nextUnlocked = Array.from(allTabs).find(t => !t.classList.contains("locked"));
+		if (nextUnlocked) nextUnlocked.click();
 	}
 }
 
@@ -4561,15 +4602,7 @@ showScreen("start");
 	});
 })();
 // ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
-// Evaluate on load and on resize. Re-init only when mode actually changes.
-initControls(_isMobile() ? "mobile" : "desktop");
-window.addEventListener("resize", () => {
-	clearTimeout(_resizeDebounce);
-	_resizeDebounce = setTimeout(() => {
-		const next = _isMobile() ? "mobile" : "desktop";
-		if (next !== _controlMode) initControls(next);
-	}, 120);
-});
+initControls("mobile");
 
 // New audit interpretation:
 //
