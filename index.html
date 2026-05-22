@@ -136,7 +136,7 @@
                 <button class="crt-btn" id="btn-continue-level">CONTINUE</button>
             </div>
 
-                        <!-- ━━━ MINI-GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+            <!-- ━━━ MINI-GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-minigame">
                 <div class="mg-title">BONUS ROUND</div>
                 <div class="mg-name" id="mg-name">PEAK HIT</div>
@@ -205,12 +205,10 @@
 
                 <!-- PLAYBACK CONTROLS -->
                 <div class="pb-row">
-                    <button class="pb-btn" id="pb-target"
-                        title="Listen to target signal">▶ TARGET</button>
+                    <button class="pb-btn" id="pb-target" title="Listen to target signal">▶ TARGET</button>
                     <button class="pb-btn" id="pb-yours" title="Listen to your signal">▶
                         YOURS</button>
-                    <button class="pb-btn" id="pb-ab"
-                        title="A/B compare">⇄ A/B</button>
+                    <button class="pb-btn" id="pb-ab" title="A/B compare">⇄ A/B</button>
                 </div>
 
 
@@ -265,10 +263,12 @@
                                     </svg>
                                     Freq
                                 </label>
-                                <span class="slider-val"><span class="param-arrow" data-param="freq"></span><b id="lbl-freq" data-for="freq">1 Hz</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="freq"></span><b
+                                        id="lbl-freq" data-for="freq">1 Hz</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" data-param="freq" data-unit="Hz" />
+                                <input type="range" id="sl-freq" min="1" max="8" step="1" value="1" data-param="freq"
+                                    data-unit="Hz" />
                             </div>
                         </div>
 
@@ -281,10 +281,12 @@
                                     </svg>
                                     Amp
                                 </label>
-                                <span class="slider-val"><span class="param-arrow" data-param="amp"></span><b id="lbl-amp" data-for="amp">0.50</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="amp"></span><b
+                                        id="lbl-amp" data-for="amp">0.50</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5" data-param="amp" />
+                                <input type="range" id="sl-amp" min="1" max="10" step="0.1" value="5"
+                                    data-param="amp" />
                             </div>
                         </div>
 
@@ -299,10 +301,12 @@
                                     </svg>
                                     Phase
                                 </label>
-                                <span class="slider-val"><span class="param-arrow" data-param="phase"></span><b id="lbl-phase" data-for="phase">0&deg;</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="phase"></span><b
+                                        id="lbl-phase" data-for="phase">0&deg;</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0" data-param="phase" data-unit="°" />
+                                <input type="range" id="sl-phase" min="0" max="360" step="1" value="0"
+                                    data-param="phase" data-unit="°" />
                             </div>
                         </div>
 
@@ -315,14 +319,15 @@
                                     </svg>
                                     DC Off
                                 </label>
-                                <span class="slider-val"><span class="param-arrow" data-param="dc"></span><b id="lbl-dc" data-for="dc">0.00</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="dc"></span><b id="lbl-dc"
+                                        data-for="dc">0.00</b></span>
                             </div>
                             <div class="slider-row">
                                 <input type="range" id="sl-dc" min="-5" max="5" step="0.1" value="0" data-param="dc" />
                             </div>
                         </div>
 
-                            <div class="ctrl hidden" id="ctrl-harm">
+                        <div class="ctrl hidden" id="ctrl-harm">
                             <div class="slider-meta">
                                 <label for="sl-harm">
                                     <svg class="param-glyph" viewBox="0 0 12 12">
@@ -331,14 +336,16 @@
                                     </svg>
                                     Harm
                                 </label>
-                                <span class="slider-val"><span class="param-arrow" data-param="harm"></span><b id="lbl-harm" data-for="harm">0.00</b></span>
+                                <span class="slider-val"><span class="param-arrow" data-param="harm"></span><b
+                                        id="lbl-harm" data-for="harm">0.00</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0" data-param="harm" />
+                                <input type="range" id="sl-harm" min="0" max="10" step="0.1" value="0"
+                                    data-param="harm" />
                             </div>
                         </div>
 
-                <!-- Ctrl-noise stays in HTML for future use -->
+                        <!-- Ctrl-noise stays in HTML for future use -->
                         <div class="ctrl hidden" id="ctrl-noise">
                             <div class="slider-meta">
                                 <label for="sl-noise">
@@ -351,7 +358,8 @@
                                 <span class="slider-val"><b id="lbl-noise" data-for="noise">0.00</b></span>
                             </div>
                             <div class="slider-row">
-                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0" data-param="noise" />
+                                <input type="range" id="sl-noise" min="0" max="10" step="0.1" value="0"
+                                    data-param="noise" />
                             </div>
                         </div>
                     </div>
@@ -485,14 +493,25 @@
                 <div class="credits-section">
                     <div class="credits-label">Music</div>
                     <div class="credits-tracks">
-                        <div class="credits-track"><span class="credits-track-title">"Art Pop Exp 2"</span> — Peter Koepke <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"After Hours Arcade"</span> — Tony <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"IDM Electronic Science Technology - Drumless Ambient Loop"</span> — Musinova <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"Neon Nebula - Ambient Electronic Background"</span> — Databend <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"Modern Chillout Future Calm"</span> — Oleksandr Stepanov <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"Lazy Day Stylish Futuristic Chill"</span> — Oleksandr Stepanov <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"Cinematic Arthouse Room With Open Doors 4"</span> — Peter Koepke <span class="credits-track-license">Pixabay</span></div>
-                        <div class="credits-track"><span class="credits-track-title">"Cinematic Aloha Lounge Rumba 2"</span> — Peter Koepke <span class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"Art Pop Exp 2"</span> — Peter
+                            Koepke <span class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"After Hours Arcade"</span> — Tony
+                            <span class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"IDM Electronic Science Technology
+                                - Drumless Ambient Loop"</span> — Musinova <span
+                                class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"Neon Nebula - Ambient Electronic
+                                Background"</span> — Databend <span class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"Modern Chillout Future
+                                Calm"</span> — Oleksandr Stepanov <span class="credits-track-license">Pixabay</span>
+                        </div>
+                        <div class="credits-track"><span class="credits-track-title">"Lazy Day Stylish Futuristic
+                                Chill"</span> — Oleksandr Stepanov <span class="credits-track-license">Pixabay</span>
+                        </div>
+                        <div class="credits-track"><span class="credits-track-title">"Cinematic Arthouse Room With Open
+                                Doors 4"</span> — Peter Koepke <span class="credits-track-license">Pixabay</span></div>
+                        <div class="credits-track"><span class="credits-track-title">"Cinematic Aloha Lounge Rumba
+                                2"</span> — Peter Koepke <span class="credits-track-license">Pixabay</span></div>
                     </div>
                 </div>
 
@@ -501,7 +520,9 @@
                 <div class="credits-section">
                     <div class="credits-label">AI Assistance</div>
                     <div class="credits-tools">
-                        <span class="credits-tool">ChatGPT</span> (OpenAI), <span class="credits-tool">Claude</span> (Anthropic), <span class="credits-tool">Gemini</span> (Google), <span class="credits-tool">opencode</span> (open source CLI)
+                        <span class="credits-tool">ChatGPT</span> (OpenAI), <span class="credits-tool">Claude</span>
+                        (Anthropic), <span class="credits-tool">Gemini</span> (Google), <span
+                            class="credits-tool">opencode</span> (open source CLI)
                     </div>
                 </div>
 

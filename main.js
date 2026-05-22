@@ -2593,11 +2593,11 @@ function resetYours() {
  * fmt/unit: how to display the current value.
  */
 const DRAG_PARAMS = [
-	{ id: "freq",  label: "Freq",  unit: "Hz",  min: 1,   max: 8,   step: 1,    sensitivity: 120, fmt: v => String(Math.round(v)) },
-	{ id: "amp",   label: "Amp",   unit: "",    min: 1,   max: 10,  step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
-	{ id: "phase", label: "Phase", unit: "°",   min: 0,   max: 360, step: 1,    sensitivity: 200, fmt: v => String(Math.round(v)) },
-	{ id: "dc",    label: "DC",    unit: "",    min: -5,  max: 5,   step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
-	{ id: "harm",  label: "Harm",  unit: "",    min: 0,   max: 10,  step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "freq", label: "Freq", unit: "Hz", min: 1, max: 8, step: 1, sensitivity: 120, fmt: v => String(Math.round(v)) },
+	{ id: "amp", label: "Amp", unit: "", min: 1, max: 10, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "phase", label: "Phase", unit: "°", min: 0, max: 360, step: 1, sensitivity: 200, fmt: v => String(Math.round(v)) },
+	{ id: "dc", label: "DC", unit: "", min: -5, max: 5, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "harm", label: "Harm", unit: "", min: 0, max: 10, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
 ];
 
 let _controlMode = null; // 'mobile' | 'desktop' | null
@@ -2617,6 +2617,44 @@ function _activeDragParams() {
 		return true;
 	});
 }
+
+/** SVG glyphs for each param — helps intuitively identify controls.
+ *  Each glyph uses a faded reference path (offset down, with glow) to show
+ *  "what the signal would look like without this parameter", and a solid
+ *  path for the active/affected result. */
+const PARAM_GLYPH = {
+	freq: `<svg class="mpt-glyph" viewBox="0 0 14 14"><path d="M0 7 Q2 3 3.5 7 T7 7 T10.5 7 T14 7" /></svg>`,
+
+	amp: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 34 Q15 28 30 34 T60 34" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 34 Q15 4 30 34 T60 34" stroke="currentColor" stroke-width="1.5"/>
+  </svg>`,
+
+	phase: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 26 Q15 6 30 26 T60 26" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M10 26 Q25 6 40 26 T70 26" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="2" y1="38" x2="14" y2="38" stroke="currentColor" stroke-width="1.2"/>
+    <polyline points="11,34 15,38 11,42" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </svg>`,
+
+	dc: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <path d="M0 30 Q15 12 30 30 T60 30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 18 Q15 0 30 18 T60 18" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="52" y1="28" x2="52" y2="20" stroke="currentColor" stroke-width="1.2"/>
+    <polyline points="48,23 52,19 56,23" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </svg>`,
+
+	harm: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 28 Q15 8 30 28 T60 28" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 28 Q7 14 14 28 Q21 42 28 28 Q35 14 42 28 Q49 42 56 28 T60 28" stroke="currentColor" stroke-width="1.5"/>
+  </svg>`,
+
+	noise: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 28 Q15 8 30 28 T60 28" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <polyline points="0,28 8,16 16,36 24,10 32,34 40,18 48,38 56,14 60,24" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+  </svg>`,
+};
 
 /**
  * initControls(mode)
@@ -2654,6 +2692,28 @@ function initControls(mode) {
 	const wrap = document.createElement("div");
 	wrap.id = "mobile-controls-wrap";
 
+	// Inject glow filter for param glyph faded reference paths
+	if (!document.getElementById("mpt-glow")) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.id = "mpt-glow-filter";
+		svg.setAttribute("width", "0");
+		svg.setAttribute("height", "0");
+		svg.style.cssText = "position:absolute;overflow:hidden";
+		const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+		const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+		filter.setAttribute("id", "mpt-glow");
+		filter.setAttribute("x", "-50%");
+		filter.setAttribute("y", "-50%");
+		filter.setAttribute("width", "200%");
+		filter.setAttribute("height", "200%");
+		const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+		blur.setAttribute("stdDeviation", "0.45");
+		filter.appendChild(blur);
+		defs.appendChild(filter);
+		svg.appendChild(defs);
+		document.body.prepend(svg);
+	}
+
 	// Param tabs
 	const tabsEl = document.createElement("div");
 	tabsEl.className = "mobile-param-tabs";
@@ -2666,7 +2726,7 @@ function initControls(mode) {
 		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
 		tab.dataset.param = p.id;
-		tab.innerHTML = `<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span>`;
+		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span>`;
 		tabsEl.appendChild(tab);
 	});
 
@@ -2713,12 +2773,12 @@ function initControls(mode) {
 		const p = params[activeParamIdx];
 		const labelEl = document.getElementById("mob-drag-label");
 		const valueEl = document.getElementById("mob-drag-value");
-		const unitEl  = document.getElementById("mob-drag-unit");
-		const fillEl  = document.getElementById("mob-drag-fill");
+		const unitEl = document.getElementById("mob-drag-unit");
+		const fillEl = document.getElementById("mob-drag-fill");
 		if (labelEl) labelEl.textContent = p.label;
 		if (valueEl) valueEl.textContent = _sliderFmt(p);
-		if (unitEl)  unitEl.textContent  = p.unit;
-		if (fillEl)  fillEl.style.height = _trackPct(p) + "%";
+		if (unitEl) unitEl.textContent = p.unit;
+		if (fillEl) fillEl.style.height = _trackPct(p) + "%";
 		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
 		dragZone.setAttribute("aria-valuetext", `${_sliderFmt(p)} ${p.unit}`.trim());
 
@@ -2794,7 +2854,9 @@ function initControls(mode) {
 		document.body.style.overflow = "hidden";
 		_onDragStart(e.clientY);
 	}
-	function _onPointerMove(e) { _onDragMove(e.clientY); }
+	function _onPointerMove(e) {
+		_onDragMove(e.clientY);
+	}
 	function _onPointerUp() {
 		document.body.style.overflow = "";
 		_onDragEnd();
@@ -2802,7 +2864,7 @@ function initControls(mode) {
 
 	dragZone.addEventListener("pointerdown", _onPointerDown);
 	dragZone.addEventListener("pointermove", _onPointerMove);
-	dragZone.addEventListener("pointerup",   _onPointerUp);
+	dragZone.addEventListener("pointerup", _onPointerUp);
 	dragZone.addEventListener("pointercancel", _onDragEnd);
 
 	// ── KEYBOARD ─────────────────────────────────────────────────────────
@@ -2834,7 +2896,7 @@ function initControls(mode) {
 		tabsEl.removeEventListener("click", _onTabClick);
 		dragZone.removeEventListener("pointerdown", _onPointerDown);
 		dragZone.removeEventListener("pointermove", _onPointerMove);
-		dragZone.removeEventListener("pointerup",   _onPointerUp);
+		dragZone.removeEventListener("pointerup", _onPointerUp);
 		dragZone.removeEventListener("pointercancel", _onDragEnd);
 		dragZone.removeEventListener("keydown", _onKeyDown);
 		document.body.style.overflow = "";
