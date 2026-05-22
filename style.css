@@ -380,7 +380,8 @@ body {
 	background: var(--bg);
 	padding: 24px 20px;
 	border-radius: var(--radius-tile);
-	margin-bottom: 18px;
+	--scale-screen-margin-bottom: 0.5;
+	margin-bottom: calc(18px * var(--scale-screen-margin-bottom));
 	box-shadow:
 		inset 0 2px 8px rgba(0, 0, 0, 0.5),
 		0 0 0 1px rgba(0, 0, 0, 0.4);
@@ -486,7 +487,8 @@ body {
 
 #game-lcd {
 	background: var(--bg);
-	padding: 10px;
+	--scale-padding: 0.5;
+	padding: calc(var(--scale-padding) * 10px);
 	border-radius: var(--radius-sm);
 	position: relative;
 	overflow: hidden;
@@ -709,7 +711,8 @@ b {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin-bottom: 10px;
+	--scale-meter-row: 0.5;
+	margin-bottom: calc(var(--scale-meter-row) * 10px);
 }
 
 .meter-track {
@@ -1149,7 +1152,8 @@ input[type="range"]::-moz-range-thumb {
    ============================================================ */
 
 .action-row {
-	margin-top: 28px;
+	--scale-action-row: 0.5;
+	margin-top: calc(var(--scale-action-row) * 28px);
 	display: flex;
 	justify-content: center;
 	gap: clamp(2px, min(2dvw, 2ch), 10px);
