@@ -2646,7 +2646,7 @@ canvas#mg-canvas {
 	height: 2px;
 	border-radius: 1px;
 	margin-top: auto;
-	background: linear-gradient(to right, color-mix(in srgb, var(--amber) 50%, transparent) var(--pct, 0%), transparent var(--pct, 0%));
+	background: linear-gradient(to right, color-mix(in srgb, var(--coral) 50%, transparent) var(--pct, 0%), transparent var(--pct, 0%));
 }
 .mobile-param-tab.locked .mpt-track {
 	opacity: 0.28;
