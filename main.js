@@ -2441,6 +2441,7 @@ function syncLabels() {
 			setAria(slider, (raw / 10).toFixed(1));
 		}
 	}
+	_mobileRefreshIfActive();
 }
 
 function scheduleRender() {
@@ -2581,6 +2582,240 @@ function resetYours() {
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.toggle("active", b.dataset.t === "sine"));
 	invalidateMatchScore();
 	recompute();
+	_mobileRefreshIfActive();
+}
+
+// ─── MOBILE DRAG CONTROLS ────────────────────────────────────────────────────
+
+const MOBILE_BREAKPOINT = 520;
+
+/**
+ * Per-param config for the drag zone.
+ * sensitivity: px of drag travel that spans the full [min, max] range.
+ * fmt/unit: how to display the current value.
+ */
+const DRAG_PARAMS = [
+	{ id: "freq",  label: "Freq",  unit: "Hz",  min: 1,   max: 8,   step: 1,    sensitivity: 120, fmt: v => String(Math.round(v)) },
+	{ id: "amp",   label: "Amp",   unit: "",    min: 1,   max: 10,  step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "phase", label: "Phase", unit: "°",   min: 0,   max: 360, step: 1,    sensitivity: 200, fmt: v => String(Math.round(v)) },
+	{ id: "dc",    label: "DC",    unit: "",    min: -5,  max: 5,   step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "harm",  label: "Harm",  unit: "",    min: 0,   max: 10,  step: 0.1,  sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+];
+
+let _controlMode = null; // 'mobile' | 'desktop' | null
+let _mobileCleanup = null;
+let _resizeDebounce = null;
+
+function _isMobile() {
+	return window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+/** Returns which DRAG_PARAMS are currently visible (not hidden/locked for this level). */
+function _activeDragParams() {
+	const lv = LEVELS[Session.level];
+	return DRAG_PARAMS.filter(p => {
+		if (p.id === "harm") return lv.harm;
+		if (p.id === "phase") return true; // always present, may be dimmed
+		if (p.id === "dc") return true;
+		return true;
+	});
+}
+
+/**
+ * initControls(mode)
+ * Tears down previous mode, builds the correct one.
+ * Called on init, on resize when mode changes, and after applyLevelUI.
+ */
+function initControls(mode) {
+	if (Session.tutorialActive && mode === "mobile") mode = "desktop";
+	if (_mobileCleanup) {
+		_mobileCleanup();
+		_mobileCleanup = null;
+	}
+
+	_controlMode = mode;
+
+	if (mode === "desktop") {
+		// Desktop: sliders handle their own input events via the delegated
+		// listener already set up in initEvents(). Nothing extra needed.
+		const existing = document.getElementById("mobile-controls-wrap");
+		if (existing) existing.remove();
+		return;
+	}
+
+	// ── MOBILE ──────────────────────────────────────────────────────────────
+
+	// Remove existing mobile UI if re-initialising
+	const existing = document.getElementById("mobile-controls-wrap");
+	if (existing) existing.remove();
+
+	const lv = LEVELS[Session.level];
+	const params = _activeDragParams();
+	let activeParamIdx = 0;
+
+	// ── BUILD DOM ─────────────────────────────────────────────────────────
+
+	const wrap = document.createElement("div");
+	wrap.id = "mobile-controls-wrap";
+
+	// Param tabs
+	const tabsEl = document.createElement("div");
+	tabsEl.className = "mobile-param-tabs";
+	tabsEl.style.setProperty("--tab-count", params.length);
+
+	params.forEach((p, i) => {
+		const tab = document.createElement("button");
+		tab.className = "mobile-param-tab" + (i === 0 ? " active" : "");
+		if (p.id === "phase" && !lv.phase) tab.classList.add("locked");
+		if (p.id === "dc" && !lv.dc) tab.classList.add("locked");
+		tab.dataset.paramIdx = i;
+		tab.innerHTML = `<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span>`;
+		tabsEl.appendChild(tab);
+	});
+
+	// Drag zone
+	const dragZone = document.createElement("div");
+	dragZone.className = "mobile-drag-zone";
+	dragZone.setAttribute("aria-label", "Drag up to increase, down to decrease");
+	dragZone.innerHTML = `
+		<div class="mobile-drag-hint">drag up / down</div>
+		<div class="mobile-drag-arrows">▲<br><br>▼</div>
+		<div class="mobile-drag-label" id="mob-drag-label">${params[0].label}</div>
+		<div class="mobile-drag-value" id="mob-drag-value">${_sliderFmt(params[0])}</div>
+		<div class="mobile-drag-unit"  id="mob-drag-unit">${params[0].unit}</div>
+		<div class="mobile-drag-track"><div class="mobile-drag-track-fill" id="mob-drag-fill" style="height:${_trackPct(params[0])}%"></div></div>
+	`;
+
+	wrap.appendChild(tabsEl);
+	wrap.appendChild(dragZone);
+
+	// Insert before .action-row inside #screen-game
+	const actionRow = document.querySelector("#screen-game .action-row");
+	if (actionRow) {
+		actionRow.parentElement.insertBefore(wrap, actionRow);
+	}
+
+	// ── HELPERS ───────────────────────────────────────────────────────────
+
+	function _sliderVal(p) {
+		const el = document.getElementById(`sl-${p.id}`);
+		return el ? +el.value : p.min;
+	}
+
+	function _sliderFmt(p) {
+		const v = _sliderVal(p);
+		return p.fmt(v);
+	}
+
+	function _trackPct(p) {
+		const v = _sliderVal(p);
+		return (((v - p.min) / (p.max - p.min)) * 100).toFixed(1);
+	}
+
+	function _updateDragDisplay() {
+		const p = params[activeParamIdx];
+		const labelEl = document.getElementById("mob-drag-label");
+		const valueEl = document.getElementById("mob-drag-value");
+		const unitEl  = document.getElementById("mob-drag-unit");
+		const fillEl  = document.getElementById("mob-drag-fill");
+		if (labelEl) labelEl.textContent = p.label;
+		if (valueEl) valueEl.textContent = _sliderFmt(p);
+		if (unitEl)  unitEl.textContent  = p.unit;
+		if (fillEl)  fillEl.style.height = _trackPct(p) + "%";
+
+		// Update all tab value readouts
+		params.forEach(param => {
+			const valEl = document.getElementById(`mpt-val-${param.id}`);
+			if (valEl) valEl.textContent = _sliderFmt(param);
+		});
+	}
+
+	// ── TAB INTERACTION ───────────────────────────────────────────────────
+
+	function _onTabClick(e) {
+		const tab = e.target.closest(".mobile-param-tab");
+		if (!tab || tab.classList.contains("locked")) return;
+		activeParamIdx = +tab.dataset.paramIdx;
+		tabsEl.querySelectorAll(".mobile-param-tab").forEach((t, i) => {
+			t.classList.toggle("active", i === activeParamIdx);
+		});
+		_updateDragDisplay();
+	}
+
+	tabsEl.addEventListener("click", _onTabClick);
+
+	// ── DRAG INTERACTION ──────────────────────────────────────────────────
+
+	let _dragStartY = null;
+	let _dragStartVal = null;
+
+	function _onDragStart(clientY) {
+		if (Round.won) return;
+		_dragStartY = clientY;
+		_dragStartVal = _sliderVal(params[activeParamIdx]);
+	}
+
+	function _onDragMove(clientY) {
+		if (_dragStartY === null || Round.won) return;
+		const p = params[activeParamIdx];
+		const dy = _dragStartY - clientY; // up = positive = increase
+		const range = p.max - p.min;
+		const delta = (dy / p.sensitivity) * range;
+		const raw = _dragStartVal + delta;
+		const snapped = Math.round(raw / p.step) * p.step;
+		const clamped = Math.min(p.max, Math.max(p.min, snapped));
+
+		// Write back to the hidden slider (keeps readSliders() as source of truth)
+		const slider = document.getElementById(`sl-${p.id}`);
+		if (slider && +slider.value !== clamped) {
+			slider.value = clamped;
+			// Trigger recompute through the existing path
+			recompute();
+		}
+
+		_updateDragDisplay();
+	}
+
+	function _onDragEnd() {
+		_dragStartY = null;
+		_dragStartVal = null;
+	}
+
+	function _onPointerDown(e) {
+		dragZone.setPointerCapture(e.pointerId);
+		_onDragStart(e.clientY);
+	}
+	function _onPointerMove(e) { _onDragMove(e.clientY); }
+	function _onPointerUp()   { _onDragEnd(); }
+
+	dragZone.addEventListener("pointerdown", _onPointerDown);
+	dragZone.addEventListener("pointermove", _onPointerMove);
+	dragZone.addEventListener("pointerup",   _onPointerUp);
+	dragZone.addEventListener("pointercancel", _onDragEnd);
+
+	// ── CLEANUP FN ────────────────────────────────────────────────────────
+
+	_mobileCleanup = () => {
+		tabsEl.removeEventListener("click", _onTabClick);
+		dragZone.removeEventListener("pointerdown", _onPointerDown);
+		dragZone.removeEventListener("pointermove", _onPointerMove);
+		dragZone.removeEventListener("pointerup",   _onPointerUp);
+		dragZone.removeEventListener("pointercancel", _onDragEnd);
+		wrap.remove();
+	};
+
+	// Initial display sync
+	_updateDragDisplay();
+
+	// Expose updater so applyLevelUI / resetYours can refresh tab values
+	UI._mobileRefresh = _updateDragDisplay;
+}
+
+/** Refresh mobile tab value readouts — called after resetYours and syncLabels. */
+function _mobileRefreshIfActive() {
+	if (_controlMode === "mobile" && typeof UI._mobileRefresh === "function") {
+		UI._mobileRefresh();
+	}
 }
 
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
@@ -2596,6 +2831,8 @@ function applyLevelUI() {
 	UI.controls.noise.classList.add("hidden");
 	UI.buttons.pwm.disabled = !lv.types.includes("pwm");
 	UI.buttons.am.disabled = !lv.types.includes("am");
+	// Rebuild mobile tabs when level changes — param set may have changed
+	if (_controlMode === "mobile") initControls("mobile");
 }
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
@@ -3207,6 +3444,7 @@ function highlightControl() {
 function skipTutorial() {
 	SFX.back();
 	Session.tutorialActive = false;
+	initControls(_isMobile() ? "mobile" : "desktop");
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	UI.buttons.skipTut.classList.add("hidden");
@@ -3219,6 +3457,7 @@ function skipTutorial() {
 
 function endTutorial() {
 	Session.tutorialActive = false;
+	initControls(_isMobile() ? "mobile" : "desktop");
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	stopSignalPlayback();
@@ -4309,6 +4548,17 @@ showScreen("start");
 		document.head.appendChild(s);
 	});
 })();
+// ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
+// Evaluate on load and on resize. Re-init only when mode actually changes.
+initControls(_isMobile() ? "mobile" : "desktop");
+window.addEventListener("resize", () => {
+	clearTimeout(_resizeDebounce);
+	_resizeDebounce = setTimeout(() => {
+		const next = _isMobile() ? "mobile" : "desktop";
+		if (next !== _controlMode) initControls(next);
+	}, 120);
+});
+
 // New audit interpretation:
 //
 // Final hierarchy

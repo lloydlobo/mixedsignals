@@ -2576,3 +2576,179 @@ canvas#mg-canvas {
 		transform: var(--stamp-rot) scale(0.95) translateY(4px);
 	}
 }
+
+/* ============================================================
+   MOBILE DRAG CONTROLS  (≤ 520px)
+   ============================================================ */
+
+.mobile-param-tabs {
+	display: grid;
+	grid-template-columns: repeat(var(--tab-count, 4), 1fr);
+	background: var(--bg2);
+	border-top: 1px solid var(--surface);
+	border-bottom: 1px solid var(--surface);
+}
+
+.mobile-param-tab {
+	background: none;
+	border: none;
+	border-right: 1px solid var(--surface);
+	padding: 9px 4px 7px;
+	cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	color: var(--text-dim);
+	transition: background 0.1s, color 0.1s;
+	font-family: var(--font-ui);
+	touch-action: manipulation;
+}
+
+.mobile-param-tab:last-child {
+	border-right: none;
+}
+
+.mobile-param-tab .mpt-label {
+	font-size: 9px;
+	font-weight: 800;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: inherit;
+}
+
+.mobile-param-tab .mpt-val {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--text-dim);
+	transition: color 0.1s;
+}
+
+.mobile-param-tab.active {
+	background: var(--surface);
+	color: var(--amber);
+}
+
+.mobile-param-tab.active .mpt-val {
+	color: var(--amber);
+}
+
+.mobile-param-tab.locked {
+	opacity: 0.28;
+	pointer-events: none;
+}
+
+.mobile-drag-zone {
+	position: relative;
+	min-height: 148px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg);
+	cursor: ns-resize;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	border-bottom: 1px solid var(--surface);
+}
+
+.mobile-drag-hint {
+	position: absolute;
+	top: 10px;
+	left: 0;
+	right: 0;
+	text-align: center;
+	font-size: 9px;
+	font-family: var(--font-ui);
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	color: var(--text-dim);
+	text-transform: uppercase;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.mobile-drag-label {
+	font-size: 11px;
+	font-family: var(--font-ui);
+	font-weight: 800;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-dim);
+	margin-bottom: 6px;
+}
+
+.mobile-drag-value {
+	font-family: var(--font-mono);
+	font-size: 40px;
+	font-weight: 700;
+	color: var(--amber);
+	line-height: 1;
+	letter-spacing: -0.02em;
+}
+
+.mobile-drag-unit {
+	font-size: 13px;
+	font-family: var(--font-mono);
+	color: var(--text-dim);
+	margin-top: 5px;
+	letter-spacing: 0.05em;
+	min-height: 18px;
+}
+
+.mobile-drag-track {
+	position: absolute;
+	right: 16px;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--surface);
+	border-radius: 2px;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	overflow: hidden;
+}
+
+.mobile-drag-track-fill {
+	background: var(--amber);
+	border-radius: 2px;
+	transition: height 0.06s linear;
+	width: 100%;
+}
+
+.mobile-drag-arrows {
+	position: absolute;
+	left: 16px;
+	top: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 24px;
+	color: var(--surface2);
+	font-size: 18px;
+	pointer-events: none;
+}
+
+@media (max-width: 520px) {
+	.hardware-grid {
+		display: block;
+	}
+
+	.type-btns {
+		grid-template-columns: repeat(6, 1fr);
+		gap: 4px;
+	}
+
+	.type-btn {
+		padding: 8px 2px 6px;
+	}
+
+	.param-list {
+		display: none;
+	}
+}
