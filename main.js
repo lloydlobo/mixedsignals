@@ -226,6 +226,7 @@ const Session = {
 	assistEasyMatch: false,
 	assistNoFail: false,
 	assistParamGuide: false,
+	assistParamDirect: false,
 	assistScoreGated: false,
 	sfxVolume: 0.4,
 	postGameFreeplay: false,
@@ -560,6 +561,7 @@ const DEFAULT_SETTINGS = () => ({
 	assistEasyMatch: false,
 	assistNoFail: false,
 	assistParamGuide: false,
+	assistParamDirect: false,
 	assistScoreGated: false,
 });
 
@@ -850,6 +852,7 @@ Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
 Session.assistEasyMatch = _initSettings.assistEasyMatch;
 Session.assistNoFail = _initSettings.assistNoFail;
 Session.assistParamGuide = _initSettings.assistParamGuide;
+Session.assistParamDirect = _initSettings.assistParamDirect ?? false;
 Session.assistScoreGated = _initSettings.assistScoreGated;
 
 function initAudio() {
@@ -1794,6 +1797,25 @@ function invalidateMatchScore() {
 }
 
 // ─── PARAM GRADIENT ASSIST ───────────────────────────────────────────────────
+//
+// This is a LOCAL GRADIENT PROBE, NOT a fixed target-value indicator.
+//
+// For each of the 5 parameters it:
+//   1. Computes the baseline match score with current values.
+//   2. Nudges the param UP by a small step → measures score change.
+//   3. Nudges the param DOWN by the same step → measures score change.
+//   4. Restores original value.
+//
+// The arrows show only which direction improves the score from where you are
+// right now (▲ = up helps, ▼ = down helps, • = locally optimal). Because
+// parameters interact (amplitude changes affect DC offset's relative impact,
+// phase shifts sample alignment, etc.), adjusting one param can change the
+// gradient for others — so arrows shift dynamically.
+//
+// LIMITATION: This is a local gradient, not a global optimum finder. A ▼
+// arrow means "lowering helps right now" but does not say how far. The
+// step size in GRADIENT_STEPS also affects sensitivity — too large and
+// the gradient misses fine optima, too small and score noise dominates.
 
 const GRADIENT_STEPS = { freq: 1, amp: 0.5, phase: 5, dc: 0.5, harm: 0.5 };
 
@@ -1830,6 +1852,35 @@ function paramGradient() {
 	return result;
 }
 
+// Strategy B: direct target comparison.
+// For each param, compare yoursSignal against targetSignal.
+// Direction ▲/▼ shows whether to increase or decrease toward the target.
+// Magnitude is |diff| / range, normalized to [0, 1].
+// Unlike the probe (Strategy A), arrows NEVER shift when you change
+// other params — each arrow depends only on that param vs the target.
+function paramGradientTargetDelta() {
+	if (!targetSignal || Round.won || Session.freePlayActive) return null;
+	const result = {};
+	for (const p of DRAG_PARAMS) {
+		const paramId = p.id;
+		const target = targetSignal[paramId];
+		const current = yoursSignal[paramId];
+		if (target === undefined || current === undefined) continue;
+		const diff = target - current;
+		const range = p.max - p.min;
+		const magnitude = Math.min(Math.abs(diff) / range, 1);
+		if (Math.abs(diff) < p.step * 0.5) {
+			result[paramId] = { dir: 0, magnitude: 0 };
+		} else {
+			result[paramId] = {
+				dir: Math.sign(diff),
+				magnitude,
+			};
+		}
+	}
+	return result;
+}
+
 function updateParamArrows() {
 	const arrows = document.querySelectorAll(".param-arrow");
 	const guideOn = Session.assistParamGuide;
@@ -1843,7 +1894,16 @@ function updateParamArrows() {
 		return;
 	}
 
-	const gradient = paramGradient();
+	if (yoursSignal.type !== targetSignal.type) {
+		arrows.forEach(el => {
+			el.textContent = "";
+			el.className = "param-arrow";
+		});
+		return;
+	}
+
+	const useDirect = Session.assistParamDirect;
+	const gradient = useDirect ? paramGradientTargetDelta() : paramGradient();
 	if (!gradient) {
 		arrows.forEach(el => {
 			el.textContent = "";
@@ -1851,12 +1911,18 @@ function updateParamArrows() {
 		return;
 	}
 
-	if (yoursSignal.type !== targetSignal.type) {
-		arrows.forEach(el => {
-			el.textContent = "";
-			el.className = "param-arrow";
-		});
-		return;
+	// A/B divergence logging — run both strategies and log disagreements
+	if (!useDirect && Session.assistParamGuide) {
+		const directGrad = paramGradientTargetDelta();
+		if (directGrad) {
+			for (const param of Object.keys(gradient)) {
+				const a = gradient[param];
+				const b = directGrad[param];
+				if (a && b && a.dir !== b.dir && a.dir !== 0 && b.dir !== 0) {
+					console.log("[AB] probe=%s target=%s for param=%s yours=%s target=%s", a.dir > 0 ? "▲" : "▼", b.dir > 0 ? "▲" : "▼", param, yoursSignal[param], targetSignal[param]);
+				}
+			}
+		}
 	}
 
 	arrows.forEach(el => {
@@ -2733,7 +2799,7 @@ function initControls() {
 		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
 		tab.dataset.param = p.id;
-		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${_trackPct(p)}%"></span>`;
+		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}"><span class="param-arrow" data-param="${p.id}"></span><span class="mpt-val-text">${_sliderFmt(p)}</span></span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${_trackPct(p)}%"></span>`;
 		tabsEl.appendChild(tab);
 	});
 
@@ -2745,7 +2811,7 @@ function initControls() {
 		<div class="drag-hint">drag up / down</div>
 		<div class="drag-arrows">▲<br><br>▼</div>
 		<div class="drag-label" id="drag-label-el">${params[0].label}</div>
-		<div class="drag-value" id="drag-val-el">${_sliderFmt(params[0])}</div>
+		<div class="drag-value" id="drag-val-el"><span class="param-arrow" data-param="${params[0].id}"></span><span class="drag-val-text">${_sliderFmt(params[0])}</span></div>
 		<div class="drag-unit"  id="drag-unit-el">${params[0].unit}</div>
 		<div class="drag-track"><div class="drag-track-fill" id="drag-fill-el" style="height:${_trackPct(params[0])}%"></div></div>
 	`;
@@ -2783,7 +2849,12 @@ function initControls() {
 		const unitEl = document.getElementById("drag-unit-el");
 		const fillEl = document.getElementById("drag-fill-el");
 		if (labelEl) labelEl.textContent = p.label;
-		if (valueEl) valueEl.textContent = _sliderFmt(p);
+		if (valueEl) {
+			const arrowEl = valueEl.querySelector(".param-arrow");
+			if (arrowEl) arrowEl.dataset.param = p.id;
+			const textEl = valueEl.querySelector(".drag-val-text");
+			if (textEl) textEl.textContent = _sliderFmt(p);
+		}
 		if (unitEl) unitEl.textContent = p.unit;
 		if (fillEl) fillEl.style.height = `${_trackPct(p)}%`;
 		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
@@ -2792,7 +2863,10 @@ function initControls() {
 		// Update all tab value readouts and progress tracks
 		params.forEach(param => {
 			const valEl = document.getElementById(`mpt-val-${param.id}`);
-			if (valEl) valEl.textContent = _sliderFmt(param);
+			if (valEl) {
+				const textEl = valEl.querySelector(".mpt-val-text");
+				if (textEl) textEl.textContent = _sliderFmt(param);
+			}
 			const trackEl = document.getElementById(`mpt-track-${param.id}`);
 			if (trackEl) trackEl.style.setProperty("--pct", `${_trackPct(param)}%`);
 		});
@@ -3293,6 +3367,7 @@ function renderSettings() {
 	sync("stg-easy-match", s.assistEasyMatch);
 	sync("stg-no-fail", s.assistNoFail);
 	sync("stg-param-guide", s.assistParamGuide);
+	sync("stg-param-direct", s.assistParamDirect);
 	sync("stg-score-gated", s.assistScoreGated);
 	const bgmVol = document.getElementById("stg-bgm-vol");
 	if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
@@ -3350,6 +3425,7 @@ function initSettingsOverlay() {
 	bindToggle("stg-easy-match", "assistEasyMatch", "assistEasyMatch");
 	bindToggle("stg-no-fail", "assistNoFail", "assistNoFail");
 	bindToggle("stg-param-guide", "assistParamGuide", "assistParamGuide");
+	bindToggle("stg-param-direct", "assistParamDirect", "assistParamDirect");
 	bindToggle("stg-score-gated", "assistScoreGated", "assistScoreGated");
 
 	const bindSlider = (id, key, sessionKey) => {

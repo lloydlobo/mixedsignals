@@ -73,6 +73,7 @@ All notable changes to Mixed Signals.
 - Lower saturator drive from k=15 to k=2.5 to avoid audible distortion
 - Adjust dc offset tolerance in tutorial task for improved accuracy
 - Mobile controls now work during tutorial — phase/dc unlocked, glow applied to drag tabs, step locking tracks mobile tabs
+- Add missing param gradient arrows to drag controls UI
 
 ### Refactoring
 
