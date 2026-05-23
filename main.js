@@ -2441,7 +2441,7 @@ function syncLabels() {
 			setAria(slider, (raw / 10).toFixed(1));
 		}
 	}
-	_mobileRefreshIfActive();
+	_refreshTabDisplay();
 }
 
 function scheduleRender() {
@@ -2451,6 +2451,7 @@ function scheduleRender() {
 		updateMeter();
 		syncLabels();
 		updateParamArrows();
+		updateDesktopTracks();
 		const now = Date.now();
 		if (now - _lastSliderSfx > 80) {
 			SFX.slider();
@@ -2582,10 +2583,10 @@ function resetYours() {
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.toggle("active", b.dataset.t === "sine"));
 	invalidateMatchScore();
 	recompute();
-	_mobileRefreshIfActive();
+	_refreshTabDisplay();
 }
 
-// ─── MOBILE DRAG CONTROLS ────────────────────────────────────────────────────
+// ─── UNIFIED DRAG CONTROLS ────────────────────────────────────────────────────
 
 /**
  * Per-param config for the drag zone.
@@ -2600,12 +2601,7 @@ const DRAG_PARAMS = [
 	{ id: "harm", label: "Harm", unit: "", min: 0, max: 10, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
 ];
 
-let _controlMode = null; // 'mobile' | 'desktop' | null
-let _mobileCleanup = null;
-
-function _isMobile() {
-	return true;
-}
+let _controlsCleanup = null;
 
 /** Returns which DRAG_PARAMS are currently visible (not hidden/locked for this level). */
 function _activeDragParams() {
@@ -2656,31 +2652,41 @@ const PARAM_GLYPH = {
   </svg>`,
 };
 
+/** Inject progress tracks into desktop slider controls. */
+(function initDesktopTracks() {
+	DRAG_PARAMS.forEach(p => {
+		const ctrl = document.getElementById(`ctrl-${p.id}`);
+		if (!ctrl || ctrl.querySelector(".ctrl-track")) return;
+		const track = document.createElement("div");
+		track.className = "ctrl-track";
+		track.id = `ctrl-track-${p.id}`;
+		ctrl.appendChild(track);
+	});
+})();
+
+function updateDesktopTracks() {
+	DRAG_PARAMS.forEach(p => {
+		const el = document.getElementById(`ctrl-track-${p.id}`);
+		if (!el) return;
+		const raw = +document.getElementById(`sl-${p.id}`)?.value ?? p.min;
+		const pct = (((raw - p.min) / (p.max - p.min)) * 100).toFixed(1);
+		el.style.setProperty("--pct", pct + "%");
+	});
+}
+
 /**
- * initControls(mode)
- * Tears down previous mode, builds the correct one.
- * Called on init, on resize when mode changes, and after applyLevelUI.
+ * initControls()
+ * Builds the unified drag-control UI.
+ * Called on init and after applyLevelUI.
  */
-function initControls(mode) {
-	if (_mobileCleanup) {
-		_mobileCleanup();
-		_mobileCleanup = null;
+function initControls() {
+	if (_controlsCleanup) {
+		_controlsCleanup();
+		_controlsCleanup = null;
 	}
 
-	_controlMode = mode;
-
-	if (mode === "desktop") {
-		// Desktop: sliders handle their own input events via the delegated
-		// listener already set up in initEvents(). Nothing extra needed.
-		const existing = document.getElementById("mobile-controls-wrap");
-		if (existing) existing.remove();
-		return;
-	}
-
-	// ── MOBILE ──────────────────────────────────────────────────────────────
-
-	// Remove existing mobile UI if re-initialising
-	const existing = document.getElementById("mobile-controls-wrap");
+	// Remove existing UI if re-initialising
+	const existing = document.getElementById("controls-wrap");
 	if (existing) existing.remove();
 
 	const lv = LEVELS[Session.level];
@@ -2690,7 +2696,7 @@ function initControls(mode) {
 	// ── BUILD DOM ─────────────────────────────────────────────────────────
 
 	const wrap = document.createElement("div");
-	wrap.id = "mobile-controls-wrap";
+	wrap.id = "controls-wrap";
 
 	// Inject glow filter for param glyph faded reference paths
 	if (!document.getElementById("mpt-glow")) {
@@ -2716,32 +2722,31 @@ function initControls(mode) {
 
 	// Param tabs
 	const tabsEl = document.createElement("div");
-	tabsEl.className = "mobile-param-tabs";
+	tabsEl.className = "param-tabs";
 	tabsEl.style.setProperty("--tab-count", params.length);
 
 	params.forEach((p, i) => {
 		const tab = document.createElement("button");
-		tab.className = "mobile-param-tab" + (i === 0 ? " active" : "");
+		tab.className = "param-tab" + (i === 0 ? " active" : "");
 		if (p.id === "phase" && !lv.phase && !Session.tutorialActive) tab.classList.add("locked");
 		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
 		tab.dataset.param = p.id;
-		const initPct = _trackPct(p);
-		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${initPct}%"></span>`;
+		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}">${_sliderFmt(p)}</span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${_trackPct(p)}%"></span>`;
 		tabsEl.appendChild(tab);
 	});
 
 	// Drag zone
 	const dragZone = document.createElement("div");
-	dragZone.className = "mobile-drag-zone";
+	dragZone.className = "drag-zone";
 	dragZone.setAttribute("aria-label", "Drag up to increase, down to decrease");
 	dragZone.innerHTML = `
-		<div class="mobile-drag-hint">drag up / down</div>
-		<div class="mobile-drag-arrows">▲<br><br>▼</div>
-		<div class="mobile-drag-label" id="mob-drag-label">${params[0].label}</div>
-		<div class="mobile-drag-value" id="mob-drag-value">${_sliderFmt(params[0])}</div>
-		<div class="mobile-drag-unit"  id="mob-drag-unit">${params[0].unit}</div>
-		<div class="mobile-drag-track"><div class="mobile-drag-track-fill" id="mob-drag-fill" style="height:${_trackPct(params[0])}%"></div></div>
+		<div class="drag-hint">drag up / down</div>
+		<div class="drag-arrows">▲<br><br>▼</div>
+		<div class="drag-label" id="drag-label-el">${params[0].label}</div>
+		<div class="drag-value" id="drag-val-el">${_sliderFmt(params[0])}</div>
+		<div class="drag-unit"  id="drag-unit-el">${params[0].unit}</div>
+		<div class="drag-track"><div class="drag-track-fill" id="drag-fill-el" style="height:${_trackPct(params[0])}%"></div></div>
 	`;
 
 	wrap.appendChild(tabsEl);
@@ -2772,10 +2777,10 @@ function initControls(mode) {
 
 	function _updateDragDisplay() {
 		const p = params[activeParamIdx];
-		const labelEl = document.getElementById("mob-drag-label");
-		const valueEl = document.getElementById("mob-drag-value");
-		const unitEl = document.getElementById("mob-drag-unit");
-		const fillEl = document.getElementById("mob-drag-fill");
+		const labelEl = document.getElementById("drag-label-el");
+		const valueEl = document.getElementById("drag-val-el");
+		const unitEl = document.getElementById("drag-unit-el");
+		const fillEl = document.getElementById("drag-fill-el");
 		if (labelEl) labelEl.textContent = p.label;
 		if (valueEl) valueEl.textContent = _sliderFmt(p);
 		if (unitEl) unitEl.textContent = p.unit;
@@ -2790,16 +2795,20 @@ function initControls(mode) {
 			const trackEl = document.getElementById(`mpt-track-${param.id}`);
 			if (trackEl) trackEl.style.setProperty("--pct", _trackPct(param) + "%");
 		});
+
+		// Toggle locked visual state on drag zone
+		const activeTab = tabsEl.querySelector(`.param-tab[data-param="${params[activeParamIdx].id}"]`);
+		dragZone.classList.toggle("locked", activeTab?.classList.contains("locked"));
 	}
 
 	// ── TAB INTERACTION ───────────────────────────────────────────────────
 
 	function _onTabClick(e) {
-		const tab = e.target.closest(".mobile-param-tab");
+		const tab = e.target.closest(".param-tab");
 		if (!tab || tab.classList.contains("locked")) return;
 		SFX.nav();
 		activeParamIdx = +tab.dataset.paramIdx;
-		tabsEl.querySelectorAll(".mobile-param-tab").forEach((t, i) => {
+		tabsEl.querySelectorAll(".param-tab").forEach((t, i) => {
 			t.classList.toggle("active", i === activeParamIdx);
 		});
 		const newP = params[activeParamIdx];
@@ -2816,7 +2825,7 @@ function initControls(mode) {
 	let _dragStartVal = null;
 
 	function _activeTabLocked() {
-		const activeTab = tabsEl.querySelector(`.mobile-param-tab[data-param="${params[activeParamIdx].id}"]`);
+		const activeTab = tabsEl.querySelector(`.param-tab[data-param="${params[activeParamIdx].id}"]`);
 		return activeTab?.classList.contains("locked");
 	}
 
@@ -2895,7 +2904,7 @@ function initControls(mode) {
 
 	// ── CLEANUP FN ────────────────────────────────────────────────────────
 
-	_mobileCleanup = () => {
+	_controlsCleanup = () => {
 		tabsEl.removeEventListener("click", _onTabClick);
 		dragZone.removeEventListener("pointerdown", _onPointerDown);
 		dragZone.removeEventListener("pointermove", _onPointerMove);
@@ -2910,14 +2919,12 @@ function initControls(mode) {
 	_updateDragDisplay();
 
 	// Expose updater so applyLevelUI / resetYours can refresh tab values
-	UI._mobileRefresh = _updateDragDisplay;
+	UI._refreshTabDisplay = _updateDragDisplay;
 }
 
-/** Refresh mobile tab value readouts — called after resetYours and syncLabels. */
-function _mobileRefreshIfActive() {
-	if (_controlMode === "mobile" && typeof UI._mobileRefresh === "function") {
-		UI._mobileRefresh();
-	}
+/** Refresh tab value readouts — called after resetYours and syncLabels. */
+function _refreshTabDisplay() {
+	if (typeof UI._refreshTabDisplay === "function") UI._refreshTabDisplay();
 }
 
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
@@ -2933,8 +2940,8 @@ function applyLevelUI() {
 	UI.controls.noise.classList.add("hidden");
 	UI.buttons.pwm.disabled = !lv.types.includes("pwm");
 	UI.buttons.am.disabled = !lv.types.includes("am");
-	// Rebuild mobile tabs when level changes — param set may have changed
-	if (_controlMode === "mobile") initControls("mobile");
+	// Rebuild tabs when level changes — param set may have changed
+	initControls();
 }
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
@@ -3468,7 +3475,7 @@ function startTutorial() {
 	SFX.nav();
 	Round._lockAnimStart = 0;
 	Session.tutorialActive = true;
-	initControls("mobile");
+	initControls();
 	Session.tutorialStep = 0;
 	dispatch({ type: "SCORE_RESET" });
 	showScreen("game");
@@ -3514,21 +3521,21 @@ function lockControl(stepIndex) {
 	el.querySelectorAll("input, button").forEach(i => {
 		i.disabled = true;
 	});
-	// Also lock the matching mobile drag tab
+	// Also lock the matching param tab
 	const param = id.replace("ctrl-", "");
-	const mobileTab = document.querySelector(`.mobile-param-tab[data-param="${param}"]`);
-	if (mobileTab) {
-		mobileTab.classList.add("locked");
-		mobileTab.classList.remove("tutorial-glow");
+	const tab = document.querySelector(`.param-tab[data-param="${param}"]`);
+	if (tab) {
+		tab.classList.add("locked");
+		tab.classList.remove("tutorial-glow");
 		// Auto-select next unlocked tab
-		const allTabs = document.querySelectorAll(".mobile-param-tab");
+		const allTabs = document.querySelectorAll(".param-tab");
 		const nextUnlocked = Array.from(allTabs).find(t => !t.classList.contains("locked"));
 		if (nextUnlocked) nextUnlocked.click();
 	}
 }
 
 function unlockAllTutorialControls() {
-	document.querySelectorAll(".tutorial-done, .tutorial-glow, .mobile-param-tab.locked").forEach(el => {
+	document.querySelectorAll(".tutorial-done, .tutorial-glow, .param-tab.locked").forEach(el => {
 		el.classList.remove("tutorial-done", "tutorial-glow", "locked");
 		el.querySelectorAll("input, button").forEach(i => {
 			i.disabled = false;
@@ -3551,10 +3558,10 @@ function highlightControl() {
 	const id = TUTORIAL_CONTROLS[Session.tutorialStep];
 	if (id) {
 		document.getElementById(id)?.classList.add("tutorial-glow");
-		// Also glow the matching mobile drag tab
+		// Also glow the matching param tab
 		const param = id.replace("ctrl-", "");
-		const mobileTab = document.querySelector(`.mobile-param-tab[data-param="${param}"]`);
-		if (mobileTab) mobileTab.classList.add("tutorial-glow");
+		const tab = document.querySelector(`.param-tab[data-param="${param}"]`);
+		if (tab) tab.classList.add("tutorial-glow");
 		UI.displays.feedback?.classList.add("tutorial-glow-text");
 	}
 }
@@ -3562,7 +3569,7 @@ function highlightControl() {
 function skipTutorial() {
 	SFX.back();
 	Session.tutorialActive = false;
-	initControls(_isMobile() ? "mobile" : "desktop");
+	initControls();
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	UI.buttons.skipTut.classList.add("hidden");
@@ -3575,7 +3582,7 @@ function skipTutorial() {
 
 function endTutorial() {
 	Session.tutorialActive = false;
-	initControls(_isMobile() ? "mobile" : "desktop");
+	initControls();
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	stopSignalPlayback();
@@ -4385,7 +4392,7 @@ function initLogoScope() {
 	const W = 900;
 	const H = 300;
 
-	const mobile = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
+	const smallViewport = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
 
 	/* 
 		Current evidence from your browser + your machine:
@@ -4412,11 +4419,11 @@ function initLogoScope() {
 
 		is now empirically justified rather than folklore-based.
 	*/
-	if (mobile) {
+	if (smallViewport) {
 		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => void n.removeAttribute("filter"));
 	}
 
-	const scale = mobile ? 0.5 : 1;
+	const scale = smallViewport ? 0.5 : 1;
 	const dpr = Math.min(devicePixelRatio || 1, 1.5);
 	canvas.width = Math.round(W * scale * dpr);
 	canvas.height = Math.round(H * scale * dpr);
@@ -4513,7 +4520,7 @@ function initLogoScope() {
 		_logoElapsedTime += dt;
 		_logoLastTime = ts;
 
-		const frameInterval = mobile ? 50 : 33;
+		const frameInterval = smallViewport ? 50 : 33;
 		if (ts - _lastLogoFrame < frameInterval) {
 			_logoScopeRAF = requestAnimationFrame(draw);
 			return;
@@ -4549,7 +4556,7 @@ function initLogoScope() {
 
 		ctx.clearRect(0, 0, W, H);
 
-		const step = mobile ? Math.round(1 / scale) : 1;
+		const step = smallViewport ? Math.round(1 / scale) : 1;
 		drawLogoWave(ctx, W, H, t, COLORS.cream, false, step);
 		drawLogoWave(ctx, W, H, t * 1.05, COLORS.coral, true, step);
 
@@ -4667,7 +4674,8 @@ showScreen("start");
 	});
 })();
 // ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
-initControls("mobile");
+initControls();
+updateDesktopTracks();
 
 // New audit interpretation:
 //

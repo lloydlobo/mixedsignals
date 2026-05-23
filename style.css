@@ -271,7 +271,7 @@ body {
 }
 
 /* ============================================================
-   MOBILE
+   UNIFIED DRAG CONTROLS
    ============================================================ */
 
 @media (max-width: 640px) {
@@ -2582,10 +2582,10 @@ canvas#mg-canvas {
 }
 
 /* ============================================================
-   MOBILE DRAG CONTROLS  (≤ 520px)
+   UNIFIED DRAG CONTROLS  (≤ 520px)
    ============================================================ */
 
-.mobile-param-tabs {
+.param-tabs {
 	display: grid;
 	grid-template-columns: repeat(var(--tab-count, 4), 1fr);
 	background: var(--bg2);
@@ -2593,7 +2593,7 @@ canvas#mg-canvas {
 	border-bottom: 1px solid var(--surface);
 }
 
-.mobile-param-tab {
+.param-tab {
 	background: none;
 	border: none;
 	border-right: 1px solid var(--surface);
@@ -2609,11 +2609,11 @@ canvas#mg-canvas {
 	touch-action: manipulation;
 }
 
-.mobile-param-tab:last-child {
+.param-tab:last-child {
 	border-right: none;
 }
 
-.mobile-param-tab .mpt-label {
+.param-tab .mpt-label {
 	font-size: 9px;
 	font-weight: 800;
 	letter-spacing: 0.07em;
@@ -2621,7 +2621,7 @@ canvas#mg-canvas {
 	color: inherit;
 }
 
-.mobile-param-tab .mpt-val {
+.param-tab .mpt-val {
 	font-family: var(--font-mono);
 	font-size: 11px;
 	font-weight: 700;
@@ -2643,31 +2643,39 @@ canvas#mg-canvas {
 .mpt-track {
 	flex-shrink: 0;
 	width: 100%;
-	height: 2px;
-	border-radius: 1px;
+	height: 3px;
+	border-radius: 2px;
 	margin-top: auto;
 	--_mpt-track-bg: rgba(22, 20, 17, 0.6);
 	background: linear-gradient(to right, var(--_mpt-track-bg) var(--pct, 0%), var(--surface) var(--pct, 0%));
 }
-.mobile-param-tab.locked .mpt-track {
+.param-tab.locked .mpt-track {
 	opacity: 0.28;
 }
 
-.mobile-param-tab.active {
+.ctrl-track {
+	width: 100%;
+	height: 3px;
+	border-radius: 2px;
+	margin-top: 4px;
+	background: linear-gradient(to right, var(--coral) var(--pct, 0%), var(--surface) var(--pct, 0%));
+}
+
+.param-tab.active {
 	background: var(--surface);
 	color: var(--amber);
 }
 
-.mobile-param-tab.active .mpt-val {
+.param-tab.active .mpt-val {
 	color: var(--amber);
 }
 
-.mobile-param-tab.locked {
+.param-tab.locked {
 	opacity: 0.28;
 	pointer-events: none;
 }
 
-.mobile-drag-zone {
+.drag-zone {
 	position: relative;
 	min-height: 148px;
 	display: flex;
@@ -2682,7 +2690,19 @@ canvas#mg-canvas {
 	border-bottom: 1px solid var(--surface);
 }
 
-.mobile-drag-hint {
+.drag-zone.locked {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+.drag-zone.locked .drag-value {
+	color: var(--text-dim);
+}
+.drag-zone.locked .drag-track-fill {
+	background: var(--text-dim);
+	opacity: 0.3;
+}
+
+.drag-hint {
 	position: absolute;
 	top: 10px;
 	left: 0;
@@ -2698,7 +2718,7 @@ canvas#mg-canvas {
 	pointer-events: none;
 }
 
-.mobile-drag-label {
+.drag-label {
 	font-size: 11px;
 	font-family: var(--font-ui);
 	font-weight: 800;
@@ -2708,7 +2728,7 @@ canvas#mg-canvas {
 	margin-bottom: 6px;
 }
 
-.mobile-drag-value {
+.drag-value {
 	font-family: var(--font-mono);
 	font-size: 40px;
 	font-weight: 700;
@@ -2717,7 +2737,7 @@ canvas#mg-canvas {
 	letter-spacing: -0.02em;
 }
 
-.mobile-drag-unit {
+.drag-unit {
 	font-size: 13px;
 	font-family: var(--font-mono);
 	color: var(--text-dim);
@@ -2726,7 +2746,7 @@ canvas#mg-canvas {
 	min-height: 18px;
 }
 
-.mobile-drag-track {
+.drag-track {
 	position: absolute;
 	right: 16px;
 	top: 0;
@@ -2740,14 +2760,14 @@ canvas#mg-canvas {
 	overflow: hidden;
 }
 
-.mobile-drag-track-fill {
+.drag-track-fill {
 	background: var(--amber);
 	border-radius: 2px;
 	transition: height 0.06s linear;
 	width: 100%;
 }
 
-.mobile-drag-arrows {
+.drag-arrows {
 	position: absolute;
 	left: 16px;
 	top: 0;
