@@ -2671,7 +2671,7 @@ function updateDesktopTracks() {
 		if (!el) return;
 		const raw = +document.getElementById(`sl-${p.id}`)?.value ?? p.min;
 		const pct = (((raw - p.min) / (p.max - p.min)) * 100).toFixed(1);
-		el.style.setProperty("--pct", pct + "%");
+		el.style.setProperty("--pct", `${pct}%`);
 	});
 }
 
@@ -2728,7 +2728,7 @@ function initControls() {
 
 	params.forEach((p, i) => {
 		const tab = document.createElement("button");
-		tab.className = "param-tab" + (i === 0 ? " active" : "");
+		tab.className = `param-tab${i === 0 ? " active" : ""}`;
 		if (p.id === "phase" && !lv.phase && !Session.tutorialActive) tab.classList.add("locked");
 		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
 		tab.dataset.paramIdx = i;
@@ -2785,7 +2785,7 @@ function initControls() {
 		if (labelEl) labelEl.textContent = p.label;
 		if (valueEl) valueEl.textContent = _sliderFmt(p);
 		if (unitEl) unitEl.textContent = p.unit;
-		if (fillEl) fillEl.style.height = _trackPct(p) + "%";
+		if (fillEl) fillEl.style.height = `${_trackPct(p)}%`;
 		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
 		dragZone.setAttribute("aria-valuetext", `${_sliderFmt(p)} ${p.unit}`.trim());
 
@@ -2794,7 +2794,7 @@ function initControls() {
 			const valEl = document.getElementById(`mpt-val-${param.id}`);
 			if (valEl) valEl.textContent = _sliderFmt(param);
 			const trackEl = document.getElementById(`mpt-track-${param.id}`);
-			if (trackEl) trackEl.style.setProperty("--pct", _trackPct(param) + "%");
+			if (trackEl) trackEl.style.setProperty("--pct", `${_trackPct(param)}%`);
 		});
 
 		// Toggle locked visual state on drag zone
