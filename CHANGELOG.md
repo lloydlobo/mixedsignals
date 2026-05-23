@@ -5,6 +5,7 @@ All notable changes to Mixed Signals.
 ## [Unreleased]
 
 ### Features
+
 - Credits hover personality: each credit section has unique cursor emoji and sweep animation (🙏 horizontal, 🎶 vertical, ⚡ diagonal, 💡 radial pulse)
 - Playtester names in 4-column grid with amber glow and signal-sweep hover effect
 - Music credits compacted to single-line grid with cream-colored titles
@@ -32,8 +33,19 @@ All notable changes to Mixed Signals.
 - Stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
 - Enhance audio channel with warm analog-feel sound effects, melodic lock variants
 - Improve tutorial clarity with updated messaging, glow effects, and better text contrast
+- Whole console brick wobbles on screen shake — outer shell swivels with dynamic shadow
+- Add horizontal progress track to mobile param tabs showing current value ratio
+- Add SVG param glyphs to mobile tabs with glow and offset reference paths
+- Emit SFX when selecting mobile param tabs
+- Unify desktop and mobile UI — drag controls and type layout at all sizes
+- Port mobile drag controls and tutorial guard from reference files
+- Implement responsive scaling for margins and paddings in style.css
+- Update background gradient and add `--canvas-shadow` CSS variable
+- Use coral instead of amber for param track fill color
+- Add new background music track "Study and Relax" by Kevin MacLeod
 
 ### Performance
+
 - Remove vibratoLfo (2 always-running oscillators) and saturator (WaveShaper with 4x oversampling) from audio graph
 - Cache AudioContext reference in updateMixState instead of calling actx() every frame
 - Halve drawWave canvas path operations during slider drag (step 2→4 when recompute scheduled)
@@ -41,6 +53,7 @@ All notable changes to Mixed Signals.
 - Prefetch BGM tracks in background via fetch — game never blocks on audio load
 
 ### Fixes
+
 - Post-game freeplay: unlimited rounds, infinite timer, free hints/skips
 - Type drift in logo scope vars, stale TODOs, and missing seeded RNG in 5 `Math.random()` calls
 - Sync `types.d.ts` with `main.js` — `toggleMute`, `toggleSfxMute`, `assistParamGuide`, `assistScoreGated`, `normalizePhase`
@@ -58,8 +71,11 @@ All notable changes to Mixed Signals.
 - Adjust SFX gain levels and durations across all sound effects
 - Needle minigame: 3 tries with random reposition, SFX on stop; noise: fix regrowth rate
 - Lower saturator drive from k=15 to k=2.5 to avoid audible distortion
+- Adjust dc offset tolerance in tutorial task for improved accuracy
+- Mobile controls now work during tutorial — phase/dc unlocked, glow applied to drag tabs, step locking tracks mobile tabs
 
 ### Refactoring
+
 - Consume `gamePick`/`mgBonusPts`/`beatCount`, centralize event listeners, fix audio gesture handling, WCAG contrast audit
 - Normalize phase calculation and improve `matchScore` function
 - Extract minigame magic numbers into named constants
@@ -69,8 +85,11 @@ All notable changes to Mixed Signals.
 - Migrate bare module-level globals into Round/Session lifecycle objects with documented reset() boundaries
 - State-machine BGM with per-pool track pools and no-repeat selection
 - 5-pass refactor: dispatch owns score/level/round writes, BUTTON_ACTIONS table, scoped RNG, SAMPLERS lookup, data-attr sliders
+- Drop 'mobile' prefix from drag-control classes, IDs, and JS identifiers — unify naming across drag control system
+- Improve CSS formatting and add drag controls styles
 
 ### Documentation
+
 - Verify `--text-mute` (#92826c) WCAG contrast against `--bg` (#1c1915) — 4.70:1 passes AA
 - Update TODO.md to reflect completed codebase hygiene tasks
 - Add pensieve entry for credits hover personality
@@ -78,10 +97,14 @@ All notable changes to Mixed Signals.
 - Add bug fix log (FIXES.md)
 - Add 53 unit tests for signal math, scoring, dispatch, persistence, and RNG (mixed-signals.test.js)
 - Add P5 test health section to TODO with two options for preventing constant drift
+- Add comprehensive codebase audit plan and report
+- Update music attribution links to use markdown format
+- Add benchmarking suite with input generation and HTML runner for wrapUnit
 
 ## [0.5.0] - 2026-05-11
 
 ### Features
+
 - Add interactive tutorial with step-by-step guidance and visual cues
 - Enhance scoring system with dynamic time-based bonuses
 - Enhance timer UI with animated ring and urgent state indication
@@ -98,12 +121,14 @@ All notable changes to Mixed Signals.
 - Add frame-independent game loop with improved timing precision
 
 ### Performance
+
 - Replace buffer-based signal sampling with direct procedural sampling for scoring and rendering
 - Cache DOM references and match score to reduce reflows
 - Throttle recompute() to 16ms to fix input overprocessing
 - Reduce SAMPLE_BUFFER_SIZE to 256 with tradeoff documentation
 
 ### Fixes
+
 - Correct strokeStyle syntax in drawGrid function
 - Fix fastSin LUT interpolation for negative angles
 - Ensure animRaf is properly nullified after canceling animation frame
@@ -113,11 +138,13 @@ All notable changes to Mixed Signals.
 - Remove loop attribute from background music audio element
 
 ### Refactoring
+
 - Replace buffer-based signals with direct procedural sampling
 - Reorganize audio controls and update scope labels
 - Cache DOM/canvas/matchScore and remove dead code
 
 ### Documentation
+
 - Update credits section with contributor corrections, additions, and special thanks
 - Restructure credits section for improved readability and organization
 - Update music attribution in README and index.html
@@ -126,6 +153,7 @@ All notable changes to Mixed Signals.
 ## [0.4.0] - 2026-05-04
 
 ### Performance
+
 - Implement fast sine approximation to speed up signal sampling
 - Replace `Math.random` with xoshiro128+ PRNG; add support for multiple PRNG options (Xorshift32, SFC32, etc.)
 - Optimize core signal sampling function for improved accuracy and speed
@@ -134,6 +162,7 @@ All notable changes to Mixed Signals.
 - Add PRNG selection guide to compare speed/quality tradeoffs during pre-release testing
 
 ### Performance Impact (Guesstimated, Pre-Benchmark)
+
 - ~5-10x faster per-frame rendering by replacing per-pixel `sample()` calls with pre-computed buffer lookups
 - ~3-5x faster signal rebuilds (slider adjustments, level init) via fast sine approximation and Xorshift32 PRNG
 - More consistent frame timing by moving sampling work off the critical render path
@@ -141,17 +170,20 @@ All notable changes to Mixed Signals.
 ## [0.3.0] - 2026-05-03
 
 ### Game Juice (Feedback & Polish)
+
 - Add screen shake effects (heavy on game over, light on score pop)
 - Add floating score pop animation with "+points" display
 - Add haptic feedback for button interactions and game events
 - Reverse scroll direction for target/yours signals to move right
 
 ### CRT Visual Updates
+
 - Update wave colors to classic CRT palette (phosphor green for target, amber for yours)
 - Enhance oscilloscope overlay with improved blending and dynamic line width
 - Restructure HTML/CSS to add shake wrapper for visual effects
 
 ### Audio Updates
+
 - Update default BGM volume to 0.4 for improved audio balance
 - Add BGM fade-out logic on game over (placeholder with planned high-pass filter improvement)
 - Enhance visual feedback with improved oscilloscope overlay and line styling
@@ -159,6 +191,7 @@ All notable changes to Mixed Signals.
 ## [0.2.0] - 2026-05-02
 
 ### UI
+
 - Reskin game screen as oscilloscope-style hardware device
   - Game container styled as handheld device shell with asymmetric border-radius, drop shadow, and power LED
   - HUD (topbar, meter, scope, feedback) wrapped in LCD bezel frame
@@ -168,6 +201,7 @@ All notable changes to Mixed Signals.
   - Removed `.mode-btn`, `.hw-slider-group`, and hidden compatibility containers in favor of reusing existing `.type-btn` and `.ctrl` class names
 
 ### Features
+
 - Add background music with mute toggle and volume persistence
 - Add sound effects for all game interactions (slider ticks, lock-in, fail, hint, level up, urgent timer)
 - Switch to float step values for amplitude/DC/harmonic/noise sliders with adjusted match threshold
@@ -175,6 +209,7 @@ All notable changes to Mixed Signals.
 - Add Cloudflare Workers deployment configuration
 
 ### Fixes
+
 - Prevent text selection when dragging mouse over game UI
 - Prevent timer from triggering game over after player has already won a round
 - Enable noise rendering on player's waveform during visualization
@@ -185,11 +220,13 @@ All notable changes to Mixed Signals.
 - Correct variable name for target signal DC offset in hint function
 
 ### Refactoring
+
 - Simplify reskin by reusing existing class names
 - Add JSDoc documentation across all game logic functions
 - Refactor signal property names for consistency
 
 ### Documentation
+
 - Add acknowledgment for initial game idea
 - Add AI assistance acknowledgments
 - Update README
@@ -197,6 +234,7 @@ All notable changes to Mixed Signals.
 ## [0.1.0] - 2026-04-28
 
 ### Initial Release
+
 - Core gameplay: match waveform parameters to target signal
 - 5 difficulty levels with progressive parameter unlocks (phase, DC offset, harmonic, noise)
 - 6 waveform types: sine, square, sawtooth, triangle, PWM, AM
@@ -209,6 +247,7 @@ All notable changes to Mixed Signals.
 ## [0.1.0-alpha] - 2026-04-20
 
 ### Pre-release
+
 - Initial HTML and JavaScript files for Mixed Signals game
 - Refactor game structure and styles
 - Basic game functionality implementation
