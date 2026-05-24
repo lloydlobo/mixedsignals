@@ -225,9 +225,8 @@ const Session = {
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
-	assistParamGuide: false,
-	assistParamDirect: false,
-	assistScoreGated: false,
+	assistParamGuide: "off",
+	assistFreeGuide: true,
 	sfxVolume: 0.4,
 	postGameFreeplay: false,
 };
@@ -560,9 +559,8 @@ const DEFAULT_SETTINGS = () => ({
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
-	assistParamGuide: false,
-	assistParamDirect: false,
-	assistScoreGated: false,
+	assistParamGuide: "off",
+	assistFreeGuide: true,
 });
 
 /** @returns {SaveData} */
@@ -851,9 +849,10 @@ Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
 Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
 Session.assistEasyMatch = _initSettings.assistEasyMatch;
 Session.assistNoFail = _initSettings.assistNoFail;
-Session.assistParamGuide = _initSettings.assistParamGuide;
-Session.assistParamDirect = _initSettings.assistParamDirect ?? false;
-Session.assistScoreGated = _initSettings.assistScoreGated;
+// Migrate old boolean assistParamGuide to three-way string
+const _rawGuide = _initSettings.assistParamGuide;
+Session.assistParamGuide = typeof _rawGuide === "boolean" ? (_rawGuide ? "gradient" : "off") : (_rawGuide || "off");
+Session.assistFreeGuide = _initSettings.assistFreeGuide ?? true;
 
 function initAudio() {
 	const audio = UI.audio,
@@ -1881,10 +1880,25 @@ function paramGradientTargetDelta() {
 	return result;
 }
 
+// Call from DevTools to A/B test both strategies: abCompareParamGradients()
+function abCompareParamGradients() {
+	const probe = paramGradient();
+	const direct = paramGradientTargetDelta();
+	if (!probe || !direct) { console.log("[AB] one or both strategies unavailable"); return; }
+	for (const param of Object.keys(probe)) {
+		const a = probe[param], b = direct[param];
+		if (a && b && a.dir !== b.dir && a.dir !== 0 && b.dir !== 0) {
+			console.log("[AB] probe=%s direct=%s param=%s yours=%s target=%s",
+				a.dir > 0 ? "▲" : "▼", b.dir > 0 ? "▲" : "▼",
+				param, yoursSignal[param], targetSignal[param]);
+		}
+	}
+}
+
 function updateParamArrows() {
 	const arrows = document.querySelectorAll(".param-arrow");
 	const guideOn = Session.assistParamGuide;
-	const affordable = Session.postGameFreeplay || !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
+	const affordable = Session.postGameFreeplay || Session.assistFreeGuide || Session.score >= CONFIG.COST_HINT;
 
 	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
 		arrows.forEach(el => {
@@ -1902,27 +1916,12 @@ function updateParamArrows() {
 		return;
 	}
 
-	const useDirect = Session.assistParamDirect;
-	const gradient = useDirect ? paramGradientTargetDelta() : paramGradient();
+	const gradient = Session.assistParamGuide === "direct" ? paramGradientTargetDelta() : paramGradient();
 	if (!gradient) {
 		arrows.forEach(el => {
 			el.textContent = "";
 		});
 		return;
-	}
-
-	// A/B divergence logging — run both strategies and log disagreements
-	if (!useDirect && Session.assistParamGuide) {
-		const directGrad = paramGradientTargetDelta();
-		if (directGrad) {
-			for (const param of Object.keys(gradient)) {
-				const a = gradient[param];
-				const b = directGrad[param];
-				if (a && b && a.dir !== b.dir && a.dir !== 0 && b.dir !== 0) {
-					console.log("[AB] probe=%s target=%s for param=%s yours=%s target=%s", a.dir > 0 ? "▲" : "▼", b.dir > 0 ? "▲" : "▼", param, yoursSignal[param], targetSignal[param]);
-				}
-			}
-		}
 	}
 
 	arrows.forEach(el => {
@@ -3366,9 +3365,23 @@ function renderSettings() {
 	sync("stg-infinite-time", s.assistInfiniteTime);
 	sync("stg-easy-match", s.assistEasyMatch);
 	sync("stg-no-fail", s.assistNoFail);
-	sync("stg-param-guide", s.assistParamGuide);
-	sync("stg-param-direct", s.assistParamDirect);
-	sync("stg-score-gated", s.assistScoreGated);
+	{
+		const el = document.getElementById("stg-param-guide");
+		if (el) {
+			const labels = { off: "OFF", gradient: "GRAD", direct: "DIR" };
+			const mode = s.assistParamGuide || "off";
+			el.textContent = labels[mode] || "OFF";
+			el.classList.toggle("on", mode !== "off");
+		}
+	}
+	sync("stg-free-guide", s.assistFreeGuide);
+	{
+		const el = document.getElementById("stg-free-guide");
+		if (el) {
+			el.disabled = s.assistParamGuide === "off";
+			el.classList.toggle("disabled", s.assistParamGuide === "off");
+		}
+	}
 	const bgmVol = document.getElementById("stg-bgm-vol");
 	if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
 	const sfxVol = document.getElementById("stg-sfx-vol");
@@ -3424,9 +3437,21 @@ function initSettingsOverlay() {
 	bindToggle("stg-infinite-time", "assistInfiniteTime", "assistInfiniteTime");
 	bindToggle("stg-easy-match", "assistEasyMatch", "assistEasyMatch");
 	bindToggle("stg-no-fail", "assistNoFail", "assistNoFail");
-	bindToggle("stg-param-guide", "assistParamGuide", "assistParamGuide");
-	bindToggle("stg-param-direct", "assistParamDirect", "assistParamDirect");
-	bindToggle("stg-score-gated", "assistScoreGated", "assistScoreGated");
+	{
+		const GUIDE_CYCLE = ["off", "gradient", "direct"];
+		const el = document.getElementById("stg-param-guide");
+		if (el) el.addEventListener("click", () => {
+			SFX.toggle(true);
+			const save = loadSave();
+			const current = save.settings.assistParamGuide || "off";
+			const next = GUIDE_CYCLE[(GUIDE_CYCLE.indexOf(current) + 1) % 3];
+			save.settings.assistParamGuide = next;
+			writeSave(save);
+			Session.assistParamGuide = next;
+			renderSettings();
+		});
+	}
+	bindToggle("stg-free-guide", "assistFreeGuide", "assistFreeGuide");
 
 	const bindSlider = (id, key, sessionKey) => {
 		const el = document.getElementById(id);

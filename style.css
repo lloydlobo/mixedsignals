@@ -1499,6 +1499,11 @@ input[type="range"]::-moz-range-thumb {
 	transform: translateY(2px);
 	box-shadow: none;
 }
+.settings-toggle:disabled {
+	opacity: 0.35;
+	cursor: not-allowed;
+	pointer-events: none;
+}
 
 /* Slider — narrower variant for settings rows */
 .settings-slider {
