@@ -8,6 +8,10 @@
 # node_modules
 node_modules
 
+# audit docs (keep local, not for PRs)
+AUDIT_PLAN.md
+AUDIT_REPORT.md
+
 # temp files
 _archive/
 .swp
