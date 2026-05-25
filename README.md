@@ -20,6 +20,8 @@
 
 - **Cinematic Aloha Lounge Rumba 2**: Music by [Peter Koepke](https://pixabay.com/users/pietix-54512977/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535338) from [Pixabay](https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=535338)
 
+- **Study and Relax**: Music by [Kevin MacLeod](https://incompetech.com/) from [incompetech.com](https://incompetech.com/) (CC BY 4.0)
+
 ## Built With
 
 This project was developed collaboratively with AI assistants:

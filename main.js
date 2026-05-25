@@ -225,8 +225,8 @@ const Session = {
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
-	assistParamGuide: false,
-	assistScoreGated: false,
+	assistParamGuide: "off",
+	assistFreeGuide: true,
 	sfxVolume: 0.4,
 	postGameFreeplay: false,
 };
@@ -236,7 +236,7 @@ const TUTORIAL_TASKS = [
 	{ text: "TUTORIAL: Set frequency to 5 Hz", check: () => yoursSignal.freq === 5 },
 	{ text: "TUTORIAL: Set amplitude around 0.80", check: () => Math.abs(yoursSignal.amp - 8) < 0.5 },
 	{ text: "TUTORIAL: Set phase around 360°", check: () => Math.abs(yoursSignal.phase - 360) <= 2 },
-	{ text: "TUTORIAL: Set dc offset around 0.3", check: () => Math.abs(yoursSignal.dc - 3) <= 0.5 },
+	{ text: "TUTORIAL: Set dc offset around 0.3", check: () => Math.abs(yoursSignal.dc - 3) <= 0.125 },
 	{ text: `TUTORIAL: Now match the target (${CONFIG.WIN_PERCENTAGE}%+)`, check: () => matchScore() >= CONFIG.WIN_PERCENTAGE * 0.01 },
 ];
 
@@ -559,8 +559,8 @@ const DEFAULT_SETTINGS = () => ({
 	assistInfiniteTime: false,
 	assistEasyMatch: false,
 	assistNoFail: false,
-	assistParamGuide: false,
-	assistScoreGated: false,
+	assistParamGuide: "off",
+	assistFreeGuide: true,
 });
 
 /** @returns {SaveData} */
@@ -754,6 +754,7 @@ const BGM_POOL = {
 		"pietix-art-pop-exp-2-510302.mp3",
 		"musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
 		"slimeyfox-after-hours-arcade-487277.mp3",
+		"kevinmacleod-study-and-relax.mp3",
 	], // TODO: IMPLEMENT
 	result: null,
 };
@@ -848,8 +849,10 @@ Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
 Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
 Session.assistEasyMatch = _initSettings.assistEasyMatch;
 Session.assistNoFail = _initSettings.assistNoFail;
-Session.assistParamGuide = _initSettings.assistParamGuide;
-Session.assistScoreGated = _initSettings.assistScoreGated;
+// Migrate old boolean assistParamGuide to three-way string
+const _rawGuide = _initSettings.assistParamGuide;
+Session.assistParamGuide = typeof _rawGuide === "boolean" ? (_rawGuide ? "gradient" : "off") : (_rawGuide || "off");
+Session.assistFreeGuide = _initSettings.assistFreeGuide ?? true;
 
 function initAudio() {
 	const audio = UI.audio,
@@ -1793,6 +1796,25 @@ function invalidateMatchScore() {
 }
 
 // ─── PARAM GRADIENT ASSIST ───────────────────────────────────────────────────
+//
+// This is a LOCAL GRADIENT PROBE, NOT a fixed target-value indicator.
+//
+// For each of the 5 parameters it:
+//   1. Computes the baseline match score with current values.
+//   2. Nudges the param UP by a small step → measures score change.
+//   3. Nudges the param DOWN by the same step → measures score change.
+//   4. Restores original value.
+//
+// The arrows show only which direction improves the score from where you are
+// right now (▲ = up helps, ▼ = down helps, • = locally optimal). Because
+// parameters interact (amplitude changes affect DC offset's relative impact,
+// phase shifts sample alignment, etc.), adjusting one param can change the
+// gradient for others — so arrows shift dynamically.
+//
+// LIMITATION: This is a local gradient, not a global optimum finder. A ▼
+// arrow means "lowering helps right now" but does not say how far. The
+// step size in GRADIENT_STEPS also affects sensitivity — too large and
+// the gradient misses fine optima, too small and score noise dominates.
 
 const GRADIENT_STEPS = { freq: 1, amp: 0.5, phase: 5, dc: 0.5, harm: 0.5 };
 
@@ -1829,10 +1851,54 @@ function paramGradient() {
 	return result;
 }
 
+// Strategy B: direct target comparison.
+// For each param, compare yoursSignal against targetSignal.
+// Direction ▲/▼ shows whether to increase or decrease toward the target.
+// Magnitude is |diff| / range, normalized to [0, 1].
+// Unlike the probe (Strategy A), arrows NEVER shift when you change
+// other params — each arrow depends only on that param vs the target.
+function paramGradientTargetDelta() {
+	if (!targetSignal || Round.won || Session.freePlayActive) return null;
+	const result = {};
+	for (const p of DRAG_PARAMS) {
+		const paramId = p.id;
+		const target = targetSignal[paramId];
+		const current = yoursSignal[paramId];
+		if (target === undefined || current === undefined) continue;
+		const diff = target - current;
+		const range = p.max - p.min;
+		const magnitude = Math.min(Math.abs(diff) / range, 1);
+		if (Math.abs(diff) < p.step * 0.5) {
+			result[paramId] = { dir: 0, magnitude: 0 };
+		} else {
+			result[paramId] = {
+				dir: Math.sign(diff),
+				magnitude,
+			};
+		}
+	}
+	return result;
+}
+
+// Call from DevTools to A/B test both strategies: abCompareParamGradients()
+function abCompareParamGradients() {
+	const probe = paramGradient();
+	const direct = paramGradientTargetDelta();
+	if (!probe || !direct) { console.log("[AB] one or both strategies unavailable"); return; }
+	for (const param of Object.keys(probe)) {
+		const a = probe[param], b = direct[param];
+		if (a && b && a.dir !== b.dir && a.dir !== 0 && b.dir !== 0) {
+			console.log("[AB] probe=%s direct=%s param=%s yours=%s target=%s",
+				a.dir > 0 ? "▲" : "▼", b.dir > 0 ? "▲" : "▼",
+				param, yoursSignal[param], targetSignal[param]);
+		}
+	}
+}
+
 function updateParamArrows() {
 	const arrows = document.querySelectorAll(".param-arrow");
 	const guideOn = Session.assistParamGuide;
-	const affordable = Session.postGameFreeplay || !Session.assistScoreGated || Session.score >= CONFIG.COST_HINT;
+	const affordable = Session.postGameFreeplay || Session.assistFreeGuide || Session.score >= CONFIG.COST_HINT;
 
 	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
 		arrows.forEach(el => {
@@ -1842,18 +1908,18 @@ function updateParamArrows() {
 		return;
 	}
 
-	const gradient = paramGradient();
-	if (!gradient) {
-		arrows.forEach(el => {
-			el.textContent = "";
-		});
-		return;
-	}
-
 	if (yoursSignal.type !== targetSignal.type) {
 		arrows.forEach(el => {
 			el.textContent = "";
 			el.className = "param-arrow";
+		});
+		return;
+	}
+
+	const gradient = Session.assistParamGuide === "direct" ? paramGradientTargetDelta() : paramGradient();
+	if (!gradient) {
+		arrows.forEach(el => {
+			el.textContent = "";
 		});
 		return;
 	}
@@ -2441,6 +2507,7 @@ function syncLabels() {
 			setAria(slider, (raw / 10).toFixed(1));
 		}
 	}
+	_refreshTabDisplay();
 }
 
 function scheduleRender() {
@@ -2581,6 +2648,329 @@ function resetYours() {
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.toggle("active", b.dataset.t === "sine"));
 	invalidateMatchScore();
 	recompute();
+	_refreshTabDisplay();
+}
+
+// ─── UNIFIED DRAG CONTROLS ────────────────────────────────────────────────────
+
+/**
+ * Per-param config for the drag zone.
+ * sensitivity: px of drag travel that spans the full [min, max] range.
+ * fmt/unit: how to display the current value.
+ */
+const DRAG_PARAMS = [
+	{ id: "freq", label: "Freq", unit: "Hz", min: 1, max: 8, step: 1, sensitivity: 120, fmt: v => String(Math.round(v)) },
+	{ id: "amp", label: "Amp", unit: "", min: 1, max: 10, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "phase", label: "Phase", unit: "°", min: 0, max: 360, step: 1, sensitivity: 200, fmt: v => String(Math.round(v)) },
+	{ id: "dc", label: "DC", unit: "", min: -5, max: 5, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+	{ id: "harm", label: "Harm", unit: "", min: 0, max: 10, step: 0.1, sensitivity: 160, fmt: v => (v / 10).toFixed(2) },
+];
+
+let _controlsCleanup = null;
+
+/** Returns which DRAG_PARAMS are currently visible (not hidden/locked for this level). */
+function _activeDragParams() {
+	const lv = LEVELS[Session.level];
+	return DRAG_PARAMS.filter(p => {
+		if (p.id === "harm") return lv.harm;
+		if (p.id === "phase") return true; // always shown; dimmed/locked until lv.phase
+		if (p.id === "dc") return true;    // always shown; dimmed/locked until lv.dc
+		return true;
+	});
+}
+
+/** SVG glyphs for each param — helps intuitively identify controls.
+ *  Each glyph uses a faded reference path (offset down, with glow) to show
+ *  "what the signal would look like without this parameter", and a solid
+ *  path for the active/affected result. */
+const PARAM_GLYPH = {
+	freq: `<svg class="mpt-glyph" viewBox="0 0 14 14" aria-hidden="true"><path d="M0 7 Q2 3 3.5 7 T7 7 T10.5 7 T14 7" /></svg>`,
+
+	amp: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0 34 Q15 28 30 34 T60 34" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 34 Q15 4 30 34 T60 34" stroke="currentColor" stroke-width="1.5"/>
+  </svg>`,
+
+	phase: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0 26 Q15 6 30 26 T60 26" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M10 26 Q25 6 40 26 T70 26" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="2" y1="38" x2="14" y2="38" stroke="currentColor" stroke-width="1.2"/>
+    <polyline points="11,34 15,38 11,42" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </svg>`,
+
+	dc: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
+    <path d="M0 30 Q15 12 30 30 T60 30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 18 Q15 0 30 18 T60 18" stroke="currentColor" stroke-width="1.5"/>
+    <line x1="52" y1="28" x2="52" y2="20" stroke="currentColor" stroke-width="1.2"/>
+    <polyline points="48,23 52,19 56,23" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+  </svg>`,
+
+	harm: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0 28 Q15 8 30 28 T60 28" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+    <path d="M0 28 Q7 14 14 28 Q21 42 28 28 Q35 14 42 28 Q49 42 56 28 T60 28" stroke="currentColor" stroke-width="1.5"/>
+  </svg>`,
+};
+
+/**
+ * initControls()
+ * Builds the unified drag-control UI.
+ * Called on init and after applyLevelUI.
+ */
+function initControls() {
+	if (_controlsCleanup) {
+		_controlsCleanup();
+		_controlsCleanup = null;
+	}
+
+	// Remove existing UI if re-initialising
+	const existing = document.getElementById("controls-wrap");
+	if (existing) existing.remove();
+
+	const lv = LEVELS[Session.level];
+	const params = _activeDragParams();
+	let activeParamIdx = 0;
+
+	// ── BUILD DOM ─────────────────────────────────────────────────────────
+
+	const wrap = document.createElement("div");
+	wrap.id = "controls-wrap";
+
+	// Inject glow filter for param glyph faded reference paths
+	if (!document.getElementById("mpt-glow")) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.id = "mpt-glow-filter";
+		svg.setAttribute("width", "0");
+		svg.setAttribute("height", "0");
+		svg.style.cssText = "position:absolute;overflow:hidden";
+		const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+		const filter = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+		filter.setAttribute("id", "mpt-glow");
+		filter.setAttribute("x", "-50%");
+		filter.setAttribute("y", "-50%");
+		filter.setAttribute("width", "200%");
+		filter.setAttribute("height", "200%");
+		const blur = document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur");
+		blur.setAttribute("stdDeviation", "0.45");
+		filter.appendChild(blur);
+		defs.appendChild(filter);
+		svg.appendChild(defs);
+		document.body.prepend(svg);
+	}
+
+	// Param tabs
+	const tabsEl = document.createElement("div");
+	tabsEl.className = "param-tabs";
+	tabsEl.style.setProperty("--tab-count", params.length);
+
+	params.forEach((p, i) => {
+		const tab = document.createElement("button");
+		tab.className = `param-tab${i === 0 ? " active" : ""}`;
+		if (p.id === "phase" && !lv.phase && !Session.tutorialActive) tab.classList.add("locked");
+		if (p.id === "dc" && !lv.dc && !Session.tutorialActive) tab.classList.add("locked");
+		tab.dataset.paramIdx = i;
+		tab.dataset.param = p.id;
+		tab.innerHTML = `${PARAM_GLYPH[p.id]}<span class="mpt-label">${p.label}</span><span class="mpt-val" id="mpt-val-${p.id}"><span class="param-arrow" data-param="${p.id}"></span><span class="mpt-val-text">${_sliderFmt(p)}</span></span><span class="mpt-track" id="mpt-track-${p.id}" style="--pct:${_trackPct(p)}%"></span>`;
+		tabsEl.appendChild(tab);
+	});
+
+	// Drag zone
+	const dragZone = document.createElement("div");
+	dragZone.className = "drag-zone";
+	dragZone.setAttribute("aria-label", "Drag up to increase, down to decrease");
+	dragZone.innerHTML = `
+		<div class="drag-hint">drag up / down</div>
+		<div class="drag-arrows">▲<br><br>▼</div>
+		<div class="drag-label" id="drag-label-el">${params[0].label}</div>
+		<div class="drag-value" id="drag-val-el"><span class="param-arrow" data-param="${params[0].id}"></span><span class="drag-val-text">${_sliderFmt(params[0])}</span></div>
+		<div class="drag-unit"  id="drag-unit-el">${params[0].unit}</div>
+		<div class="drag-track"><div class="drag-track-fill" id="drag-fill-el" style="height:${_trackPct(params[0])}%"></div></div>
+	`;
+
+	wrap.appendChild(tabsEl);
+	wrap.appendChild(dragZone);
+
+	// Insert before .action-row inside #screen-game
+	const actionRow = document.querySelector("#screen-game .action-row");
+	if (actionRow) {
+		actionRow.parentElement.insertBefore(wrap, actionRow);
+	}
+
+	// ── HELPERS ───────────────────────────────────────────────────────────
+
+	function _sliderVal(p) {
+		const el = document.getElementById(`sl-${p.id}`);
+		return el ? +el.value : p.min;
+	}
+
+	function _sliderFmt(p) {
+		const v = _sliderVal(p);
+		return p.fmt(v);
+	}
+
+	function _trackPct(p) {
+		const v = _sliderVal(p);
+		return (((v - p.min) / (p.max - p.min)) * 100).toFixed(1);
+	}
+
+	function _updateDragDisplay() {
+		const p = params[activeParamIdx];
+		const labelEl = document.getElementById("drag-label-el");
+		const valueEl = document.getElementById("drag-val-el");
+		const unitEl = document.getElementById("drag-unit-el");
+		const fillEl = document.getElementById("drag-fill-el");
+		if (labelEl) labelEl.textContent = p.label;
+		if (valueEl) {
+			const arrowEl = valueEl.querySelector(".param-arrow");
+			if (arrowEl) arrowEl.dataset.param = p.id;
+			const textEl = valueEl.querySelector(".drag-val-text");
+			if (textEl) textEl.textContent = _sliderFmt(p);
+		}
+		if (unitEl) unitEl.textContent = p.unit;
+		if (fillEl) fillEl.style.height = `${_trackPct(p)}%`;
+		dragZone.setAttribute("aria-valuenow", _sliderVal(p));
+		dragZone.setAttribute("aria-valuetext", `${_sliderFmt(p)} ${p.unit}`.trim());
+
+		// Update all tab value readouts and progress tracks
+		params.forEach(param => {
+			const valEl = document.getElementById(`mpt-val-${param.id}`);
+			if (valEl) {
+				const textEl = valEl.querySelector(".mpt-val-text");
+				if (textEl) textEl.textContent = _sliderFmt(param);
+			}
+			const trackEl = document.getElementById(`mpt-track-${param.id}`);
+			if (trackEl) trackEl.style.setProperty("--pct", `${_trackPct(param)}%`);
+		});
+
+		// Toggle locked visual state on drag zone
+		const activeTab = tabsEl.querySelector(`.param-tab[data-param="${params[activeParamIdx].id}"]`);
+		dragZone.classList.toggle("locked", activeTab?.classList.contains("locked"));
+	}
+
+	// ── TAB INTERACTION ───────────────────────────────────────────────────
+
+	function _onTabClick(e) {
+		const tab = e.target.closest(".param-tab");
+		if (!tab || tab.classList.contains("locked")) return;
+		SFX.nav();
+		activeParamIdx = +tab.dataset.paramIdx;
+		tabsEl.querySelectorAll(".param-tab").forEach((t, i) => {
+			t.classList.toggle("active", i === activeParamIdx);
+		});
+		const newP = params[activeParamIdx];
+		dragZone.setAttribute("aria-valuemin", newP.min);
+		dragZone.setAttribute("aria-valuemax", newP.max);
+		_updateDragDisplay();
+	}
+
+	tabsEl.addEventListener("click", _onTabClick);
+
+	// ── DRAG INTERACTION ──────────────────────────────────────────────────
+
+	let _dragStartY = null;
+	let _dragStartVal = null;
+
+	function _activeTabLocked() {
+		const activeTab = tabsEl.querySelector(`.param-tab[data-param="${params[activeParamIdx].id}"]`);
+		return activeTab?.classList.contains("locked");
+	}
+
+	function _writeSlider(p, val) {
+		const slider = document.getElementById(`sl-${p.id}`);
+		if (slider && +slider.value !== val) {
+			slider.value = val;
+			recompute();
+		}
+	}
+
+	function _onDragStart(clientY) {
+		if (Round.won || _activeTabLocked()) return;
+		_dragStartY = clientY;
+		_dragStartVal = _sliderVal(params[activeParamIdx]);
+	}
+
+	function _onDragMove(clientY) {
+		if (_dragStartY === null || Round.won || _activeTabLocked()) return;
+		const p = params[activeParamIdx];
+		const dy = _dragStartY - clientY;
+		const range = p.max - p.min;
+		const delta = (dy / p.sensitivity) * range;
+		const raw = _dragStartVal + delta;
+		const snapped = Math.round(raw / p.step) * p.step;
+		const clamped = Math.min(p.max, Math.max(p.min, snapped));
+		_writeSlider(p, clamped);
+		_updateDragDisplay();
+	}
+
+	function _onDragEnd() {
+		_dragStartY = null;
+		_dragStartVal = null;
+	}
+
+	function _onPointerDown(e) {
+		dragZone.setPointerCapture(e.pointerId);
+		document.body.style.overflow = "hidden";
+		_onDragStart(e.clientY);
+	}
+	function _onPointerMove(e) {
+		_onDragMove(e.clientY);
+	}
+	function _onPointerUp() {
+		document.body.style.overflow = "";
+		_onDragEnd();
+	}
+
+	dragZone.addEventListener("pointerdown", _onPointerDown);
+	dragZone.addEventListener("pointermove", _onPointerMove);
+	dragZone.addEventListener("pointerup", _onPointerUp);
+	dragZone.addEventListener("pointercancel", _onDragEnd);
+
+	// ── KEYBOARD ─────────────────────────────────────────────────────────
+
+	dragZone.setAttribute("tabindex", "0");
+	dragZone.setAttribute("role", "slider");
+	dragZone.setAttribute("aria-valuemin", params[activeParamIdx].min);
+	dragZone.setAttribute("aria-valuemax", params[activeParamIdx].max);
+
+	function _onKeyDown(e) {
+		if (Round.won || _activeTabLocked()) return;
+		const p = params[activeParamIdx];
+		if (e.key === "ArrowUp") {
+			e.preventDefault();
+			_writeSlider(p, Math.min(p.max, _sliderVal(p) + p.step));
+			_updateDragDisplay();
+		} else if (e.key === "ArrowDown") {
+			e.preventDefault();
+			_writeSlider(p, Math.max(p.min, _sliderVal(p) - p.step));
+			_updateDragDisplay();
+		}
+	}
+
+	dragZone.addEventListener("keydown", _onKeyDown);
+
+	// ── CLEANUP FN ────────────────────────────────────────────────────────
+
+	_controlsCleanup = () => {
+		tabsEl.removeEventListener("click", _onTabClick);
+		dragZone.removeEventListener("pointerdown", _onPointerDown);
+		dragZone.removeEventListener("pointermove", _onPointerMove);
+		dragZone.removeEventListener("pointerup", _onPointerUp);
+		dragZone.removeEventListener("pointercancel", _onDragEnd);
+		dragZone.removeEventListener("keydown", _onKeyDown);
+		document.body.style.overflow = "";
+		wrap.remove();
+	};
+
+	// Initial display sync
+	_updateDragDisplay();
+
+	// Expose updater so applyLevelUI / resetYours can refresh tab values
+	UI._refreshTabDisplay = _updateDragDisplay;
+}
+
+/** Refresh tab value readouts — called after resetYours and syncLabels. */
+function _refreshTabDisplay() {
+	if (typeof UI._refreshTabDisplay === "function") UI._refreshTabDisplay();
 }
 
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
@@ -2596,6 +2986,8 @@ function applyLevelUI() {
 	UI.controls.noise.classList.add("hidden");
 	UI.buttons.pwm.disabled = !lv.types.includes("pwm");
 	UI.buttons.am.disabled = !lv.types.includes("am");
+	// Rebuild tabs when level changes — param set may have changed
+	initControls();
 }
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
@@ -2945,8 +3337,23 @@ function renderSettings() {
 	sync("stg-infinite-time", s.assistInfiniteTime);
 	sync("stg-easy-match", s.assistEasyMatch);
 	sync("stg-no-fail", s.assistNoFail);
-	sync("stg-param-guide", s.assistParamGuide);
-	sync("stg-score-gated", s.assistScoreGated);
+	{
+		const el = document.getElementById("stg-param-guide");
+		if (el) {
+			const labels = { off: "OFF", gradient: "GRAD", direct: "DIR" };
+			const mode = s.assistParamGuide || "off";
+			el.textContent = labels[mode] || "OFF";
+			el.classList.toggle("on", mode !== "off");
+		}
+	}
+	sync("stg-free-guide", s.assistFreeGuide);
+	{
+		const el = document.getElementById("stg-free-guide");
+		if (el) {
+			el.disabled = s.assistParamGuide === "off";
+			el.classList.toggle("disabled", s.assistParamGuide === "off");
+		}
+	}
 	const bgmVol = document.getElementById("stg-bgm-vol");
 	if (bgmVol) bgmVol.value = Math.round(s.bgmVolume * 100);
 	const sfxVol = document.getElementById("stg-sfx-vol");
@@ -3002,8 +3409,21 @@ function initSettingsOverlay() {
 	bindToggle("stg-infinite-time", "assistInfiniteTime", "assistInfiniteTime");
 	bindToggle("stg-easy-match", "assistEasyMatch", "assistEasyMatch");
 	bindToggle("stg-no-fail", "assistNoFail", "assistNoFail");
-	bindToggle("stg-param-guide", "assistParamGuide", "assistParamGuide");
-	bindToggle("stg-score-gated", "assistScoreGated", "assistScoreGated");
+	{
+		const GUIDE_CYCLE = ["off", "gradient", "direct"];
+		const el = document.getElementById("stg-param-guide");
+		if (el) el.addEventListener("click", () => {
+			SFX.toggle(true);
+			const save = loadSave();
+			const current = save.settings.assistParamGuide || "off";
+			const next = GUIDE_CYCLE[(GUIDE_CYCLE.indexOf(current) + 1) % 3];
+			save.settings.assistParamGuide = next;
+			writeSave(save);
+			Session.assistParamGuide = next;
+			renderSettings();
+		});
+	}
+	bindToggle("stg-free-guide", "assistFreeGuide", "assistFreeGuide");
 
 	const bindSlider = (id, key, sessionKey) => {
 		const el = document.getElementById(id);
@@ -3129,6 +3549,7 @@ function startTutorial() {
 	SFX.nav();
 	Round._lockAnimStart = 0;
 	Session.tutorialActive = true;
+	initControls();
 	Session.tutorialStep = 0;
 	dispatch({ type: "SCORE_RESET" });
 	showScreen("game");
@@ -3174,11 +3595,22 @@ function lockControl(stepIndex) {
 	el.querySelectorAll("input, button").forEach(i => {
 		i.disabled = true;
 	});
+	// Also lock the matching param tab
+	const param = id.replace("ctrl-", "");
+	const tab = document.querySelector(`.param-tab[data-param="${param}"]`);
+	if (tab) {
+		tab.classList.add("locked");
+		tab.classList.remove("tutorial-glow");
+		// Auto-select next unlocked tab
+		const allTabs = document.querySelectorAll(".param-tab");
+		const nextUnlocked = Array.from(allTabs).find(t => !t.classList.contains("locked"));
+		if (nextUnlocked) nextUnlocked.click();
+	}
 }
 
 function unlockAllTutorialControls() {
-	document.querySelectorAll(".tutorial-done, .tutorial-glow").forEach(el => {
-		el.classList.remove("tutorial-done", "tutorial-glow");
+	document.querySelectorAll(".tutorial-done, .tutorial-glow, .param-tab.locked").forEach(el => {
+		el.classList.remove("tutorial-done", "tutorial-glow", "locked");
 		el.querySelectorAll("input, button").forEach(i => {
 			i.disabled = false;
 		});
@@ -3200,6 +3632,10 @@ function highlightControl() {
 	const id = TUTORIAL_CONTROLS[Session.tutorialStep];
 	if (id) {
 		document.getElementById(id)?.classList.add("tutorial-glow");
+		// Also glow the matching param tab
+		const param = id.replace("ctrl-", "");
+		const tab = document.querySelector(`.param-tab[data-param="${param}"]`);
+		if (tab) tab.classList.add("tutorial-glow");
 		UI.displays.feedback?.classList.add("tutorial-glow-text");
 	}
 }
@@ -3207,6 +3643,7 @@ function highlightControl() {
 function skipTutorial() {
 	SFX.back();
 	Session.tutorialActive = false;
+	initControls();
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	UI.buttons.skipTut.classList.add("hidden");
@@ -3219,6 +3656,7 @@ function skipTutorial() {
 
 function endTutorial() {
 	Session.tutorialActive = false;
+	initControls();
 	lsSet("tutorialSeen", "true");
 	unlockAllTutorialControls();
 	stopSignalPlayback();
@@ -4028,7 +4466,7 @@ function initLogoScope() {
 	const W = 900;
 	const H = 300;
 
-	const mobile = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
+	const smallViewport = matchMedia("(max-width: 640px)").matches || navigator.maxTouchPoints > 0;
 
 	/* 
 		Current evidence from your browser + your machine:
@@ -4055,11 +4493,11 @@ function initLogoScope() {
 
 		is now empirically justified rather than folklore-based.
 	*/
-	if (mobile) {
+	if (smallViewport) {
 		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => void n.removeAttribute("filter"));
 	}
 
-	const scale = mobile ? 0.5 : 1;
+	const scale = smallViewport ? 0.5 : 1;
 	const dpr = Math.min(devicePixelRatio || 1, 1.5);
 	canvas.width = Math.round(W * scale * dpr);
 	canvas.height = Math.round(H * scale * dpr);
@@ -4156,7 +4594,7 @@ function initLogoScope() {
 		_logoElapsedTime += dt;
 		_logoLastTime = ts;
 
-		const frameInterval = mobile ? 50 : 33;
+		const frameInterval = smallViewport ? 50 : 33;
 		if (ts - _lastLogoFrame < frameInterval) {
 			_logoScopeRAF = requestAnimationFrame(draw);
 			return;
@@ -4192,7 +4630,7 @@ function initLogoScope() {
 
 		ctx.clearRect(0, 0, W, H);
 
-		const step = mobile ? Math.round(1 / scale) : 1;
+		const step = smallViewport ? Math.round(1 / scale) : 1;
 		drawLogoWave(ctx, W, H, t, COLORS.cream, false, step);
 		drawLogoWave(ctx, W, H, t * 1.05, COLORS.coral, true, step);
 
@@ -4309,6 +4747,9 @@ showScreen("start");
 		document.head.appendChild(s);
 	});
 })();
+// ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
+initControls();
+
 // New audit interpretation:
 //
 // Final hierarchy
