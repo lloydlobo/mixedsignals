@@ -5,6 +5,32 @@ All notable changes to Mixed Signals.
 ## [Unreleased]
 
 ### Features
+- Add help tooltips to assist settings for parameter guidance
+- Add target-delta parameter gradient strategy alongside probe mode for visual comparison
+- Add new background music track "Study and Relax" by Kevin MacLeod
+- Add responsive scaling for margins and paddings across all viewport sizes
+- Unify desktop and mobile UI with drag controls and type layout at all sizes
+- Add SVG parameter glyphs to mobile tabs with glow and offset reference paths
+- Add horizontal progress track to mobile parameter tabs showing current value ratio
+- Emit SFX when selecting mobile parameter tabs
+- Use coral instead of amber for parameter track fill
+- Update background gradient and add shadow variable for the canvas element
+
+### Fixes
+- Mobile controls now work during tutorial — phase/DC unlocked, glow applied to drag tabs, step locking tracks mobile tabs
+- Adjust DC offset tolerance in tutorial task for improved accuracy
+- Remove dead desktop track code and noise glyph, add aria-hidden to SVGs, fix help-icon semantics
+
+### Refactoring
+- Consolidate parameter guide toggles into single three-way control
+- Drop 'mobile' prefix from drag-control classes, IDs, and JavaScript identifiers
+
+### Documentation
+- Add comprehensive codebase audit plan and report
+
+## [0.6.0] - 2026-05-25
+
+### Features
 - Credits hover personality: each credit section has unique cursor emoji and sweep animation (🙏 horizontal, 🎶 vertical, ⚡ diagonal, 💡 radial pulse)
 - Playtester names in 4-column grid with amber glow and signal-sweep hover effect
 - Music credits compacted to single-line grid with cream-colored titles
@@ -32,6 +58,7 @@ All notable changes to Mixed Signals.
 - Stamp feedback system with animated overlays for game interactions (lock, fail, skip, hint)
 - Enhance audio channel with warm analog-feel sound effects, melodic lock variants
 - Improve tutorial clarity with updated messaging, glow effects, and better text contrast
+- Add console brick wobble on screen shake — outer shell swivels with dynamic shadow
 
 ### Performance
 - Remove vibratoLfo (2 always-running oscillators) and saturator (WaveShaper with 4x oversampling) from audio graph
@@ -78,6 +105,7 @@ All notable changes to Mixed Signals.
 - Add bug fix log (FIXES.md)
 - Add 53 unit tests for signal math, scoring, dispatch, persistence, and RNG (mixed-signals.test.js)
 - Add P5 test health section to TODO with two options for preventing constant drift
+- Update music attribution links to use markdown format
 
 ## [0.5.0] - 2026-05-11
 
