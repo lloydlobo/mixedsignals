@@ -37,6 +37,7 @@ interface SaveSettings {
     assistEasyMatch: boolean;
     assistNoFail: boolean;
     assistParamGuide: "off" | "gradient" | "direct";
+    assistFreeGuide: boolean;
 }
 
 
@@ -147,7 +148,6 @@ interface SessionState {
     assistEasyMatch: boolean;
     assistNoFail: boolean;
     assistParamGuide: "off" | "gradient" | "direct";
-    assistScoreGated: boolean;
     sfxVolume: number;
     postGameFreeplay: boolean;
 }
