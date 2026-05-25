@@ -3566,7 +3566,7 @@ function startTutorial() {
 	dispatch({ type: "SCORE_RESET" });
 	showScreen("game");
 	startLoop();
-	targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 2, harm: 0, noise: 0 };
+	targetSignal = { type: "triangle", freq: 5, amp: 8, phase: 360, dc: 3, harm: 0, noise: 0 };
 	invalidateMatchScore();
 	dispatch({ type: "ROUND_SET", payload: 1 });
 	UI.displays.roundTotal.textContent = 1;
