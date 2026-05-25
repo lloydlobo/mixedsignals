@@ -438,17 +438,25 @@ function initEvents() {
 	const creditsWrap = document.querySelector(".credits-wrap");
 	if (creditsBtn && creditsWrap) {
 		creditsBtn.addEventListener("click", () => {
-			creditsWrap.classList.toggle("open");
+			const isOpen = creditsWrap.classList.toggle("open");
+			if (isOpen) {
+				_prevBgmState = _bgmState;
+				transitionBGM(BGM_STATE.CREDITS);
+			} else {
+				transitionBGM(_prevBgmState);
+			}
 		});
 		document.addEventListener("keydown", e => {
 			if (e.key === "Escape" && creditsWrap.classList.contains("open")) {
 				creditsWrap.classList.remove("open");
 				creditsBtn.focus();
+				transitionBGM(_prevBgmState);
 			}
 		});
 		document.addEventListener("click", e => {
 			if (creditsWrap.classList.contains("open") && !creditsWrap.contains(e.target)) {
 				creditsWrap.classList.remove("open");
+				transitionBGM(_prevBgmState);
 			}
 		});
 	}
@@ -729,17 +737,15 @@ const stampPick = pick(stampRand);
 
 // ─── BGM ─────────────────────────────────────────────────────────────────────
 
-// TODO: Add different bgm state?
-//       FIXME: When in freeplay after finishing all levels, (OR ATLEAST HAVE A TOGGLE TO ->) keep the music consistent when moving from menu to freeplay, cause I love that music
-//       SIDE NOTE: Settings is not a change is state though, it is an overlay-modal, so doesn't make sense to change music...
-//                  In that case we can use a microphone like filter (lowpass and highpass) let just the reverb playout...
-
 const BGM_FADE_DURATION = 1; // seconds
 
 const BGM_STATE = {
 	MENU: "menu",
 	GAMEPLAY: "gameplay",
-	RESULT: "result",
+	SETTINGS: "settings",
+	CREDITS: "credits",
+	VICTORY: "victory",
+	GAMEOVER: "gameover",
 };
 
 const BGM_POOL = {
@@ -749,19 +755,18 @@ const BGM_POOL = {
 		"databend-neon-nebula-ambient-electronic-background-loopable-edit-439364.mp3",
 		"penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3",
 	],
-	settings: ["pietix-cinematic-aloha-lounge-rumba-2-535338.mp3"], // TODO: IMPLEMENT
+	settings: ["pietix-cinematic-aloha-lounge-rumba-2-535338.mp3"],
 	credits: [
 		"pietix-art-pop-exp-2-510302.mp3",
-		"musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3",
 		"slimeyfox-after-hours-arcade-487277.mp3",
-		"kevinmacleod-study-and-relax.mp3",
-	], // TODO: IMPLEMENT
-	result: null,
+	],
+	victory: ["kevinmacleod-study-and-relax.mp3"],
+	gameover: ["musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3"],
 };
 
 // Background preloader — fire-and-forget fetch, never blocks the game
 const _bgmCache = new Map();
-const _bgmCacheMax = 6;
+const _bgmCacheMax = 9;
 
 function _bgmSrc(filename) {
 	return _bgmCache.get(filename) ?? `resources/music/${filename}`;
@@ -784,9 +789,10 @@ function _prefetchBGM(filename) {
 		.catch(() => {});
 }
 
-const _poolLastIndex = { menu: -1, gameplay: -1, result: -1 };
+const _poolLastIndex = { menu: -1, gameplay: -1, settings: -1, credits: -1, victory: -1, gameover: -1 };
 let _bgmState = null;
 let _bgmFadeTimeout = null;
+let _prevBgmState = null;
 
 function _pickFromPool(pool, stateKey) {
 	let next;
@@ -833,6 +839,8 @@ function transitionBGM(state) {
 	);
 	if (state === BGM_STATE.GAMEPLAY) {
 		for (const t of BGM_POOL.gameplay) _prefetchBGM(t);
+	} else if (BGM_POOL[state]) {
+		for (const t of BGM_POOL[state]) _prefetchBGM(t);
 	}
 }
 
@@ -3313,11 +3321,14 @@ function showSettings() {
 	const overlay = document.getElementById("settings-overlay");
 	renderSettings();
 	overlay.classList.remove("hidden");
+	_prevBgmState = _bgmState;
+	transitionBGM(BGM_STATE.SETTINGS);
 }
 
 function closeSettings() {
 	SFX.back();
 	document.getElementById("settings-overlay").classList.add("hidden");
+	transitionBGM(_prevBgmState);
 }
 
 function renderSettings() {
@@ -3447,7 +3458,7 @@ function continueLevel() {
 }
 
 function victory() {
-	transitionBGM(BGM_STATE.RESULT);
+	transitionBGM(BGM_STATE.VICTORY);
 	exitLevel();
 	const h3 = UI.displays.screenDead?.querySelector("h3");
 	if (h3) {
@@ -3467,7 +3478,7 @@ function gameOver() {
 		setTimeout(() => nextRound(), 1200);
 		return;
 	}
-	transitionBGM(BGM_STATE.RESULT);
+	transitionBGM(BGM_STATE.GAMEOVER);
 	exitLevel();
 	flash("#ff4554");
 	spawnStamp("fail");

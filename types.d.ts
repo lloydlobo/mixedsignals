@@ -36,9 +36,9 @@ interface SaveSettings {
     assistInfiniteTime: boolean;
     assistEasyMatch: boolean;
     assistNoFail: boolean;
-    assistParamGuide: boolean;
-    assistScoreGated: boolean;
+    assistParamGuide: "off" | "gradient" | "direct";
 }
+
 
 interface TelemetryEntry {
     level: number;
@@ -146,7 +146,7 @@ interface SessionState {
     assistInfiniteTime: boolean;
     assistEasyMatch: boolean;
     assistNoFail: boolean;
-    assistParamGuide: boolean;
+    assistParamGuide: "off" | "gradient" | "direct";
     assistScoreGated: boolean;
     sfxVolume: number;
     postGameFreeplay: boolean;
@@ -155,13 +155,19 @@ interface SessionState {
 interface BgmPool {
     menu: string[];
     gameplay: string[];
-    result: null;
+    settings: string[];
+    credits: string[];
+    victory: string[];
+    gameover: string[];
 }
 
 interface BgmState {
     MENU: string;
     GAMEPLAY: string;
-    RESULT: string;
+    SETTINGS: string;
+    CREDITS: string;
+    VICTORY: string;
+    GAMEOVER: string;
 }
 
 interface WaveColors {
