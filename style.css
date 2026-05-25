@@ -2763,14 +2763,6 @@ canvas#mg-canvas {
 	opacity: 0.28;
 }
 
-.ctrl-track {
-	width: 100%;
-	height: 3px;
-	border-radius: 2px;
-	margin-top: 4px;
-	background: linear-gradient(to right, var(--coral) var(--pct, 0%), var(--surface) var(--pct, 0%));
-}
-
 .param-tab.active {
 	background: var(--surface);
 	color: var(--amber);

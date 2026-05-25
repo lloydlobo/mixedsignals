@@ -2517,7 +2517,6 @@ function scheduleRender() {
 		updateMeter();
 		syncLabels();
 		updateParamArrows();
-		updateDesktopTracks();
 		const now = Date.now();
 		if (now - _lastSliderSfx > 80) {
 			SFX.slider();
@@ -2674,8 +2673,8 @@ function _activeDragParams() {
 	const lv = LEVELS[Session.level];
 	return DRAG_PARAMS.filter(p => {
 		if (p.id === "harm") return lv.harm;
-		if (p.id === "phase") return true; // always present, may be dimmed
-		if (p.id === "dc") return true;
+		if (p.id === "phase") return true; // always shown; dimmed/locked until lv.phase
+		if (p.id === "dc") return true;    // always shown; dimmed/locked until lv.dc
 		return true;
 	});
 }
@@ -2685,21 +2684,21 @@ function _activeDragParams() {
  *  "what the signal would look like without this parameter", and a solid
  *  path for the active/affected result. */
 const PARAM_GLYPH = {
-	freq: `<svg class="mpt-glyph" viewBox="0 0 14 14"><path d="M0 7 Q2 3 3.5 7 T7 7 T10.5 7 T14 7" /></svg>`,
+	freq: `<svg class="mpt-glyph" viewBox="0 0 14 14" aria-hidden="true"><path d="M0 7 Q2 3 3.5 7 T7 7 T10.5 7 T14 7" /></svg>`,
 
-	amp: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+	amp: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M0 34 Q15 28 30 34 T60 34" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
     <path d="M0 34 Q15 4 30 34 T60 34" stroke="currentColor" stroke-width="1.5"/>
   </svg>`,
 
-	phase: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+	phase: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M0 26 Q15 6 30 26 T60 26" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
     <path d="M10 26 Q25 6 40 26 T70 26" stroke="currentColor" stroke-width="1.5"/>
     <line x1="2" y1="38" x2="14" y2="38" stroke="currentColor" stroke-width="1.2"/>
     <polyline points="11,34 15,38 11,42" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
   </svg>`,
 
-	dc: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+	dc: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" stroke-width="1" stroke-dasharray="3 2" opacity="0.3"/>
     <path d="M0 30 Q15 12 30 30 T60 30" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
     <path d="M0 18 Q15 0 30 18 T60 18" stroke="currentColor" stroke-width="1.5"/>
@@ -2707,38 +2706,11 @@ const PARAM_GLYPH = {
     <polyline points="48,23 52,19 56,23" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
   </svg>`,
 
-	harm: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+	harm: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <path d="M0 28 Q15 8 30 28 T60 28" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
     <path d="M0 28 Q7 14 14 28 Q21 42 28 28 Q35 14 42 28 Q49 42 56 28 T60 28" stroke="currentColor" stroke-width="1.5"/>
   </svg>`,
-
-	noise: `<svg class="mpt-glyph" viewBox="0 0 60 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M0 28 Q15 8 30 28 T60 28" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
-    <polyline points="0,28 8,16 16,36 24,10 32,34 40,18 48,38 56,14 60,24" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-  </svg>`,
 };
-
-/** Inject progress tracks into desktop slider controls. */
-(function initDesktopTracks() {
-	DRAG_PARAMS.forEach(p => {
-		const ctrl = document.getElementById(`ctrl-${p.id}`);
-		if (!ctrl || ctrl.querySelector(".ctrl-track")) return;
-		const track = document.createElement("div");
-		track.className = "ctrl-track";
-		track.id = `ctrl-track-${p.id}`;
-		ctrl.appendChild(track);
-	});
-})();
-
-function updateDesktopTracks() {
-	DRAG_PARAMS.forEach(p => {
-		const el = document.getElementById(`ctrl-track-${p.id}`);
-		if (!el) return;
-		const raw = +document.getElementById(`sl-${p.id}`)?.value ?? p.min;
-		const pct = (((raw - p.min) / (p.max - p.min)) * 100).toFixed(1);
-		el.style.setProperty("--pct", `${pct}%`);
-	});
-}
 
 /**
  * initControls()
@@ -4777,7 +4749,6 @@ showScreen("start");
 })();
 // ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
 initControls();
-updateDesktopTracks();
 
 // New audit interpretation:
 //
