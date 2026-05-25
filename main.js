@@ -1909,7 +1909,7 @@ function updateParamArrows() {
 	const guideOn = Session.assistParamGuide;
 	const affordable = Session.postGameFreeplay || Session.assistFreeGuide || Session.score >= CONFIG.COST_HINT;
 
-	if (!guideOn || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
+	if (guideOn === "off" || !affordable || Round.won || !targetSignal || Session.freePlayActive) {
 		arrows.forEach(el => {
 			el.textContent = "";
 			el.className = "param-arrow";
