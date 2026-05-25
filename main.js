@@ -5,7 +5,7 @@
  * @fileoverview I want to share with you the joy of playing this fun little
  * game — originally made for Ludum Dare 59.
  * Heavily vibed with le' AI. Hope you enjoy playing it!
- * @version 0.5.0
+ * @version 0.6.0
  */
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -226,7 +226,7 @@ const Session = {
 	assistEasyMatch: false,
 	assistNoFail: false,
 	assistParamGuide: "off",
-	assistFreeGuide: true,
+	assistFreeGuide: false,
 	sfxVolume: 0.4,
 	postGameFreeplay: false,
 };
@@ -560,7 +560,7 @@ const DEFAULT_SETTINGS = () => ({
 	assistEasyMatch: false,
 	assistNoFail: false,
 	assistParamGuide: "off",
-	assistFreeGuide: true,
+	assistFreeGuide: false,
 });
 
 /** @returns {SaveData} */
@@ -838,21 +838,22 @@ function transitionBGM(state) {
 
 // Load settings from save
 const _initSettings = loadSave().settings;
+const _def = DEFAULT_SETTINGS();
 Session.muted = _initSettings.bgmMuted;
 Session.sfxMuted = _initSettings.sfxMuted;
 Session.volume = _initSettings.bgmVolume;
-Session.screenShake = _initSettings.screenShake;
-Session.ceremonies = _initSettings.ceremonies;
-Session.minigames = _initSettings.minigames;
-Session.sfxVolume = _initSettings.sfxVolume ?? 0.4;
-Session.assistDisableUrgent = _initSettings.assistDisableUrgent;
-Session.assistInfiniteTime = _initSettings.assistInfiniteTime;
-Session.assistEasyMatch = _initSettings.assistEasyMatch;
-Session.assistNoFail = _initSettings.assistNoFail;
+Session.screenShake = _initSettings.screenShake ?? _def.screenShake;
+Session.ceremonies = _initSettings.ceremonies ?? _def.ceremonies;
+Session.minigames = _initSettings.minigames ?? _def.minigames;
+Session.sfxVolume = _initSettings.sfxVolume ?? _def.sfxVolume;
+Session.assistDisableUrgent = _initSettings.assistDisableUrgent ?? _def.assistDisableUrgent;
+Session.assistInfiniteTime = _initSettings.assistInfiniteTime ?? _def.assistInfiniteTime;
+Session.assistEasyMatch = _initSettings.assistEasyMatch ?? _def.assistEasyMatch;
+Session.assistNoFail = _initSettings.assistNoFail ?? _def.assistNoFail;
 // Migrate old boolean assistParamGuide to three-way string
 const _rawGuide = _initSettings.assistParamGuide;
-Session.assistParamGuide = typeof _rawGuide === "boolean" ? (_rawGuide ? "gradient" : "off") : (_rawGuide || "off");
-Session.assistFreeGuide = _initSettings.assistFreeGuide ?? true;
+Session.assistParamGuide = typeof _rawGuide === "boolean" ? (_rawGuide ? "gradient" : "off") : (_rawGuide ?? _def.assistParamGuide);
+Session.assistFreeGuide = _initSettings.assistFreeGuide ?? _def.assistFreeGuide;
 
 function initAudio() {
 	const audio = UI.audio,
