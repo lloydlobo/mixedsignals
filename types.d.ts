@@ -233,6 +233,7 @@ declare var BUTTON_ACTIONS: Record<string, Function>;
 
 declare var targetSignal: Signal;
 declare var yoursSignal: Signal;
+declare var _smoothPhase: number;
 declare var timerInterval: ReturnType<typeof setInterval> | null;
 declare var animRaf: number | null;
 declare var Round: RoundState;

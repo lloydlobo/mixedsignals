@@ -168,6 +168,7 @@ const _DEBUT_ARCHETYPES = {
 
 let targetSignal = {};
 let yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+let _smoothPhase = yoursSignal.phase;
 
 // Resource handles (kept as bare lets — no lifecycle dependency)
 let timerInterval = null;
@@ -1744,7 +1745,7 @@ function matchScore() {
 	// ─── ACCUMULATOR SETUP ─────────────────────────────────────────────────
 	// Pre-calculate initial phases [0, 1]
 	let uT = normalizePhase(tS.phase);
-	let uY = normalizePhase(yS.phase);
+	let uY = normalizePhase(_smoothPhase);
 
 	// Pre-calculate fixed phase steps (increments) per sample
 	const stepT = tS.freq * invS;
@@ -1829,6 +1830,7 @@ const GRADIENT_STEPS = { freq: 1, amp: 0.5, phase: 5, dc: 0.5, harm: 0.5 };
 
 function paramGradient() {
 	if (!targetSignal || Round.won || Session.freePlayActive) return null;
+	_smoothPhase = yoursSignal.phase;
 	const base = matchScore();
 	const result = {};
 
@@ -1836,14 +1838,17 @@ function paramGradient() {
 		const saved = yoursSignal[param];
 
 		yoursSignal[param] = saved + step;
+		if (param === "phase") _smoothPhase = yoursSignal.phase;
 		_matchScoreDirty = true;
 		const scoreUp = matchScore();
 
 		yoursSignal[param] = saved - step;
+		if (param === "phase") _smoothPhase = yoursSignal.phase;
 		_matchScoreDirty = true;
 		const scoreDown = matchScore();
 
 		yoursSignal[param] = saved;
+		if (param === "phase") _smoothPhase = yoursSignal.phase;
 		_matchScoreDirty = true;
 
 		const best = Math.max(scoreUp, scoreDown);
@@ -2067,6 +2072,17 @@ function loop(ts) {
 	const dt = Math.min(ts - _lastTime, RENDER.DT_MAX);
 	_elapsedTime += dt;
 
+	// Smooth phase toward slider value every frame
+	let phaseDelta = yoursSignal.phase - _smoothPhase;
+	if (phaseDelta > 180) phaseDelta -= 360;
+	if (phaseDelta < -180) phaseDelta += 360;
+	const _smoothFactor = 1 - Math.exp(-dt / 80);
+	_smoothPhase += phaseDelta * _smoothFactor;
+	if (_smoothPhase >= 360) _smoothPhase -= 360;
+	if (_smoothPhase < 0) _smoothPhase += 360;
+	if (Math.abs(_smoothPhase - yoursSignal.phase) < 0.1) _smoothPhase = yoursSignal.phase;
+	invalidateMatchScore();
+
 	/**
 	 * Normalized scroll position [0, 1). Wraps every SCROLL_PERIOD ms.
 	 * Example: _elapsedTime = 4000ms → 4000/2000 = 2.0 → 2.0 % 1 = 0.0 (loops)
@@ -2085,6 +2101,7 @@ function loop(ts) {
 
 	const sc = matchScore(),
 		t = smoothstep(sc);
+	const _smoothYoursSig = { ...yoursSignal, phase: _smoothPhase };
 	const LOCK_DUR = RENDER.LOCK_MS;
 	let lockT = 0;
 	if (Round._lockAnimStart > 0) {
@@ -2154,7 +2171,7 @@ function loop(ts) {
 		const flash = Math.max(0, 1 - lockT / 0.35);
 		_ctx.globalAlpha = flash * 0.7;
 		drawWave(
-			yoursSignal,
+			_smoothYoursSig,
 			"#66ff88",
 			W,
 			H,
@@ -2169,7 +2186,7 @@ function loop(ts) {
 		const settle = Math.min(lockT / 0.25, 1);
 		_ctx.globalAlpha = 0.4 + 0.6 * settle;
 		drawWave(
-			yoursSignal,
+			_smoothYoursSig,
 			WAVE_COLORS.yours,
 			W,
 			H,
@@ -2193,9 +2210,9 @@ function loop(ts) {
 		}
 
 		_ctx.globalAlpha = 0.4 + 0.6 * t;
-		if (Round.roundNo === 1) drawWave(yoursSignal, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else if (Round.roundNo % 2 === 0) drawWave(yoursSignal, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else drawWave(yoursSignal, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
 	}
 
 	_ctx.globalAlpha = 1;
@@ -2650,6 +2667,7 @@ function applySignal(sig) {
 
 function resetYours() {
 	yoursSignal = { type: "sine", freq: 1, amp: 5, phase: 0, dc: 0, harm: 0, noise: 0 };
+	_smoothPhase = yoursSignal.phase;
 	["freq", "amp", "phase", "dc", "harm", "noise"].forEach(k => {
 		const el = document.getElementById(`sl-${k}`);
 		if (el) el.value = yoursSignal[k];
