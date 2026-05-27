@@ -2485,6 +2485,9 @@ function updateMeter() {
 	const fb = UI.displays.feedback;
 	const winPct = winThreshold();
 
+	// hold-at-95% was evaluated & shelved. Timer race condition (time expires during hold
+	// before 500ms elapses) confirmed complexity cost. Flagged for lv7-12 when phase drift
+	// and target instability add natural need for a confirmation window. See TODO.md.
 	if (pct >= winPct) {
 		Round._wasCloseSfx = false;
 		if (Session.tutorialActive) {
