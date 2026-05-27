@@ -317,6 +317,7 @@ function initUI() {
 		luBest: document.getElementById("lu-best"),
 		luRounds: document.getElementById("lu-rounds"),
 		luCombo: document.getElementById("lu-combo"),
+		luTime: document.getElementById("lu-time"),
 		luHints: document.getElementById("lu-hints"),
 		luSkips: document.getElementById("lu-skips"),
 		unlockMsg: document.getElementById("unlock-msg"),
@@ -3309,6 +3310,7 @@ function showLevelUpScreen() {
 	const combo = Round.combo;
 	const hintsUsed = Round._hintsUsed;
 	const skipsUsed = Round._skipsUsed;
+	const timeLeft = Round.timeLeft;
 
 	transitionBGM(BGM_STATE.MENU);
 	exitLevel();
@@ -3338,6 +3340,7 @@ function showLevelUpScreen() {
 	if (UI.displays.luBest) UI.displays.luBest.textContent = bestScore;
 	if (UI.displays.luRounds) UI.displays.luRounds.textContent = levelRounds;
 	if (UI.displays.luCombo) UI.displays.luCombo.textContent = combo;
+	if (UI.displays.luTime) UI.displays.luTime.textContent = timeLeft > 0 ? `${timeLeft}s` : "—";
 	if (UI.displays.luHints) UI.displays.luHints.textContent = hintsUsed;
 	if (UI.displays.luSkips) UI.displays.luSkips.textContent = skipsUsed;
 
