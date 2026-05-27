@@ -4731,20 +4731,14 @@ showScreen("start");
 		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
 
 		if (buffer === secret) {
-			// 1. If already loaded, just re-run the audit
 			if (window.perfAudit) {
-				console.log("%c 🔄 RE-RUNNING AUDIT... ", "color: #f1c40f; font-weight: bold;");
 				window.perfAudit.runAll();
 				return;
 			}
 
-			// 2. Otherwise, inject the script
-			console.log("%c 🛰️ FETCHING AUDIT SUITE... ", "color: #3498db; font-weight: bold;");
 			const s = document.createElement("script");
-			// Cache busting: ?v= allows you to see updates immediately after a push
 			s.src = `/perf-zenith.js?v=${Date.now()}`;
 			s.onload = () => {
-				console.log("%c 🔓 ZENITH SUITE READY ", "color: #00ff00; font-weight: bold;");
 				window.perfAudit.runAll();
 			};
 			document.head.appendChild(s);
@@ -4771,19 +4765,14 @@ showScreen("start");
 		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
 
 		if (buffer !== secret) return;
-		console.log("%c🛰 DIAGNOSTIC INVOKED", "color:#00ffff;font-weight:bold");
 
-		// already loaded
 		if (window.perfAuditDeepScan) {
-			console.log("%c🔄 RE-RUNNING", "color:#f1c40f;font-weight:bold");
 			await perfAuditDeepScan.runAll();
 			return;
 		}
-		console.log("%c📡 FETCHING PERF", "color:#3498db;font-weight:bold");
 		const s = document.createElement("script");
 		s.src = `/perf-deepscan.js?v=${Date.now()}`;
 		s.onload = async () => {
-			console.log("%c🔓 SUITE READY", "color:#00ff00;font-weight:bold");
 			await perfAuditDeepScan.runAll();
 		};
 		document.head.appendChild(s);
