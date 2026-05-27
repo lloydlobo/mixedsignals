@@ -1181,6 +1181,65 @@ test("matchScore caching returns same value when not invalidated", () => {
     assert(third !== first || third !== second, "after invalidate score should potentially change");
 });
 
+// ─── LOCKED-TYPE PUZZLE: GUIDE + GHOST ───────────────────────────────────
+
+console.log("\n── Guide / Ghost archetypes ───────────────────────────────────");
+
+test("ARCHETYPES contains exactly two Guide entries", () => {
+	const fs = require("fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const m = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/);
+	assert(m, "could not find ARCHETYPES in main.js");
+	const guides = (m[1].match(/name:\s*"Guide"/g) || []);
+	assertEq(guides.length, 2, `expected 2 Guide entries, got ${guides.length}`);
+});
+
+test("ARCHETYPES contains exactly two Ghost entries", () => {
+	const fs = require("fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const m = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/);
+	assert(m, "could not find ARCHETYPES in main.js");
+	const ghosts = (m[1].match(/name:\s*"Ghost"/g) || []);
+	assertEq(ghosts.length, 2, `expected 2 Ghost entries, got ${ghosts.length}`);
+});
+
+const _puzzleAssertTypeAndLevel = (name, minLevel) => {
+	const fs = require("fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const block = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/)[1];
+	const entries = block.match(new RegExp(`\\{[^}]+name:\\s*"${name}"[^}]+\\}`, "g")) || [];
+	assertEq(entries.length, 2, `expected 2 ${name} entries`);
+	for (const e of entries) {
+		const typeMatch = e.match(/type:\s*"(\w+)"/);
+		assert(typeMatch, `${name} entry missing type field`);
+		assert(["pwm", "am"].includes(typeMatch[1]), `${name} type must be pwm or am, got ${typeMatch[1]}`);
+		const lm = e.match(/levelMin:\s*(\d+)/);
+		assert(lm, `${name} entry missing levelMin`);
+		assert(Number(lm[1]) >= minLevel, `${name} levelMin must be >= ${minLevel}, got ${lm[1]}`);
+	}
+};
+
+test("both Guide archetypes use pwm or am type and have levelMin >= 5", () => {
+	_puzzleAssertTypeAndLevel("Guide", 5);
+});
+
+test("both Ghost archetypes use pwm or am type and have levelMin >= 6", () => {
+	_puzzleAssertTypeAndLevel("Ghost", 6);
+});
+
+test("Round._typePuzzle resets — verify field exists in reset() source", () => {
+	const fs = require("fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	assert(src.includes("_typePuzzle: false"), "Round._typePuzzle field not declared");
+	assert(src.includes("this._typePuzzle = false"), "_typePuzzle not reset in Round.reset()");
+});
+
+test("exitLevel clears puzzle-disabled classes — verify cleanup call in source", () => {
+	const fs = require("fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	assert(src.includes("puzzle-disabled"), "puzzle-disabled class not referenced in source");
+});
+
 // ─── RESULTS ──────────────────────────────────────────────────────────────────
 
 console.log(`\n${"─".repeat(52)}`);

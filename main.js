@@ -160,6 +160,10 @@ const ARCHETYPES = [
 	{ name: "Stutter", type: "pwm", freq: 7, amp: 8, phase: 0, dc: 0, harm: 0, levelMin: 4 },
 	{ name: "Scrambler", type: "pwm", freq: 5, amp: 6, phase: 90, dc: 0, harm: 3, levelMin: 6 },
 	{ name: "Throb", type: "sawtooth", freq: 3, amp: 8, phase: 0, dc: -2, harm: 2, levelMin: 6 },
+	{ name: "Guide", type: "pwm", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 5 },
+	{ name: "Guide", type: "am", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 5 },
+	{ name: "Ghost", type: "pwm", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 6 },
+	{ name: "Ghost", type: "am", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 6 },
 ];
 
 // On debut levels, only archetypes that exercise the new param appear —
@@ -168,7 +172,7 @@ const _DEBUT_ARCHETYPES = {
 	2: ["Phase Shift"],
 	3: ["Subsonic"],
 	4: ["Wobble", "Glitch", "Siren", "Stutter"],
-	5: ["Drone", "Resonance", "Buzz", "Hum"],
+	5: ["Drone", "Resonance", "Buzz", "Hum", "Guide"],
 };
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
@@ -196,6 +200,7 @@ const Round = {
 	_setTypeScheduled: false,
 	_lastUrgentSfx: 0,
 	_wasCloseSfx: false,
+	_typePuzzle: false,
 	_revealedHints: null,
 
 	reset() {
@@ -211,6 +216,7 @@ const Round = {
 		this._setTypeScheduled = false;
 		this._lastUrgentSfx = 0;
 		this._wasCloseSfx = false;
+		this._typePuzzle = false;
 		this._revealedHints = new Set();
 	},
 };
@@ -2516,7 +2522,7 @@ function updateMeter() {
 		else if (Round.combo === 2) spawnStamp("combo_2");
 		if (navigator.vibrate) navigator.vibrate(100);
 		setTimeout(() => nextRound(), 1800);
-	} else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
+	} else if (pct >= CONFIG.CLOSE_PERCENTAGE && !Round._typePuzzle) { // NOTE: !Round._typePuzzle gives `Ghost` like archetype's feedback higher priority
 		if (Session.tutorialActive) return;
 		fb.textContent = "Getting close…";
 		fb.className = "feedback close";
@@ -2529,12 +2535,19 @@ function updateMeter() {
 		}
 	} else {
 		if (Session.tutorialActive) return;
-		fb.textContent = "Match the target signal.";
-		fb.className = "feedback";
-		fb.classList.remove("feedback-snap");
-		void fb.offsetWidth;
-		fb.classList.add("feedback-snap");
-		Round._wasCloseSfx = false;
+		if (Round._typePuzzle) {
+			fb.textContent = targetSignal?.archetype === "Guide" ? "Select the highlighted waveform" : "Click to find the active waveform";
+			fb.className = "feedback";
+			fb.classList.remove("feedback-snap");
+			Round._wasCloseSfx = false;
+		} else {
+			fb.textContent = "Match the target signal.";
+			fb.className = "feedback";
+			fb.classList.remove("feedback-snap");
+			void fb.offsetWidth;
+			fb.classList.add("feedback-snap");
+			Round._wasCloseSfx = false;
+		}
 	}
 	updateMixState();
 }
@@ -2601,6 +2614,23 @@ function recompute() {
 
 function setType(btn) {
 	if (Round.won) return; // NOTE: Freeze waveform type buttons on lock-in
+	if (Round._typePuzzle) {
+		if (btn.dataset.t !== targetSignal.type) {
+			btn.classList.add("puzzle-wrong");
+			btn.addEventListener("animationend", () => btn.classList.remove("puzzle-wrong"), { once: true });
+			return;
+		}
+		// Correct type found — resolve the puzzle
+		Round._typePuzzle = false;
+		document.querySelectorAll(".type-btn").forEach(b => {
+			b.classList.remove("puzzle-disabled");
+			b.disabled = !LEVELS[Session.level].types.includes(b.dataset.t);
+		});
+		if (UI.archetypeName) {
+			UI.archetypeName.textContent = targetSignal.archetype === "Guide" ? "✦ Guide" : "◇ Ghost";
+			UI.archetypeName.classList.remove("hidden");
+		}
+	}
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("active"));
 	btn.classList.add("active");
 	yoursSignal.type = btn.dataset.t;
@@ -3041,6 +3071,7 @@ function _refreshTabDisplay() {
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
 
 function applyLevelUI() {
+	if (Round._typePuzzle) return;
 	const lv = LEVELS[Session.level];
 	UI.labels.level.textContent = Session.postGameFreeplay ? "∞" : Session.level + 1;
 	UI.displays.roundTotal.textContent = Session.postGameFreeplay ? "∞" : lv.rounds;
@@ -3158,6 +3189,7 @@ function exitLevel() {
 	if (UI.scopeWrap) UI.scopeWrap.classList.remove("grace-active");
 	const reveal = document.getElementById("target-reveal");
 	if (reveal) reveal.classList.add("hidden");
+	document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("puzzle-disabled", "puzzle-wrong"));
 }
 
 function enterLevel() {
@@ -3178,6 +3210,25 @@ function enterLevel() {
 	invalidateMatchScore();
 	applyLevelUI();
 	resetYours();
+	if (targetSignal.archetype === "Guide" || targetSignal.archetype === "Ghost") {
+		Round._typePuzzle = true;
+		document.querySelectorAll(".type-btn").forEach(b => {
+			b.disabled = false;
+			b.classList.remove("active");
+			b.classList.add("puzzle-disabled");
+		});
+		if (targetSignal.archetype === "Guide") {
+			const correct = document.querySelector(`.type-btn[data-t="${targetSignal.type}"]`);
+			if (correct) {
+				correct.classList.remove("puzzle-disabled");
+				correct.classList.add("active");
+			}
+		}
+		if (UI.archetypeName) {
+			UI.archetypeName.textContent = targetSignal.archetype === "Guide" ? "✦ Guide" : "🔒 ???";
+			UI.archetypeName.classList.remove("hidden");
+		}
+	}
 	const feedback = UI.displays.feedback;
 	feedback.textContent = "Match the target signal.";
 	feedback.className = "feedback";
