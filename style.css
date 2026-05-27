@@ -148,6 +148,7 @@ body {
 }
 #game-inner {
 	position: relative;
+	min-height: 420px;
 }
 
 /* ── SETTINGS GEAR ─────────────────────────────────────────────────────────── */
@@ -2093,8 +2094,6 @@ input[type="range"]::-moz-range-thumb {
 
 #screen-levelselect {
 	gap: 0.8rem;
-	padding: 1.5rem 1rem;
-	min-height: 0; /* override the 320px min-height from .screen */
 }
 
 #screen-levelselect h2 {
