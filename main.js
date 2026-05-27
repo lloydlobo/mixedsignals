@@ -2135,13 +2135,29 @@ function loop(ts) {
 	const period = getScrollPeriod();
 	const scroll = RENDER.FRAME_INDEPENDENT ? (_elapsedTime / period) % 1 : (ts / period) % 1;
 
-	const targetW = _canvasW;
-	const targetH = 120;
-	if (_canvas.width !== targetW || _canvas.height !== targetH) {
-		_canvas.width = targetW;
-		_canvas.height = targetH;
+	const dpr = window.devicePixelRatio || 1;
+
+	// 1. Get the actual visual width of the canvas element on the screen
+	const rect = _canvas.getBoundingClientRect();
+	const logicalW = rect.width;
+	const logicalH = 120;
+
+	// 2. Physical buffer size (scaled for Retina)
+	const physicalW = Math.floor(logicalW * dpr);
+	const physicalH = Math.floor(logicalH * dpr);
+
+	// 3. Update buffer only when necessary
+	if (_canvas.width !== physicalW || _canvas.height !== physicalH) {
+		_canvas.width = physicalW;
+		_canvas.height = physicalH;
+		_ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
-	_ctx.clearRect(0, 0, targetW, targetH);
+
+	// 4. Clear the view
+	_ctx.clearRect(0, 0, logicalW, logicalH);
+
+	const targetW = logicalW;
+	const targetH = logicalH;
 
 	const sc = matchScore(),
 		t = smoothstep(sc);
@@ -2294,7 +2310,7 @@ function loop(ts) {
  * 4. Fast Wrapping: Replaces modulo (%) with subtraction for phase accumulation.
  */
 function drawWave(sig, color, W, H, scroll, lineW, wobblePhase = 0, wobbleOpts = {}, lockT = 0, impactStr = 0) {
-	const halfH = H * 0.5,
+	const halfH = H * 0.5 /* halfH: centerY */,
 		yOffset = halfH - 10,
 		invW = 1 / W;
 
