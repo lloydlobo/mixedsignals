@@ -2058,9 +2058,25 @@ let _celebTargetAmp = 0.12,
 const YOURS_SIGNAL_WOBBLE_PHASES = [1.3, Math.PI * 0.5, Math.PI * 0.618, Math.PI * 0.85, Math.PI];
 const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
 
-// Per-wave wobble personality profiles (TODO #1)
-const WOBBLE_TARGET = { amp: 3.5, freq: 3.0, speed: 0.0012 };
-const WOBBLE_YOURS = { amp: 2.0, freq: 5.5, speed: 0.0025 };
+// Per-wave target wobble personality profiles
+const WOBBLE_TARGET_PROFILES = {
+	sine: { amp: 2.5, freq: 3.0, speed: 0.0010 },
+	square: { amp: 4.0, freq: 1.5, speed: 0.0008 },
+	sawtooth: { amp: 3.0, freq: 5.0, speed: 0.0014 },
+	triangle: { amp: 1.5, freq: 3.5, speed: 0.0009 },
+	pwm: { amp: 4.5, freq: 1.0, speed: 0.0010 },
+	am: { amp: 2.5, freq: 2.0, speed: 0.0007 },
+};
+
+// Per-wave your-signal wobble personality profiles
+const WOBBLE_YOURS_PROFILES = {
+	sine: { amp: 2.0, freq: 5.5, speed: 0.0025 },
+	square: { amp: 3.5, freq: 2.5, speed: 0.0020 },
+	sawtooth: { amp: 3.0, freq: 7.0, speed: 0.0030 },
+	triangle: { amp: 1.2, freq: 4.0, speed: 0.0020 },
+	pwm: { amp: 4.0, freq: 2.0, speed: 0.0025 },
+	am: { amp: 2.5, freq: 6.0, speed: 0.0018 },
+};
 
 // Each waveform type has its own celebration dance personality
 const CELEBRATION_PROFILES = {
@@ -2109,6 +2125,8 @@ function loop(ts) {
 	const sc = matchScore(),
 		t = smoothstep(sc);
 	const _smoothYoursSig = { ...yoursSignal, phase: _smoothPhase };
+	const _targetWobble = WOBBLE_TARGET_PROFILES[targetSignal?.type ?? "sine"];
+	const _yoursWobble = WOBBLE_YOURS_PROFILES[_smoothYoursSig.type ?? "sine"];
 	const LOCK_DUR = RENDER.LOCK_MS;
 	let lockT = 0;
 	if (Round._lockAnimStart > 0) {
@@ -2170,7 +2188,7 @@ function loop(ts) {
 				repScroll,
 				1.5,
 				0,
-				{ ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq },
+				{ ..._targetWobble, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq },
 				lockT,
 				_impactStr,
 			);
@@ -2185,7 +2203,7 @@ function loop(ts) {
 			repScroll,
 			3 + 2 * flash,
 			YOURS_SIGNAL_WOBBLE_PHASE,
-			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			{ ..._yoursWobble, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
 			lockT,
 			_impactStr,
 		);
@@ -2200,26 +2218,26 @@ function loop(ts) {
 			repScroll,
 			2,
 			YOURS_SIGNAL_WOBBLE_PHASE,
-			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			{ ..._yoursWobble, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
 			lockT,
 			_impactStr,
 		);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else if (Round.roundNo % 2 === 0) {
 			_ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else {
 			_ctx.globalAlpha = 0.15 + 0.6 * t;
-			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, _targetWobble, lockT);
 		}
 
 		_ctx.globalAlpha = 0.4 + 0.6 * t;
-		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
 	}
 
 	_ctx.globalAlpha = 1;
