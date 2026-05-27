@@ -3485,6 +3485,17 @@ function continueLevel() {
 	}
 }
 
+function startVictoryFreeplay() {
+	SFX.confirm();
+	dispatch({ type: "LEVEL_SET", payload: LEVELS.length - 1 });
+	dispatch({ type: "ROUND_SET", payload: 1 });
+	Session.postGameFreeplay = true;
+	UI.displays.score.textContent = "∞";
+	showScreen("game");
+	startLoop();
+	nextRound();
+}
+
 function victory() {
 	transitionBGM(BGM_STATE.VICTORY);
 	exitLevel();
@@ -3506,11 +3517,6 @@ function gameOver() {
 	exitLevel();
 	flash("#ff4554");
 	spawnStamp("fail");
-	const h3 = UI.displays.screenDead?.querySelector("h3");
-	if (h3) {
-		h3.textContent = "SIGNAL LOST";
-		h3.style.color = "var(--red)";
-	}
 	UI.displays.deadMsg.textContent = `Level ${Session.level + 1} · Round ${Round.roundNo} · ${Session.score} pts`;
 	const t = targetSignal,
 		lv = LEVELS[Session.level];
