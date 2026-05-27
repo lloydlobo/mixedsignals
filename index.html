@@ -13,8 +13,9 @@
 <body>
     <div id="game">
         <div class="flash-overlay" id="flash"></div>
+        <!-- biome-ignore lint/a11y/useMediaCaption: background music only, no dialog -->
         <audio id="bgm-audio" preload="none"></audio>
-        <button class="settings-gear" id="btn-settings" aria-label="Settings">⚙</button>
+        <button type="button" class="settings-gear" id="btn-settings" aria-label="Settings">⚙</button>
 
         <div id="game-inner">
             <div class="sr-only">Mixed Signals: tune your waveform into the target signal.</div>
@@ -23,6 +24,7 @@
                 <div class="screen-logo">
                     <svg class="logo-svg" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg"
                         aria-label="Mixed Signals Logo">
+                        <title>Mixed Signals Logo</title>
 
                         <defs style="display: none;">
 
@@ -80,14 +82,14 @@
                 </ul>
 
                 <!-- Shown only when save data exists — toggled by renderStartScreen() -->
-                <button class="crt-btn hidden" id="btn-continue">CONTINUE</button>
+                <button type="button" class="crt-btn hidden" id="btn-continue">CONTINUE</button>
 
-                <button class="crt-btn" id="btn-new-game">NEW GAME</button>
+                <button type="button" class="crt-btn" id="btn-new-game">NEW GAME</button>
 
                 <!-- Level select, disabled until player has unlocked >1 level -->
-                <button class="crt-btn sm" id="btn-select-level">SELECT LEVEL</button>
+                <button type="button" class="crt-btn sm" id="btn-select-level">SELECT LEVEL</button>
 
-                <button class="crt-btn sm" id="btn-tutorial">TUTORIAL</button>
+                <button type="button" class="crt-btn sm" id="btn-tutorial">TUTORIAL</button>
 
                 <!-- Small unlock status line, populated by renderStartScreen() -->
                 <span id="unlock-msg"></span>
@@ -98,9 +100,9 @@
                 <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
                 <p id="dead-msg"></p>
                 <div id="target-reveal" class="target-reveal hidden"></div>
-                <button class="crt-btn" id="btn-retry">RETRY LEVEL</button>
-                <button class="crt-btn sm" id="btn-dead-level-select">LEVEL SELECT</button>
-                <button class="crt-btn sm danger" id="btn-start-over">START OVER</button>
+                <button type="button" class="crt-btn" id="btn-retry">RETRY LEVEL</button>
+                <button type="button" class="crt-btn sm" id="btn-dead-level-select">LEVEL SELECT</button>
+                <button type="button" class="crt-btn sm danger" id="btn-start-over">START OVER</button>
             </div>
 
             <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -133,7 +135,7 @@
                         <span class="lu-stat-value" id="lu-skips">0</span>
                     </div>
                 </div>
-                <button class="crt-btn" id="btn-continue-level">CONTINUE</button>
+                <button type="button" class="crt-btn" id="btn-continue-level">CONTINUE</button>
             </div>
 
             <!-- ━━━ MINI-GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -148,7 +150,7 @@
                 <div class="mg-bar-wrap" id="mg-bar-wrap" style="display:none">
                     <div class="mg-bar" id="mg-bar" style="width:100%"></div>
                 </div>
-                <button class="mg-action-btn" id="mg-btn">READY</button>
+                <button type="button" class="mg-action-btn" id="mg-btn">READY</button>
                 <div class="mg-bonus-tag" id="mg-bonus-tag"></div>
             </div>
 
@@ -158,8 +160,8 @@
                 <!-- JS populates this grid via showLevelSelect() -->
                 <div class="level-select-grid" id="level-select-grid"></div>
                 <!-- FIXED: show screen after rendering (logic similar to last line in goToMenu()) -->
-                <!-- <button class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
-                <button class="crt-btn sm" id="btn-level-back">BACK</button>
+                <!-- <button type="button" class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
+                <button type="button" class="crt-btn sm" id="btn-level-back">BACK</button>
             </div>
 
             <!-- ━━━ GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
@@ -167,6 +169,7 @@
                 <div id="stamp-layer" aria-hidden="true"></div>
                 <div class="screen-frame">
                     <div class="timer-ring-wrap">
+                        <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, timer text alongside -->
                         <svg class="timer-ring" viewBox="0 0 48 48">
                             <circle class="timer-ring-track" cx="24" cy="24" r="20" />
                             <circle class="timer-ring-fill" id="timer-ring-fill" cx="24" cy="24" r="20" stroke="#f0690a"
@@ -205,10 +208,10 @@
 
                 <!-- PLAYBACK CONTROLS -->
                 <div class="pb-row">
-                    <button class="pb-btn" id="pb-target" title="Listen to target signal">▶ TARGET</button>
-                    <button class="pb-btn" id="pb-yours" title="Listen to your signal">▶
+                    <button type="button" class="pb-btn" id="pb-target" title="Listen to target signal">▶ TARGET</button>
+                    <button type="button" class="pb-btn" id="pb-yours" title="Listen to your signal">▶
                         YOURS</button>
-                    <button class="pb-btn" id="pb-ab" title="A/B compare">⇄ A/B</button>
+                    <button type="button" class="pb-btn" id="pb-ab" title="A/B compare">⇄ A/B</button>
                 </div>
 
 
@@ -216,37 +219,43 @@
                 <div class="hardware-grid">
                     <!-- WAVE SELECTOR -->
                     <div class="type-btns" id="type-btns">
-                        <button class="type-btn active" data-t="sine" aria-label="Sine wave">
+                        <button type="button" class="type-btn active" data-t="sine" aria-label="Sine wave">
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 C 6 0, 6 0, 12 6 S 18 12, 24 6" />
                             </svg>
                             <span>SINE</span>
                         </button>
-                        <button class="type-btn" data-t="square" aria-label="Square wave">
+                        <button type="button" class="type-btn" data-t="square" aria-label="Square wave">
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L12 2 L12 10 L24 10" />
                             </svg>
                             <span>SQR</span>
                         </button>
-                        <button class="type-btn" data-t="sawtooth" aria-label="Sawtooth wave">
+                        <button type="button" class="type-btn" data-t="sawtooth" aria-label="Sawtooth wave">
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L12 2 L12 10 L24 2" />
                             </svg>
                             <span>SAW</span>
                         </button>
-                        <button class="type-btn" data-t="triangle" aria-label="Triangle wave">
+                        <button type="button" class="type-btn" data-t="triangle" aria-label="Triangle wave">
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L6 2 L12 10 L18 2 L24 10" />
                             </svg>
                             <span>TRI</span>
                         </button>
-                        <button class="type-btn" data-t="pwm" id="btn-pwm" aria-label="PWM wave" disabled>
+                        <button type="button" class="type-btn" data-t="pwm" id="btn-pwm" aria-label="PWM wave" disabled>
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 10 L0 2 L6 2 L6 10 L24 10" />
                             </svg>
                             <span>PWM</span>
                         </button>
-                        <button class="type-btn" data-t="am" id="btn-am" aria-label="AM wave" disabled>
+                        <button type="button" class="type-btn" data-t="am" id="btn-am" aria-label="AM wave" disabled>
+                            <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, button has aria-label -->
                             <svg viewBox="0 0 24 12">
                                 <path d="M0 6 Q 6 12 12 6 T 24 6 M0 6 Q 6 0 12 6 T 24 6" />
                             </svg>
@@ -258,6 +267,7 @@
                         <div class="ctrl" id="ctrl-freq">
                             <div class="slider-meta">
                                 <label for="sl-freq">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <path d="M0 6 Q1 3 2 6 T4 6 T6 6 T8 6 T10 6 T12 6" />
                                     </svg>
@@ -275,6 +285,7 @@
                         <div class="ctrl" id="ctrl-amp">
                             <div class="slider-meta">
                                 <label for="sl-amp">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <path opacity="0.3" d="M0 6 Q3 4 6 6 T12 6" />
                                         <path d="M0 6 Q3 2 6 6 T12 6" />
@@ -293,6 +304,7 @@
                         <div class="ctrl" id="ctrl-phase">
                             <div class="slider-meta">
                                 <label for="sl-phase">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <path opacity="0.25" d="M0 6 Q3 2 6 6 T12 6" />
                                         <path d="M1.5 6 Q4.5 2 7.5 6 T13.5 6" />
@@ -313,6 +325,7 @@
                         <div class="ctrl" id="ctrl-dc">
                             <div class="slider-meta">
                                 <label for="sl-dc">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <line x1="0" y1="6" x2="12" y2="6" stroke-dasharray="2 1.5" opacity="0.25" />
                                         <path d="M0 4 Q3 2 6 4 T12 4" />
@@ -330,6 +343,7 @@
                         <div class="ctrl hidden" id="ctrl-harm">
                             <div class="slider-meta">
                                 <label for="sl-harm">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <path opacity="0.3" d="M0 6 Q3 2 6 6 T12 6" />
                                         <path d="M0 6 Q1.5 4 3 6 T6 6 T9 6 T12 6" />
@@ -349,6 +363,7 @@
                         <div class="ctrl hidden" id="ctrl-noise">
                             <div class="slider-meta">
                                 <label for="sl-noise">
+                                    <!-- biome-ignore lint/a11y/noSvgWithoutTitle: decorative, adjacent text label -->
                                     <svg class="param-glyph" viewBox="0 0 12 12">
                                         <path opacity="0.3" d="M0 6 Q3 2 6 6 T12 6" />
                                         <path d="M0 6 L1 5 L2 7 L3 4 L4 6 L5 5 L6 7 L7 4 L8 6 L9 5 L10 7 L11 5 L12 6" />
@@ -368,11 +383,11 @@
 
                 <!-- ━━━ MENU BUTTON IN ACTION ROW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
                 <div class="action-row">
-                    <button class="sys-btn" id="btn-hint" style="color: var(--amber)">HINT</button>
-                    <button class="sys-btn" id="btn-skip" style="color: var(--red)">SKIP</button>
-                    <button class="sys-btn" id="menu-btn" style="color: var(--text-dim)">MENU</button>
-                    <button class="sys-btn hidden" id="skip-tut" style="color: var(--green)">SKIP TUT</button>
-                    <button class="sys-btn hidden" id="btn-freeplay-ready" style="color: var(--green)">READY</button>
+                    <button type="button" class="sys-btn" id="btn-hint" style="color: var(--amber)">HINT</button>
+                    <button type="button" class="sys-btn" id="btn-skip" style="color: var(--red)">SKIP</button>
+                    <button type="button" class="sys-btn" id="menu-btn" style="color: var(--text-dim)">MENU</button>
+                    <button type="button" class="sys-btn hidden" id="skip-tut" style="color: var(--green)">SKIP TUT</button>
+                    <button type="button" class="sys-btn hidden" id="btn-freeplay-ready" style="color: var(--green)">READY</button>
                 </div>
             </div>
         </div>
@@ -386,12 +401,12 @@
                     <div class="settings-section-title">Audio</div>
                     <div class="settings-row">
                         <span>BGM</span>
-                        <button class="settings-toggle" id="stg-bgm">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-bgm">ON</button>
                         <input type="range" class="settings-slider" id="stg-bgm-vol" min="0" max="100" value="40">
                     </div>
                     <div class="settings-row">
                         <span>SFX</span>
-                        <button class="settings-toggle" id="stg-sfx">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-sfx">ON</button>
                         <input type="range" class="settings-slider" id="stg-sfx-vol" min="0" max="100" value="40">
                     </div>
                 </div>
@@ -400,15 +415,15 @@
                     <div class="settings-section-title">Gameplay</div>
                     <div class="settings-row">
                         <span>Ceremonies</span>
-                        <button class="settings-toggle" id="stg-ceremonies">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-ceremonies">ON</button>
                     </div>
                     <div class="settings-row">
                         <span>Screen shake</span>
-                        <button class="settings-toggle" id="stg-shake">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-shake">ON</button>
                     </div>
                     <div class="settings-row">
                         <span>Bonus rounds</span>
-                        <button class="settings-toggle" id="stg-minigames">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-minigames">OFF</button>
                     </div>
                 </div>
 
@@ -416,31 +431,31 @@
                     <div class="settings-section-title">Assist</div>
                     <div class="settings-row">
                         <span>Disable urgency cues <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Silences urgent heartbeat SFX</span></button></span>
-                        <button class="settings-toggle" id="stg-disable-urgent">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-disable-urgent">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Infinite time <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">No timer — unlimited time to match</span></button></span>
-                        <button class="settings-toggle" id="stg-infinite-time">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-infinite-time">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Easy match <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Win threshold lowered to 88%</span></button></span>
-                        <button class="settings-toggle" id="stg-easy-match">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-easy-match">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>No fail <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Keep score on low-match locks</span></button></span>
-                        <button class="settings-toggle" id="stg-no-fail">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-no-fail">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Param guide <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">OFF / GRAD (gradient) / DIR (direct target)</span></button></span>
-                        <button class="settings-toggle" id="stg-param-guide">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-param-guide">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Free guide <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">ON: arrows always show / OFF: costs hint score</span></button></span>
-                        <button class="settings-toggle" id="stg-free-guide">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-free-guide">OFF</button>
                     </div>
                 </div>
 
-                <button class="crt-btn" id="btn-close-settings">BACK</button>
+                <button type="button" class="crt-btn" id="btn-close-settings">BACK</button>
             </div>
         </div>
 
@@ -449,11 +464,11 @@
                 <div class="ceremony-glow" id="ceremony-tag">PHASE</div>
                 <h3 class="ceremony-title" id="ceremony-title">PHASE UNLOCKED</h3>
                 <p class="ceremony-desc" id="ceremony-desc"></p>
-                <button class="crt-btn" id="btn-dismiss-ceremony">GOT IT</button>
+                <button type="button" class="crt-btn" id="btn-dismiss-ceremony">GOT IT</button>
             </div>
         </div>
         <div class="credits-wrap">
-            <button class="credits-title" id="btn-credits">Credits</button>
+            <button type="button" class="credits-title" id="btn-credits">Credits</button>
             <div class="credits-popup">
                 <!-- Playtesters & Community -->
                 <div class="credits-section">
