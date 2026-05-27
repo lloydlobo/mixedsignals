@@ -26,7 +26,7 @@
                         aria-label="Mixed Signals Logo">
                         <title>Mixed Signals Logo</title>
 
-                        <defs style="display: none;">
+                        <defs>
 
                             <linearGradient id="logo-bg" x1="0" y1="0" x2="0" y2="1">
                                 <stop class="logo-bg-stop-1" offset="0%" />
@@ -97,7 +97,7 @@
 
             <!-- ━━━ DEAD/VICTORY SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-dead">
-                <h3 class="orb" style="color: var(--red);">SIGNAL LOST</h3>
+                <h2 class="orb" style="color: var(--red);">SIGNAL LOST</h2>
                 <p id="dead-msg"></p>
                 <div id="target-reveal" class="target-reveal hidden"></div>
                 <button type="button" class="crt-btn" id="btn-retry">RETRY LEVEL</button>
@@ -107,7 +107,7 @@
 
             <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelup">
-                <h3 class="orb" id="lu-title">LEVEL 2</h3>
+                <h2 class="orb" id="lu-title">LEVEL 2</h2>
                 <p id="lu-msg"></p>
                 <div class="lu-stats-grid" id="lu-stats">
                     <div class="lu-stat">
@@ -140,8 +140,8 @@
 
             <!-- ━━━ MINI-GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-minigame">
-                <div class="mg-title">BONUS ROUND</div>
-                <div class="mg-name" id="mg-name">PEAK HIT</div>
+                <h2 class="mg-title">BONUS ROUND</h2>
+                <h3 class="mg-name" id="mg-name">PEAK HIT</h3>
                 <div class="mg-desc" id="mg-desc">Tap the button when the wave crests.</div>
                 <div class="mg-canvas-wrap">
                     <canvas id="mg-canvas" height="110"></canvas>
@@ -156,16 +156,14 @@
 
             <!-- ━━━ LEVEL SELECT SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelselect">
-                <h3 class="orb">SELECT LEVEL</h3>
+                <h2 class="orb">SELECT LEVEL</h2>
                 <!-- JS populates this grid via showLevelSelect() -->
                 <div class="level-select-grid" id="level-select-grid"></div>
-                <!-- FIXED: show screen after rendering (logic similar to last line in goToMenu()) -->
-                <!-- <button type="button" class="crt-btn sm" onclick="showScreen('screen-start'); renderStartScreen();">BACK</button> -->
                 <button type="button" class="crt-btn sm" id="btn-level-back">BACK</button>
             </div>
 
             <!-- ━━━ GAME SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-            <div id="screen-game">
+            <div id="screen-game" class="screen">
                 <div id="stamp-layer" aria-hidden="true"></div>
                 <div class="screen-frame">
                     <div class="timer-ring-wrap">
@@ -175,7 +173,7 @@
                             <circle class="timer-ring-fill" id="timer-ring-fill" cx="24" cy="24" r="20" stroke="#f0690a"
                                 stroke-dasharray="125.6" stroke-dashoffset="0" />
                         </svg>
-                        <span class="timer-ring-label" id="timer">30</span>
+                        <span class="timer-ring-label" id="timer" aria-live="polite">30</span>
                     </div>
 
                     <div id="game-lcd">
@@ -188,7 +186,7 @@
 
                         <div id="meter-row" class="meter-row">
                             <div class="meter-track">
-                                <div class="meter-fill" id="fill" style="width: 0%;"></div>
+                                <div class="meter-fill" id="fill" style="width: 0%;" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
                             </div>
                             <div class="meter-pct" id="pct">0%</div>
                         </div>
@@ -201,8 +199,8 @@
                             <canvas class="scope" id="c-overlay" height="120"></canvas>
                         </div>
 
-                        <div class="feedback" id="feedback">Match the target signal.</div>
-                        <div class="hint-log" id="hint-log"></div>
+                        <div class="feedback" id="feedback" aria-live="polite">Match the target signal.</div>
+                        <div class="hint-log" id="hint-log" aria-live="polite"></div>
                     </div>
                 </div>
 
@@ -383,11 +381,11 @@
 
                 <!-- ━━━ MENU BUTTON IN ACTION ROW ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
                 <div class="action-row">
-                    <button type="button" class="sys-btn" id="btn-hint" style="color: var(--amber)">HINT</button>
-                    <button type="button" class="sys-btn" id="btn-skip" style="color: var(--red)">SKIP</button>
-                    <button type="button" class="sys-btn" id="menu-btn" style="color: var(--text-dim)">MENU</button>
-                    <button type="button" class="sys-btn hidden" id="skip-tut" style="color: var(--green)">SKIP TUT</button>
-                    <button type="button" class="sys-btn hidden" id="btn-freeplay-ready" style="color: var(--green)">READY</button>
+                    <button type="button" class="sys-btn" id="btn-hint">HINT</button>
+                    <button type="button" class="sys-btn" id="btn-skip">SKIP</button>
+                    <button type="button" class="sys-btn" id="menu-btn">MENU</button>
+                    <button type="button" class="sys-btn hidden" id="skip-tut">SKIP TUT</button>
+                    <button type="button" class="sys-btn hidden" id="btn-freeplay-ready">READY</button>
                 </div>
             </div>
         </div>
@@ -395,63 +393,63 @@
         <!-- ━━━ SETTINGS OVERLAY ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
         <div class="settings-overlay hidden" id="settings-overlay">
             <div class="settings-card" id="settings-card">
-                <h3 class="settings-heading">Settings</h3>
+                <h2 class="settings-heading">Settings</h2>
 
                 <div class="settings-section">
-                    <div class="settings-section-title">Audio</div>
+                    <h4 class="settings-section-title">Audio</h4>
                     <div class="settings-row">
                         <span>BGM</span>
-                        <button type="button" class="settings-toggle" id="stg-bgm">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-bgm" role="switch" aria-checked="true">ON</button>
                         <input type="range" class="settings-slider" id="stg-bgm-vol" min="0" max="100" value="40">
                     </div>
                     <div class="settings-row">
                         <span>SFX</span>
-                        <button type="button" class="settings-toggle" id="stg-sfx">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-sfx" role="switch" aria-checked="true">ON</button>
                         <input type="range" class="settings-slider" id="stg-sfx-vol" min="0" max="100" value="40">
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <div class="settings-section-title">Gameplay</div>
+                    <h4 class="settings-section-title">Gameplay</h4>
                     <div class="settings-row">
                         <span>Ceremonies</span>
-                        <button type="button" class="settings-toggle" id="stg-ceremonies">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-ceremonies" role="switch" aria-checked="true">ON</button>
                     </div>
                     <div class="settings-row">
                         <span>Screen shake</span>
-                        <button type="button" class="settings-toggle" id="stg-shake">ON</button>
+                        <button type="button" class="settings-toggle" id="stg-shake" role="switch" aria-checked="true">ON</button>
                     </div>
                     <div class="settings-row">
                         <span>Bonus rounds</span>
-                        <button type="button" class="settings-toggle" id="stg-minigames">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-minigames" role="switch" aria-checked="false">OFF</button>
                     </div>
                 </div>
 
                 <div class="settings-section">
-                    <div class="settings-section-title">Assist</div>
+                    <h4 class="settings-section-title">Assist</h4>
                     <div class="settings-row">
                         <span>Disable urgency cues <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Silences urgent heartbeat SFX</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-disable-urgent">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-disable-urgent" role="switch" aria-checked="false">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Infinite time <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">No timer — unlimited time to match</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-infinite-time">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-infinite-time" role="switch" aria-checked="false">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Easy match <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Win threshold lowered to 88%</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-easy-match">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-easy-match" role="switch" aria-checked="false">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>No fail <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">Keep score on low-match locks</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-no-fail">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-no-fail" role="switch" aria-checked="false">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Param guide <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">OFF / GRAD (gradient) / DIR (direct target)</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-param-guide">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-param-guide" role="switch" aria-checked="false">OFF</button>
                     </div>
                     <div class="settings-row">
                         <span>Free guide <button class="help-icon" type="button" aria-label="Help">?<span class="help-text">ON: arrows always show / OFF: costs hint score</span></button></span>
-                        <button type="button" class="settings-toggle" id="stg-free-guide">OFF</button>
+                        <button type="button" class="settings-toggle" id="stg-free-guide" role="switch" aria-checked="false">OFF</button>
                     </div>
                 </div>
 
@@ -462,7 +460,7 @@
         <div class="ceremony-overlay hidden" id="ceremony-overlay">
             <div class="ceremony-card" id="ceremony-card">
                 <div class="ceremony-glow" id="ceremony-tag">PHASE</div>
-                <h3 class="ceremony-title" id="ceremony-title">PHASE UNLOCKED</h3>
+                <h2 class="ceremony-title" id="ceremony-title">PHASE UNLOCKED</h2>
                 <p class="ceremony-desc" id="ceremony-desc"></p>
                 <button type="button" class="crt-btn" id="btn-dismiss-ceremony">GOT IT</button>
             </div>
@@ -472,7 +470,7 @@
             <div class="credits-popup">
                 <!-- Playtesters & Community -->
                 <div class="credits-section">
-                    <div class="credits-label">Community Playtesters</div>
+                    <h3 class="credits-label">Community Playtesters</h3>
                     <div class="credits-names">
                         <!-- keep sorted alphabetically (case-insensitive) -->
                         <span class="credits-name">Ausstein</span>
@@ -507,7 +505,7 @@
 
                 <!-- Music -->
                 <div class="credits-section">
-                    <div class="credits-label">Music</div>
+                    <h3 class="credits-label">Music</h3>
                     <div class="credits-tracks">
                         <!-- keep sorted alphabetically by title -->
                         <div class="credits-track"><span class="credits-track-title">"After Hours Arcade"</span> —
@@ -549,7 +547,7 @@
 
                 <!-- AI Tools -->
                 <div class="credits-section">
-                    <div class="credits-label">AI Assistance</div>
+                    <h3 class="credits-label">AI Assistance</h3>
                     <div class="credits-tools">
                         <span class="credits-tool">ChatGPT</span> (OpenAI), <span class="credits-tool">Claude</span>
                         (Anthropic), <span class="credits-tool">Gemini</span> (Google), <span
@@ -559,7 +557,7 @@
 
                 <!-- Inspiration -->
                 <div class="credits-section">
-                    <div class="credits-label">Inspiration</div>
+                    <h3 class="credits-label">Inspiration</h3>
                     <div class="credits-thanks">
                         Thank you
                         <a href="https://www.youtube.com/@jimbob15515" target="_blank" rel="noopener noreferrer">

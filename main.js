@@ -2445,6 +2445,7 @@ function updateMeter() {
 		//            CSS add: min-width: 100%; lol (kinda works)
 		fill.style.transform = `scaleX(${pct * 0.01}) scaleY(0.7)`;
 		fill.style.background = pct > 80 ? "var(--green)" : pct > 50 ? "var(--amber)" : "var(--red)";
+		fill.setAttribute("aria-valuenow", pct);
 	}
 
 	const fb = UI.displays.feedback;
@@ -3357,6 +3358,7 @@ function renderSettings() {
 		if (!el) return;
 		el.textContent = on ? "ON" : "OFF";
 		el.classList.toggle("on", on);
+		el.setAttribute("aria-checked", on);
 	};
 	sync("stg-bgm", !s.bgmMuted);
 	sync("stg-sfx", !s.sfxMuted);
@@ -3374,6 +3376,7 @@ function renderSettings() {
 			const mode = s.assistParamGuide || "off";
 			el.textContent = labels[mode] || "OFF";
 			el.classList.toggle("on", mode !== "off");
+			el.setAttribute("aria-checked", mode !== "off");
 		}
 	}
 	sync("stg-free-guide", s.assistFreeGuide);
