@@ -216,17 +216,18 @@ body {
    SVG THEME
    ============================================================ */
 
-.logo-bg-stop-1 {
-	stop-color: var(--bg2);
-}
-
-.logo-bg-stop-2 {
-	stop-color: var(--bg);
-}
-
 .logo-grid-line {
-	stroke: var(--surface);
+	stroke: rgba(255, 255, 255, 0.04);
 	stroke-width: 1;
+}
+
+.logo-grid-midline {
+	stroke: rgba(255, 255, 255, 0.08);
+	stroke-width: 1;
+}
+
+.logo-panel {
+	fill: var(--bg);
 }
 
 /* ============================================================

@@ -28,11 +28,6 @@
 
                         <defs>
 
-                            <linearGradient id="logo-bg" x1="0" y1="0" x2="0" y2="1">
-                                <stop class="logo-bg-stop-1" offset="0%" />
-                                <stop class="logo-bg-stop-2" offset="100%" />
-                            </linearGradient>
-
                             <filter id="logoGlowSoft" x="-50%" y="-50%" width="200%" height="200%">
                                 <feGaussianBlur stdDeviation="2.5" result="blur" />
                                 <feMerge>
@@ -41,17 +36,19 @@
                                 </feMerge>
                             </filter>
 
-                            <pattern id="logo-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                                <path class="logo-grid-line" d="M40 0H0V40" />
+                            <pattern id="logo-grid" width="48" height="28" patternUnits="userSpaceOnUse">
+                                <path class="logo-grid-line" d="M48 0V28M0 28H48" />
                             </pattern>
 
                         </defs>
 
                         <!-- PANEL -->
-                        <rect x="40" y="40" width="1120" height="620" rx="36" fill="url(#logo-bg)" />
+                        <rect x="40" y="40" width="1120" height="620" rx="36" class="logo-panel" />
 
                         <!-- GRID -->
-                        <rect x="40" y="40" width="1120" height="620" rx="36" fill="url(#logo-grid)" opacity="0.55" />
+                        <rect x="40" y="40" width="1120" height="620" rx="36" fill="url(#logo-grid)" />
+                        <!-- MIDLINE -->
+                        <line x1="40" y1="350" x2="1160" y2="350" class="logo-grid-midline" />
 
                         <!-- MIXED -->
                         <text class="logo-mixed" x="600" y="280" text-anchor="middle" filter="url(#logoGlowSoft)">
