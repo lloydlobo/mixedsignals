@@ -153,6 +153,13 @@ const ARCHETYPES = [
 	{ name: "Wobble", type: "am", freq: 3, amp: 5, phase: 0, dc: 0, harm: 0, levelMin: 4 },
 	{ name: "Glitch", type: "pwm", freq: 4, amp: 6, phase: 180, dc: 0, harm: 0, levelMin: 4 },
 	{ name: "Drone", type: "sawtooth", freq: 2, amp: 4, phase: 0, dc: 0, harm: 4, levelMin: 5 },
+	{ name: "Resonance", type: "sine", freq: 4, amp: 6, phase: 0, dc: 0, harm: 4, levelMin: 5 },
+	{ name: "Buzz", type: "square", freq: 3, amp: 7, phase: 0, dc: 0, harm: 3, levelMin: 5 },
+	{ name: "Hum", type: "triangle", freq: 2, amp: 5, phase: 0, dc: 0, harm: 2, levelMin: 5 },
+	{ name: "Siren", type: "am", freq: 6, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 4 },
+	{ name: "Stutter", type: "pwm", freq: 7, amp: 8, phase: 0, dc: 0, harm: 0, levelMin: 4 },
+	{ name: "Scrambler", type: "pwm", freq: 5, amp: 6, phase: 90, dc: 0, harm: 3, levelMin: 6 },
+	{ name: "Throb", type: "sawtooth", freq: 3, amp: 8, phase: 0, dc: -2, harm: 2, levelMin: 6 },
 ];
 
 // On debut levels, only archetypes that exercise the new param appear —
@@ -160,8 +167,8 @@ const ARCHETYPES = [
 const _DEBUT_ARCHETYPES = {
 	2: ["Phase Shift"],
 	3: ["Subsonic"],
-	4: ["Wobble", "Glitch"],
-	5: ["Drone"],
+	4: ["Wobble", "Glitch", "Siren", "Stutter"],
+	5: ["Drone", "Resonance", "Buzz", "Hum"],
 };
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
