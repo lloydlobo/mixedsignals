@@ -1243,7 +1243,7 @@ const SFX = {
 const STAMP_WORDS = {
 	hint: ["BLIP", "PING", "TRACE", "WARMER"],
 	hint_broke: ["NO SIGNAL", "FLAT BROKE", "INSUFFICIENT", "LOW FUNDS"],
-	skip: ["ZONK", "STATIC", "DRIFT", "NOPE"],
+	skip: ["ZONK", "STATIC", "DRIFT", "WHEEEE"],
 	skip_broke: ["NOPE", "NO CREDIT", "HELD", "LOCKED OUT"],
 	fail: ["DESYNC", "FZZZT", "LOST LOCK", "OVERLOAD"],
 	success: ["LOCKED", "CLEAN", "DIALED", "SMOOTH"],
