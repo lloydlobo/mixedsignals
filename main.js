@@ -302,6 +302,7 @@ function initUI() {
 		fill: document.getElementById("fill"),
 		flash: document.getElementById("flash"),
 		deadMsg: document.getElementById("dead-msg"),
+		victoryMsg: document.getElementById("victory-msg"),
 		luTitle: document.getElementById("lu-title"),
 		luMsg: document.getElementById("lu-msg"),
 		luScore: document.getElementById("lu-score"),
@@ -387,6 +388,12 @@ const BUTTON_ACTIONS = {
 		showScreen("start");
 	},
 	"btn-dismiss-ceremony": dismissCeremony,
+	"btn-victory-continue": () => {
+		SFX.back();
+		renderStartScreen();
+		showScreen("start");
+	},
+	"btn-victory-freeplay": startVictoryFreeplay,
 	"btn-hint": useHint,
 	"btn-skip": skipRound,
 	"menu-btn": goToMenu,
@@ -3481,13 +3488,9 @@ function continueLevel() {
 function victory() {
 	transitionBGM(BGM_STATE.VICTORY);
 	exitLevel();
-	const h3 = UI.displays.screenDead?.querySelector("h3");
-	if (h3) {
-		h3.textContent = "MIXED SIGNALS MASTERED";
-		h3.style.color = "var(--green)";
-	}
-	UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
-	showScreen("dead");
+	UI.displays.victoryMsg.textContent =
+		`All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
+	showScreen("victory");
 	SFX.levelUp();
 }
 

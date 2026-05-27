@@ -2112,6 +2112,9 @@ input[type="range"]::-moz-range-thumb {
 #game[data-screen="levelup"] #screen-levelup {
 	display: flex;
 }
+#game[data-screen="victory"] #screen-victory {
+	display: flex;
+}
 #game[data-screen="levelselect"] #screen-levelselect {
 	display: flex;
 }
