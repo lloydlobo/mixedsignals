@@ -300,6 +300,7 @@ function initUI() {
 
 	UI.displays = {
 		score: document.getElementById("score"),
+		pbDisplay: document.getElementById("pb-display"),
 		pct: document.getElementById("pct"),
 		feedback: document.getElementById("feedback"),
 		hintLog: document.getElementById("hint-log"),
@@ -3164,6 +3165,11 @@ function enterLevel() {
 	if (UI.archetypeName) {
 		UI.archetypeName.textContent = targetSignal.archetype ?? "";
 		UI.archetypeName.classList.toggle("hidden", !targetSignal.archetype);
+	}
+	if (UI.displays.pbDisplay) {
+		const save = loadSave();
+		const pb = save.bestScores[Session.level] || 0;
+		UI.displays.pbDisplay.textContent = pb > 0 ? pb : "—";
 	}
 	invalidateMatchScore();
 	applyLevelUI();
