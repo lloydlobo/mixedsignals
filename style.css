@@ -148,6 +148,7 @@ body {
 }
 #game-inner {
 	position: relative;
+	min-height: 420px;
 }
 
 /* ── SETTINGS GEAR ─────────────────────────────────────────────────────────── */
@@ -216,17 +217,18 @@ body {
    SVG THEME
    ============================================================ */
 
-.logo-bg-stop-1 {
-	stop-color: var(--bg2);
-}
-
-.logo-bg-stop-2 {
-	stop-color: var(--bg);
-}
-
 .logo-grid-line {
-	stroke: var(--surface);
+	stroke: rgba(255, 255, 255, 0.04);
 	stroke-width: 1;
+}
+
+.logo-grid-midline {
+	stroke: rgba(255, 255, 255, 0.08);
+	stroke-width: 1;
+}
+
+.logo-panel {
+	fill: var(--bg);
 }
 
 /* ============================================================
@@ -373,6 +375,8 @@ body {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+	/* If hard cuts ever feel too abrupt, add:
+	   transition: opacity 60ms ease-out, visibility 60ms ease-out; */
 
 	text-align: center;
 	gap: 1.2rem;
@@ -389,7 +393,7 @@ body {
 		0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-.screen h3 {
+.screen h2 {
 	font-family: var(--font-ui);
 	font-weight: 900;
 	font-size: clamp(22px, 6vw, 36px);
@@ -472,6 +476,12 @@ body {
 
 #screen-game {
 	display: none;
+	background: none;
+	padding: 0;
+	border-radius: 0;
+	box-shadow: none;
+	margin-bottom: 0;
+	min-height: 0;
 }
 /* ============================================================
    LCD / SCREEN AREA
@@ -2086,11 +2096,9 @@ input[type="range"]::-moz-range-thumb {
 
 #screen-levelselect {
 	gap: 0.8rem;
-	padding: 1.5rem 1rem;
-	min-height: 0; /* override the 320px min-height from .screen */
 }
 
-#screen-levelselect h3 {
+#screen-levelselect h2 {
 	font-size: clamp(18px, 5vw, 28px); /* slightly smaller to give grid room */
 }
 
@@ -2287,8 +2295,13 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ━━━ MENU BUTTON ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-/* No extra styles needed — .sys-btn handles it.
-   The color: var(--text-dim) inline style keeps it visually subordinate
+#btn-hint { color: var(--amber); }
+#btn-skip { color: var(--red); }
+#menu-btn { color: var(--text-dim); }
+#skip-tut { color: var(--green); }
+#btn-freeplay-ready { color: var(--green); }
+
+/* The color: var(--text-dim) keeps menu visually subordinate
    to HINT (amber) and SKIP (red) so it doesn't compete for attention. */
 
 /* ━━━ UNLOCK MSG ON START SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -2505,14 +2518,8 @@ input[type="range"]::-moz-range-thumb {
 /* ── MINI-GAME SCREEN ────────────────────────────────────────── */
 
 #screen-minigame {
-	display: none;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
 	padding: 1.5rem 1rem;
-	text-align: center;
 	gap: 0.75rem;
-	min-height: 320px;
 }
 
 #game[data-screen="minigame"] #screen-minigame {
