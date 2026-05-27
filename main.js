@@ -4624,7 +4624,12 @@ function initLogoScope() {
 		is now empirically justified rather than folklore-based.
 	*/
 	if (smallViewport) {
-		document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => void n.removeAttribute("filter"));
+		// TEMPNOTE: Delete it. Since we completely deleted the <filter
+		// id="logoGlowSoft"> from the HTML, this code is now doing a heavy DOM
+		// query for an element that doesn't exist. You can delete that if block
+		// and the long comment above it.
+		//
+		// document.querySelectorAll('[filter="url(#logoGlowSoft)"]').forEach(n => void n.removeAttribute("filter"));
 	}
 
 	const scale = smallViewport ? 0.5 : 1;
