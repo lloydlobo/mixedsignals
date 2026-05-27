@@ -779,10 +779,7 @@ const BGM_POOL = {
 		"penguinmusic-lazy-day-stylish-futuristic-chill-239287.mp3",
 	],
 	settings: ["pietix-cinematic-aloha-lounge-rumba-2-535338.mp3"],
-	credits: [
-		"pietix-art-pop-exp-2-510302.mp3",
-		"slimeyfox-after-hours-arcade-487277.mp3",
-	],
+	credits: ["pietix-art-pop-exp-2-510302.mp3", "slimeyfox-after-hours-arcade-487277.mp3"],
 	victory: ["kevinmacleod-study-and-relax.mp3"],
 	gameover: ["musinova-idm-electronic-science-technology-drumless-ambient-loop-483365.mp3"],
 };
@@ -1920,13 +1917,22 @@ function paramGradientTargetDelta() {
 function abCompareParamGradients() {
 	const probe = paramGradient();
 	const direct = paramGradientTargetDelta();
-	if (!probe || !direct) { console.log("[AB] one or both strategies unavailable"); return; }
+	if (!probe || !direct) {
+		console.log("[AB] one or both strategies unavailable");
+		return;
+	}
 	for (const param of Object.keys(probe)) {
-		const a = probe[param], b = direct[param];
+		const a = probe[param],
+			b = direct[param];
 		if (a && b && a.dir !== b.dir && a.dir !== 0 && b.dir !== 0) {
-			console.log("[AB] probe=%s direct=%s param=%s yours=%s target=%s",
-				a.dir > 0 ? "▲" : "▼", b.dir > 0 ? "▲" : "▼",
-				param, yoursSignal[param], targetSignal[param]);
+			console.log(
+				"[AB] probe=%s direct=%s param=%s yours=%s target=%s",
+				a.dir > 0 ? "▲" : "▼",
+				b.dir > 0 ? "▲" : "▼",
+				param,
+				yoursSignal[param],
+				targetSignal[param],
+			);
 		}
 	}
 }
@@ -2075,20 +2081,20 @@ const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
 
 // Per-wave target wobble personality profiles
 const WOBBLE_TARGET_PROFILES = {
-	sine: { amp: 2.5, freq: 3.0, speed: 0.0010 },
+	sine: { amp: 2.5, freq: 3.0, speed: 0.001 },
 	square: { amp: 4.0, freq: 1.5, speed: 0.0008 },
 	sawtooth: { amp: 3.0, freq: 5.0, speed: 0.0014 },
 	triangle: { amp: 1.5, freq: 3.5, speed: 0.0009 },
-	pwm: { amp: 4.5, freq: 1.0, speed: 0.0010 },
+	pwm: { amp: 4.5, freq: 1.0, speed: 0.001 },
 	am: { amp: 2.5, freq: 2.0, speed: 0.0007 },
 };
 
 // Per-wave your-signal wobble personality profiles
 const WOBBLE_YOURS_PROFILES = {
 	sine: { amp: 2.0, freq: 5.5, speed: 0.0025 },
-	square: { amp: 3.5, freq: 2.5, speed: 0.0020 },
-	sawtooth: { amp: 3.0, freq: 7.0, speed: 0.0030 },
-	triangle: { amp: 1.2, freq: 4.0, speed: 0.0020 },
+	square: { amp: 3.5, freq: 2.5, speed: 0.002 },
+	sawtooth: { amp: 3.0, freq: 7.0, speed: 0.003 },
+	triangle: { amp: 1.2, freq: 4.0, speed: 0.002 },
 	pwm: { amp: 4.0, freq: 2.0, speed: 0.0025 },
 	am: { amp: 2.5, freq: 6.0, speed: 0.0018 },
 };
@@ -2129,13 +2135,13 @@ function loop(ts) {
 	const period = getScrollPeriod();
 	const scroll = RENDER.FRAME_INDEPENDENT ? (_elapsedTime / period) % 1 : (ts / period) % 1;
 
-	const W = _canvasW,
-		H = 120;
-	if (_canvas.width !== W || _canvas.height !== H) {
-		_canvas.width = W;
-		_canvas.height = H;
+	const targetW = _canvasW;
+	const targetH = 120;
+	if (_canvas.width !== targetW || _canvas.height !== targetH) {
+		_canvas.width = targetW;
+		_canvas.height = targetH;
 	}
-	_ctx.clearRect(0, 0, W, H);
+	_ctx.clearRect(0, 0, targetW, targetH);
 
 	const sc = matchScore(),
 		t = smoothstep(sc);
@@ -2183,10 +2189,10 @@ function loop(ts) {
 		for (let r = 0; r < 3; r++) {
 			const t = lockT;
 			const smoothLock = t * t * (3 - 2 * t);
-			const rad = smoothLock * W * 0.55 + r * 20;
+			const rad = smoothLock * targetW * 0.55 + r * 20;
 			const wobble = fastSin(_elapsedTime * 0.008 + r * 2.1) * 3 * (1 - t);
 			_ctx.beginPath();
-			_ctx.arc(W * 0.5, H * 0.5, Math.max(1, rad + wobble), 0, Math.PI * 2);
+			_ctx.arc(targetW * 0.5, targetH * 0.5, Math.max(1, rad + wobble), 0, Math.PI * 2);
 			_ctx.strokeStyle = "#66ff88";
 			_ctx.lineWidth = 1.5;
 			_ctx.stroke();
@@ -2198,8 +2204,8 @@ function loop(ts) {
 			drawWave(
 				targetSignal,
 				"#448855",
-				W,
-				H,
+				targetW,
+				targetH,
 				repScroll,
 				1.5,
 				0,
@@ -2213,8 +2219,8 @@ function loop(ts) {
 		drawWave(
 			_smoothYoursSig,
 			"#66ff88",
-			W,
-			H,
+			targetW,
+			targetH,
 			repScroll,
 			3 + 2 * flash,
 			YOURS_SIGNAL_WOBBLE_PHASE,
@@ -2228,8 +2234,8 @@ function loop(ts) {
 		drawWave(
 			_smoothYoursSig,
 			WAVE_COLORS.yours,
-			W,
-			H,
+			targetW,
+			targetH,
 			repScroll,
 			2,
 			YOURS_SIGNAL_WOBBLE_PHASE,
@@ -2240,19 +2246,19 @@ function loop(ts) {
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", targetW, targetH, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else if (Round.roundNo % 2 === 0) {
 			_ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", targetW, targetH, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else {
 			_ctx.globalAlpha = 0.15 + 0.6 * t;
-			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, _targetWobble, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, targetW, targetH, scroll, (3 + sc) / 2, 0, _targetWobble, lockT);
 		}
 
 		_ctx.globalAlpha = 0.4 + 0.6 * t;
-		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
-		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
-		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", targetW, targetH, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", targetW, targetH, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, targetW, targetH, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
 	}
 
 	_ctx.globalAlpha = 1;
@@ -2522,7 +2528,8 @@ function updateMeter() {
 		else if (Round.combo === 2) spawnStamp("combo_2");
 		if (navigator.vibrate) navigator.vibrate(100);
 		setTimeout(() => nextRound(), 1800);
-	} else if (pct >= CONFIG.CLOSE_PERCENTAGE && !Round._typePuzzle) { // NOTE: !Round._typePuzzle gives `Ghost` like archetype's feedback higher priority
+	} else if (pct >= CONFIG.CLOSE_PERCENTAGE && !Round._typePuzzle) {
+		// NOTE: !Round._typePuzzle gives `Ghost` like archetype's feedback higher priority
 		if (Session.tutorialActive) return;
 		fb.textContent = "Getting close…";
 		fb.className = "feedback close";
@@ -2769,7 +2776,7 @@ function _activeDragParams() {
 	return DRAG_PARAMS.filter(p => {
 		if (p.id === "harm") return lv.harm;
 		if (p.id === "phase") return true; // always shown; dimmed/locked until lv.phase
-		if (p.id === "dc") return true;    // always shown; dimmed/locked until lv.dc
+		if (p.id === "dc") return true; // always shown; dimmed/locked until lv.dc
 		return true;
 	});
 }
@@ -3540,16 +3547,17 @@ function initSettingsOverlay() {
 	{
 		const GUIDE_CYCLE = ["off", "gradient", "direct"];
 		const el = document.getElementById("stg-param-guide");
-		if (el) el.addEventListener("click", () => {
-			SFX.toggle(true);
-			const save = loadSave();
-			const current = save.settings.assistParamGuide || "off";
-			const next = GUIDE_CYCLE[(GUIDE_CYCLE.indexOf(current) + 1) % 3];
-			save.settings.assistParamGuide = next;
-			writeSave(save);
-			Session.assistParamGuide = next;
-			renderSettings();
-		});
+		if (el)
+			el.addEventListener("click", () => {
+				SFX.toggle(true);
+				const save = loadSave();
+				const current = save.settings.assistParamGuide || "off";
+				const next = GUIDE_CYCLE[(GUIDE_CYCLE.indexOf(current) + 1) % 3];
+				save.settings.assistParamGuide = next;
+				writeSave(save);
+				Session.assistParamGuide = next;
+				renderSettings();
+			});
 	}
 	bindToggle("stg-free-guide", "assistFreeGuide", "assistFreeGuide");
 
@@ -3587,8 +3595,7 @@ function startVictoryFreeplay() {
 function victory() {
 	transitionBGM(BGM_STATE.VICTORY);
 	exitLevel();
-	UI.displays.victoryMsg.textContent =
-		`All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
+	UI.displays.victoryMsg.textContent = `All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
 	showScreen("victory");
 	SFX.levelUp();
 }
