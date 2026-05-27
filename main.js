@@ -1916,7 +1916,7 @@ function paramGradientTargetDelta() {
 	return result;
 }
 
-// Call from DevTools to A/B test both strategies: abCompareParamGradients()
+// biome-ignore lint/correctness/noUnusedVariables: Call from DevTools to A/B test both strategies: abCompareParamGradients()
 function abCompareParamGradients() {
 	const probe = paramGradient();
 	const direct = paramGradientTargetDelta();
@@ -3189,7 +3189,7 @@ function exitLevel() {
 	if (UI.scopeWrap) UI.scopeWrap.classList.remove("grace-active");
 	const reveal = document.getElementById("target-reveal");
 	if (reveal) reveal.classList.add("hidden");
-	document.querySelectorAll(".type-btn").forEach(b => b.classList.remove("puzzle-disabled", "puzzle-wrong"));
+	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("puzzle-disabled", "puzzle-wrong"));
 }
 
 function enterLevel() {
