@@ -5,6 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mixed Signals</title>
+    <meta name="description" content="Tune your waveform into the target signal. Match frequency, amplitude, phase, and more across 7 increasingly unstable levels.">
+    <meta property="og:title" content="Mixed Signals">
+    <meta property="og:description" content="Tune your waveform into the target signal. Match frequency, amplitude, phase, and more across 7 increasingly unstable levels.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#1c1915">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="style.css">
     <script src="main.js" defer></script>
@@ -102,6 +109,14 @@
                 <button type="button" class="crt-btn sm danger" id="btn-start-over">START OVER</button>
             </div>
 
+            <!-- ━━━ VICTORY SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+            <div class="screen" id="screen-victory">
+                <h2 class="orb" style="color: var(--green);">MIXED SIGNALS MASTERED</h2>
+                <p id="victory-msg"></p>
+                <button type="button" class="crt-btn" id="btn-victory-continue">CONTINUE</button>
+                <button type="button" class="crt-btn sm" id="btn-victory-freeplay">FREE PLAY</button>
+            </div>
+
             <!-- ━━━ LEVEL UP SCREEN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
             <div class="screen" id="screen-levelup">
                 <h2 class="orb" id="lu-title">LEVEL 2</h2>
@@ -122,6 +137,10 @@
                     <div class="lu-stat">
                         <span class="lu-stat-label">Combo</span>
                         <span class="lu-stat-value" id="lu-combo">0</span>
+                    </div>
+                    <div class="lu-stat">
+                        <span class="lu-stat-label">Time</span>
+                        <span class="lu-stat-value" id="lu-time">—</span>
                     </div>
                     <div class="lu-stat">
                         <span class="lu-stat-label">Hints</span>
@@ -178,6 +197,7 @@
                         <div class="topbar">
                             <div class="chip level-chip orb">LV <b id="lbl-level">1</b></div>
                             <div class="chip">score <b id="score">0</b></div>
+                            <div class="chip">pb <b id="pb-display">—</b></div>
                             <div class="chip">round <b id="round-no">1</b>/<b id="round-total">5</b></div>
                         </div>
 

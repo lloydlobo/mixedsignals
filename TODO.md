@@ -200,3 +200,13 @@ All four credit sections now have distinct hover animations with the same underl
 | Music       | 🎶     | `wave-pulse`           | ↕ vertical shimmer  |
 | AI Tools    | ⚡     | `zap-sweep`            | ⤡ diagonal sweep    |
 | Inspiration | 💡     | `glow-spark`           | ◎ radial pulse      |
+
+---
+
+## Shelved
+
+- **Hold-at-95% lock confirmation** — half-second hold window before lock commits.
+  Decision: shelved. Timer race condition (time expires during 500ms hold before commit)
+  confirmed complexity cost isn't worth it at current levels. Flagged for lv7-12 when phase
+  drift / target instability add a natural need for confirmation. Infrastructure (`_holdStart`,
+  hold timer pattern) is understood and ready. See comment in `main.js` near the `pct >= winPct` branch.

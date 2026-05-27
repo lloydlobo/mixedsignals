@@ -16,3 +16,7 @@ AUDIT_REPORT.md
 _archive/
 .swp
 _tmp*
+
+# local scratch
+scratch.md
+ref.md

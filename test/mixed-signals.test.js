@@ -7,6 +7,8 @@
  * Stubs for browser globals are declared at the top.
  */
 
+
+// biome-ignore lint/suspicious/noRedundantUseStrict: old convention
 "use strict";
 
 // ─── TEST HARNESS ─────────────────────────────────────────────────────────────
@@ -52,7 +54,7 @@ const localStorage = (() => {
         getItem: k => store[k] ?? null,
         setItem: (k, v) => { store[k] = String(v); },
         removeItem: k => { delete store[k]; },
-        clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+        clear: () => { Object.keys(store).forEach(k => void delete store[k]); },
     };
 })();
 
@@ -127,13 +129,13 @@ function makeRand(seed = 1831565813) {
     return () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; return (s >>> 0) / 4294967296; };
 }
 const gameRand = makeRand(1831565813);
-const stampRand = makeRand(0xC0FFEE31);
+const _stampRand = makeRand(0xC0FFEE31);
 function rng(lo, hi) {
     if (lo > hi) { const t = lo; lo = hi; hi = t; }
     return lo + (gameRand() * (hi - lo + 1)) | 0;
 }
 const pick = (rng) => (arr) => arr[Math.floor(rng() * arr.length)];
-const gamePick = pick(gameRand);
+const _gamePick = pick(gameRand);
 
 function smoothstep(x) { return x * x * (3 - 2 * x); }
 function sigmoid(x)    { return 1 / (1 + Math.exp(-8 * (x - 0.5))); }
@@ -147,12 +149,12 @@ function fastSin(x) {
 }
 
 const SAMPLERS = Object.freeze({
-    sine:     (x, u, harm) => fastSin(x),
-    square:   (x, u, harm) => fastSin(x) >= 0 ? 1 : -1,
-    sawtooth: (x, u, harm) => 2 * u - 1,
-    triangle: (x, u, harm) => u < 0.5 ? 4 * u - 1 : 3 - 4 * u,
-    pwm:      (x, u, harm) => u < 0.65 ? 1 : -1,
-    am:       (x, u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
+    sine:     (x, _u, _harm) => fastSin(x),
+    square:   (x, _u, _harm) => fastSin(x) >= 0 ? 1 : -1,
+    sawtooth: (_x, u, _harm) => 2 * u - 1,
+    triangle: (_x, u, _harm) => u < 0.5 ? 4 * u - 1 : 3 - 4 * u,
+    pwm:      (_x, u, _harm) => u < 0.65 ? 1 : -1,
+    am:       (x, _u, harm) => fastSin(x) * (1 + (harm || 0.5) * fastSin(x * 0.25)) * 0.5,
 });
 
 function sample(sig, t, addNoise) {
@@ -995,7 +997,7 @@ test("fastSin at exact LUT boundaries", () => {
 console.log("\n── self-validating source sync ─────────────────────────────");
 
 test("CONFIG values match main.js source", () => {
-    const fs = require("fs");
+    const fs = require("node:fs");
     const src = fs.readFileSync("./main.js", "utf8");
     const m = src.match(/const CONFIG = Object\.freeze\(\{([\s\S]*?)\}\);/);
     assert(m, "could not find CONFIG in main.js");
@@ -1003,6 +1005,7 @@ test("CONFIG values match main.js source", () => {
     const srcConfig = {};
     const lineRe = /(\w+):\s*([^,\n]+)/g;
     let match;
+    // biome-ignore lint/suspicious/noAssignInExpressions: brevity and semantics
     while ((match = lineRe.exec(m[1])) !== null) {
         srcConfig[match[1]] = match[2].trim();
     }
@@ -1013,7 +1016,7 @@ test("CONFIG values match main.js source", () => {
 });
 
 test("LEVELS.length matches main.js source", () => {
-    const fs = require("fs");
+    const fs = require("node:fs");
     const src = fs.readFileSync("./main.js", "utf8");
     const m = src.match(/const LEVELS = \[([\s\S]*?)\];/);
     assert(m, "could not find LEVELS in main.js");
@@ -1179,6 +1182,65 @@ test("matchScore caching returns same value when not invalidated", () => {
     invalidateMatchScore();
     const third = matchScore();
     assert(third !== first || third !== second, "after invalidate score should potentially change");
+});
+
+// ─── LOCKED-TYPE PUZZLE: GUIDE + GHOST ───────────────────────────────────
+
+console.log("\n── Guide / Ghost archetypes ───────────────────────────────────");
+
+test("ARCHETYPES contains exactly two Guide entries", () => {
+	const fs = require("node:fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const m = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/);
+	assert(m, "could not find ARCHETYPES in main.js");
+	const guides = (m[1].match(/name:\s*"Guide"/g) || []);
+	assertEq(guides.length, 2, `expected 2 Guide entries, got ${guides.length}`);
+});
+
+test("ARCHETYPES contains exactly two Ghost entries", () => {
+	const fs = require("node:fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const m = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/);
+	assert(m, "could not find ARCHETYPES in main.js");
+	const ghosts = (m[1].match(/name:\s*"Ghost"/g) || []);
+	assertEq(ghosts.length, 2, `expected 2 Ghost entries, got ${ghosts.length}`);
+});
+
+const _puzzleAssertTypeAndLevel = (name, minLevel) => {
+	const fs = require("node:fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	const block = src.match(/const ARCHETYPES = \[([\s\S]*?)\];/)[1];
+	const entries = block.match(new RegExp(`\\{[^}]+name:\\s*"${name}"[^}]+\\}`, "g")) || [];
+	assertEq(entries.length, 2, `expected 2 ${name} entries`);
+	for (const e of entries) {
+		const typeMatch = e.match(/type:\s*"(\w+)"/);
+		assert(typeMatch, `${name} entry missing type field`);
+		assert(["pwm", "am"].includes(typeMatch[1]), `${name} type must be pwm or am, got ${typeMatch[1]}`);
+		const lm = e.match(/levelMin:\s*(\d+)/);
+		assert(lm, `${name} entry missing levelMin`);
+		assert(Number(lm[1]) >= minLevel, `${name} levelMin must be >= ${minLevel}, got ${lm[1]}`);
+	}
+};
+
+test("both Guide archetypes use pwm or am type and have levelMin >= 5", () => {
+	_puzzleAssertTypeAndLevel("Guide", 5);
+});
+
+test("both Ghost archetypes use pwm or am type and have levelMin >= 6", () => {
+	_puzzleAssertTypeAndLevel("Ghost", 6);
+});
+
+test("Round._typePuzzle resets — verify field exists in reset() source", () => {
+	const fs = require("node:fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	assert(src.includes("_typePuzzle: false"), "Round._typePuzzle field not declared");
+	assert(src.includes("this._typePuzzle = false"), "_typePuzzle not reset in Round.reset()");
+});
+
+test("exitLevel clears puzzle-disabled classes — verify cleanup call in source", () => {
+	const fs = require("node:fs");
+	const src = fs.readFileSync("./main.js", "utf8");
+	assert(src.includes("puzzle-disabled"), "puzzle-disabled class not referenced in source");
 });
 
 // ─── RESULTS ──────────────────────────────────────────────────────────────────

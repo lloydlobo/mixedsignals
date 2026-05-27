@@ -153,6 +153,17 @@ const ARCHETYPES = [
 	{ name: "Wobble", type: "am", freq: 3, amp: 5, phase: 0, dc: 0, harm: 0, levelMin: 4 },
 	{ name: "Glitch", type: "pwm", freq: 4, amp: 6, phase: 180, dc: 0, harm: 0, levelMin: 4 },
 	{ name: "Drone", type: "sawtooth", freq: 2, amp: 4, phase: 0, dc: 0, harm: 4, levelMin: 5 },
+	{ name: "Resonance", type: "sine", freq: 4, amp: 6, phase: 0, dc: 0, harm: 4, levelMin: 5 },
+	{ name: "Buzz", type: "square", freq: 3, amp: 7, phase: 0, dc: 0, harm: 3, levelMin: 5 },
+	{ name: "Hum", type: "triangle", freq: 2, amp: 5, phase: 0, dc: 0, harm: 2, levelMin: 5 },
+	{ name: "Siren", type: "am", freq: 6, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 4 },
+	{ name: "Stutter", type: "pwm", freq: 7, amp: 8, phase: 0, dc: 0, harm: 0, levelMin: 4 },
+	{ name: "Scrambler", type: "pwm", freq: 5, amp: 6, phase: 90, dc: 0, harm: 3, levelMin: 6 },
+	{ name: "Throb", type: "sawtooth", freq: 3, amp: 8, phase: 0, dc: -2, harm: 2, levelMin: 6 },
+	{ name: "Guide", type: "pwm", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 5 },
+	{ name: "Guide", type: "am", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 5 },
+	{ name: "Ghost", type: "pwm", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 6 },
+	{ name: "Ghost", type: "am", freq: 5, amp: 7, phase: 0, dc: 0, harm: 0, levelMin: 6 },
 ];
 
 // On debut levels, only archetypes that exercise the new param appear —
@@ -160,8 +171,8 @@ const ARCHETYPES = [
 const _DEBUT_ARCHETYPES = {
 	2: ["Phase Shift"],
 	3: ["Subsonic"],
-	4: ["Wobble", "Glitch"],
-	5: ["Drone"],
+	4: ["Wobble", "Glitch", "Siren", "Stutter"],
+	5: ["Drone", "Resonance", "Buzz", "Hum", "Guide"],
 };
 
 // ─── GAME STATE ───────────────────────────────────────────────────────────────
@@ -189,6 +200,7 @@ const Round = {
 	_setTypeScheduled: false,
 	_lastUrgentSfx: 0,
 	_wasCloseSfx: false,
+	_typePuzzle: false,
 	_revealedHints: null,
 
 	reset() {
@@ -204,6 +216,7 @@ const Round = {
 		this._setTypeScheduled = false;
 		this._lastUrgentSfx = 0;
 		this._wasCloseSfx = false;
+		this._typePuzzle = false;
 		this._revealedHints = new Set();
 	},
 };
@@ -293,6 +306,7 @@ function initUI() {
 
 	UI.displays = {
 		score: document.getElementById("score"),
+		pbDisplay: document.getElementById("pb-display"),
 		pct: document.getElementById("pct"),
 		feedback: document.getElementById("feedback"),
 		hintLog: document.getElementById("hint-log"),
@@ -302,12 +316,14 @@ function initUI() {
 		fill: document.getElementById("fill"),
 		flash: document.getElementById("flash"),
 		deadMsg: document.getElementById("dead-msg"),
+		victoryMsg: document.getElementById("victory-msg"),
 		luTitle: document.getElementById("lu-title"),
 		luMsg: document.getElementById("lu-msg"),
 		luScore: document.getElementById("lu-score"),
 		luBest: document.getElementById("lu-best"),
 		luRounds: document.getElementById("lu-rounds"),
 		luCombo: document.getElementById("lu-combo"),
+		luTime: document.getElementById("lu-time"),
 		luHints: document.getElementById("lu-hints"),
 		luSkips: document.getElementById("lu-skips"),
 		unlockMsg: document.getElementById("unlock-msg"),
@@ -387,6 +403,12 @@ const BUTTON_ACTIONS = {
 		showScreen("start");
 	},
 	"btn-dismiss-ceremony": dismissCeremony,
+	"btn-victory-continue": () => {
+		SFX.back();
+		renderStartScreen();
+		showScreen("start");
+	},
+	"btn-victory-freeplay": startVictoryFreeplay,
 	"btn-hint": useHint,
 	"btn-skip": skipRound,
 	"menu-btn": goToMenu,
@@ -1894,7 +1916,7 @@ function paramGradientTargetDelta() {
 	return result;
 }
 
-// Call from DevTools to A/B test both strategies: abCompareParamGradients()
+// biome-ignore lint/correctness/noUnusedVariables: Call from DevTools to A/B test both strategies: abCompareParamGradients()
 function abCompareParamGradients() {
 	const probe = paramGradient();
 	const direct = paramGradientTargetDelta();
@@ -2051,9 +2073,25 @@ let _celebTargetAmp = 0.12,
 const YOURS_SIGNAL_WOBBLE_PHASES = [1.3, Math.PI * 0.5, Math.PI * 0.618, Math.PI * 0.85, Math.PI];
 const MAX_YOURS_SIGNAL_WOBBLE_PHASES = YOURS_SIGNAL_WOBBLE_PHASES.length;
 
-// Per-wave wobble personality profiles (TODO #1)
-const WOBBLE_TARGET = { amp: 3.5, freq: 3.0, speed: 0.0012 };
-const WOBBLE_YOURS = { amp: 2.0, freq: 5.5, speed: 0.0025 };
+// Per-wave target wobble personality profiles
+const WOBBLE_TARGET_PROFILES = {
+	sine: { amp: 2.5, freq: 3.0, speed: 0.0010 },
+	square: { amp: 4.0, freq: 1.5, speed: 0.0008 },
+	sawtooth: { amp: 3.0, freq: 5.0, speed: 0.0014 },
+	triangle: { amp: 1.5, freq: 3.5, speed: 0.0009 },
+	pwm: { amp: 4.5, freq: 1.0, speed: 0.0010 },
+	am: { amp: 2.5, freq: 2.0, speed: 0.0007 },
+};
+
+// Per-wave your-signal wobble personality profiles
+const WOBBLE_YOURS_PROFILES = {
+	sine: { amp: 2.0, freq: 5.5, speed: 0.0025 },
+	square: { amp: 3.5, freq: 2.5, speed: 0.0020 },
+	sawtooth: { amp: 3.0, freq: 7.0, speed: 0.0030 },
+	triangle: { amp: 1.2, freq: 4.0, speed: 0.0020 },
+	pwm: { amp: 4.0, freq: 2.0, speed: 0.0025 },
+	am: { amp: 2.5, freq: 6.0, speed: 0.0018 },
+};
 
 // Each waveform type has its own celebration dance personality
 const CELEBRATION_PROFILES = {
@@ -2102,6 +2140,8 @@ function loop(ts) {
 	const sc = matchScore(),
 		t = smoothstep(sc);
 	const _smoothYoursSig = { ...yoursSignal, phase: _smoothPhase };
+	const _targetWobble = WOBBLE_TARGET_PROFILES[targetSignal?.type ?? "sine"];
+	const _yoursWobble = WOBBLE_YOURS_PROFILES[_smoothYoursSig.type ?? "sine"];
 	const LOCK_DUR = RENDER.LOCK_MS;
 	let lockT = 0;
 	if (Round._lockAnimStart > 0) {
@@ -2163,7 +2203,7 @@ function loop(ts) {
 				repScroll,
 				1.5,
 				0,
-				{ ...WOBBLE_TARGET, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq },
+				{ ..._targetWobble, celebAmp: _celebTargetAmp, celebFreq: _celebTargetFreq },
 				lockT,
 				_impactStr,
 			);
@@ -2178,7 +2218,7 @@ function loop(ts) {
 			repScroll,
 			3 + 2 * flash,
 			YOURS_SIGNAL_WOBBLE_PHASE,
-			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			{ ..._yoursWobble, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
 			lockT,
 			_impactStr,
 		);
@@ -2193,26 +2233,26 @@ function loop(ts) {
 			repScroll,
 			2,
 			YOURS_SIGNAL_WOBBLE_PHASE,
-			{ ...WOBBLE_YOURS, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
+			{ ..._yoursWobble, celebAmp: _celebYoursAmp, celebFreq: _celebYoursFreq },
 			lockT,
 			_impactStr,
 		);
 	} else {
 		if (Round.roundNo === 1) {
 			_ctx.globalAlpha = 0.1 + 0.65 * sigmoid(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#00ff88", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else if (Round.roundNo % 2 === 0) {
 			_ctx.globalAlpha = 0.15 + 0.55 * Math.sqrt(sc);
-			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, "#5b8dd9", W, H, scroll, 4 / 2, 0, _targetWobble, lockT);
 		} else {
 			_ctx.globalAlpha = 0.15 + 0.6 * t;
-			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, WOBBLE_TARGET, lockT);
+			if (targetSignal !== null) drawWave(targetSignal, WAVE_COLORS.target, W, H, scroll, (3 + sc) / 2, 0, _targetWobble, lockT);
 		}
 
 		_ctx.globalAlpha = 0.4 + 0.6 * t;
-		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
-		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, WOBBLE_YOURS, lockT);
+		if (Round.roundNo === 1) drawWave(_smoothYoursSig, "#ffb830", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else if (Round.roundNo % 2 === 0) drawWave(_smoothYoursSig, "#e8604a", W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
+		else drawWave(_smoothYoursSig, WAVE_COLORS.yours, W, H, scroll, 4 / 2, YOURS_SIGNAL_WOBBLE_PHASE, _yoursWobble, lockT);
 	}
 
 	_ctx.globalAlpha = 1;
@@ -2451,6 +2491,9 @@ function updateMeter() {
 	const fb = UI.displays.feedback;
 	const winPct = winThreshold();
 
+	// hold-at-95% was evaluated & shelved. Timer race condition (time expires during hold
+	// before 500ms elapses) confirmed complexity cost. Flagged for lv7-12 when phase drift
+	// and target instability add natural need for a confirmation window. See TODO.md.
 	if (pct >= winPct) {
 		Round._wasCloseSfx = false;
 		if (Session.tutorialActive) {
@@ -2479,7 +2522,7 @@ function updateMeter() {
 		else if (Round.combo === 2) spawnStamp("combo_2");
 		if (navigator.vibrate) navigator.vibrate(100);
 		setTimeout(() => nextRound(), 1800);
-	} else if (pct >= CONFIG.CLOSE_PERCENTAGE) {
+	} else if (pct >= CONFIG.CLOSE_PERCENTAGE && !Round._typePuzzle) { // NOTE: !Round._typePuzzle gives `Ghost` like archetype's feedback higher priority
 		if (Session.tutorialActive) return;
 		fb.textContent = "Getting close…";
 		fb.className = "feedback close";
@@ -2492,12 +2535,19 @@ function updateMeter() {
 		}
 	} else {
 		if (Session.tutorialActive) return;
-		fb.textContent = "Match the target signal.";
-		fb.className = "feedback";
-		fb.classList.remove("feedback-snap");
-		void fb.offsetWidth;
-		fb.classList.add("feedback-snap");
-		Round._wasCloseSfx = false;
+		if (Round._typePuzzle) {
+			fb.textContent = targetSignal?.archetype === "Guide" ? "Select the highlighted waveform" : "Click to find the active waveform";
+			fb.className = "feedback";
+			fb.classList.remove("feedback-snap");
+			Round._wasCloseSfx = false;
+		} else {
+			fb.textContent = "Match the target signal.";
+			fb.className = "feedback";
+			fb.classList.remove("feedback-snap");
+			void fb.offsetWidth;
+			fb.classList.add("feedback-snap");
+			Round._wasCloseSfx = false;
+		}
 	}
 	updateMixState();
 }
@@ -2564,6 +2614,23 @@ function recompute() {
 
 function setType(btn) {
 	if (Round.won) return; // NOTE: Freeze waveform type buttons on lock-in
+	if (Round._typePuzzle) {
+		if (btn.dataset.t !== targetSignal.type) {
+			btn.classList.add("puzzle-wrong");
+			btn.addEventListener("animationend", () => btn.classList.remove("puzzle-wrong"), { once: true });
+			return;
+		}
+		// Correct type found — resolve the puzzle
+		Round._typePuzzle = false;
+		document.querySelectorAll(".type-btn").forEach(b => {
+			b.classList.remove("puzzle-disabled");
+			b.disabled = !LEVELS[Session.level].types.includes(b.dataset.t);
+		});
+		if (UI.archetypeName) {
+			UI.archetypeName.textContent = targetSignal.archetype === "Guide" ? "✦ Guide" : "◇ Ghost";
+			UI.archetypeName.classList.remove("hidden");
+		}
+	}
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("active"));
 	btn.classList.add("active");
 	yoursSignal.type = btn.dataset.t;
@@ -3004,6 +3071,7 @@ function _refreshTabDisplay() {
 // ─── LEVEL UI ────────────────────────────────────────────────────────────────
 
 function applyLevelUI() {
+	if (Round._typePuzzle) return;
 	const lv = LEVELS[Session.level];
 	UI.labels.level.textContent = Session.postGameFreeplay ? "∞" : Session.level + 1;
 	UI.displays.roundTotal.textContent = Session.postGameFreeplay ? "∞" : lv.rounds;
@@ -3121,6 +3189,7 @@ function exitLevel() {
 	if (UI.scopeWrap) UI.scopeWrap.classList.remove("grace-active");
 	const reveal = document.getElementById("target-reveal");
 	if (reveal) reveal.classList.add("hidden");
+	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("puzzle-disabled", "puzzle-wrong"));
 }
 
 function enterLevel() {
@@ -3133,9 +3202,33 @@ function enterLevel() {
 		UI.archetypeName.textContent = targetSignal.archetype ?? "";
 		UI.archetypeName.classList.toggle("hidden", !targetSignal.archetype);
 	}
+	if (UI.displays.pbDisplay) {
+		const save = loadSave();
+		const pb = save.bestScores[Session.level] || 0;
+		UI.displays.pbDisplay.textContent = pb > 0 ? pb : "—";
+	}
 	invalidateMatchScore();
 	applyLevelUI();
 	resetYours();
+	if (targetSignal.archetype === "Guide" || targetSignal.archetype === "Ghost") {
+		Round._typePuzzle = true;
+		document.querySelectorAll(".type-btn").forEach(b => {
+			b.disabled = false;
+			b.classList.remove("active");
+			b.classList.add("puzzle-disabled");
+		});
+		if (targetSignal.archetype === "Guide") {
+			const correct = document.querySelector(`.type-btn[data-t="${targetSignal.type}"]`);
+			if (correct) {
+				correct.classList.remove("puzzle-disabled");
+				correct.classList.add("active");
+			}
+		}
+		if (UI.archetypeName) {
+			UI.archetypeName.textContent = targetSignal.archetype === "Guide" ? "✦ Guide" : "🔒 ???";
+			UI.archetypeName.classList.remove("hidden");
+		}
+	}
 	const feedback = UI.displays.feedback;
 	feedback.textContent = "Match the target signal.";
 	feedback.className = "feedback";
@@ -3271,6 +3364,7 @@ function showLevelUpScreen() {
 	const combo = Round.combo;
 	const hintsUsed = Round._hintsUsed;
 	const skipsUsed = Round._skipsUsed;
+	const timeLeft = Round.timeLeft;
 
 	transitionBGM(BGM_STATE.MENU);
 	exitLevel();
@@ -3300,6 +3394,7 @@ function showLevelUpScreen() {
 	if (UI.displays.luBest) UI.displays.luBest.textContent = bestScore;
 	if (UI.displays.luRounds) UI.displays.luRounds.textContent = levelRounds;
 	if (UI.displays.luCombo) UI.displays.luCombo.textContent = combo;
+	if (UI.displays.luTime) UI.displays.luTime.textContent = timeLeft > 0 ? `${timeLeft}s` : "—";
 	if (UI.displays.luHints) UI.displays.luHints.textContent = hintsUsed;
 	if (UI.displays.luSkips) UI.displays.luSkips.textContent = skipsUsed;
 
@@ -3478,16 +3573,23 @@ function continueLevel() {
 	}
 }
 
+function startVictoryFreeplay() {
+	SFX.confirm();
+	dispatch({ type: "LEVEL_SET", payload: LEVELS.length - 1 });
+	dispatch({ type: "ROUND_SET", payload: 1 });
+	Session.postGameFreeplay = true;
+	UI.displays.score.textContent = "∞";
+	showScreen("game");
+	startLoop();
+	nextRound();
+}
+
 function victory() {
 	transitionBGM(BGM_STATE.VICTORY);
 	exitLevel();
-	const h3 = UI.displays.screenDead?.querySelector("h3");
-	if (h3) {
-		h3.textContent = "MIXED SIGNALS MASTERED";
-		h3.style.color = "var(--green)";
-	}
-	UI.displays.deadMsg.textContent = `All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
-	showScreen("dead");
+	UI.displays.victoryMsg.textContent =
+		`All ${LEVELS.length} levels cleared with ${Session.score} pts. Legendary.`;
+	showScreen("victory");
 	SFX.levelUp();
 }
 
@@ -3503,11 +3605,6 @@ function gameOver() {
 	exitLevel();
 	flash("#ff4554");
 	spawnStamp("fail");
-	const h3 = UI.displays.screenDead?.querySelector("h3");
-	if (h3) {
-		h3.textContent = "SIGNAL LOST";
-		h3.style.color = "var(--red)";
-	}
 	UI.displays.deadMsg.textContent = `Level ${Session.level + 1} · Round ${Round.roundNo} · ${Session.score} pts`;
 	const t = targetSignal,
 		lv = LEVELS[Session.level];
@@ -4722,20 +4819,14 @@ showScreen("start");
 		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
 
 		if (buffer === secret) {
-			// 1. If already loaded, just re-run the audit
 			if (window.perfAudit) {
-				console.log("%c 🔄 RE-RUNNING AUDIT... ", "color: #f1c40f; font-weight: bold;");
 				window.perfAudit.runAll();
 				return;
 			}
 
-			// 2. Otherwise, inject the script
-			console.log("%c 🛰️ FETCHING AUDIT SUITE... ", "color: #3498db; font-weight: bold;");
 			const s = document.createElement("script");
-			// Cache busting: ?v= allows you to see updates immediately after a push
 			s.src = `/perf-zenith.js?v=${Date.now()}`;
 			s.onload = () => {
-				console.log("%c 🔓 ZENITH SUITE READY ", "color: #00ff00; font-weight: bold;");
 				window.perfAudit.runAll();
 			};
 			document.head.appendChild(s);
@@ -4762,19 +4853,14 @@ showScreen("start");
 		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
 
 		if (buffer !== secret) return;
-		console.log("%c🛰 DIAGNOSTIC INVOKED", "color:#00ffff;font-weight:bold");
 
-		// already loaded
 		if (window.perfAuditDeepScan) {
-			console.log("%c🔄 RE-RUNNING", "color:#f1c40f;font-weight:bold");
 			await perfAuditDeepScan.runAll();
 			return;
 		}
-		console.log("%c📡 FETCHING PERF", "color:#3498db;font-weight:bold");
 		const s = document.createElement("script");
 		s.src = `/perf-deepscan.js?v=${Date.now()}`;
 		s.onload = async () => {
-			console.log("%c🔓 SUITE READY", "color:#00ff00;font-weight:bold");
 			await perfAuditDeepScan.runAll();
 		};
 		document.head.appendChild(s);

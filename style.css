@@ -993,6 +993,28 @@ canvas.scope {
 	pointer-events: none;
 }
 
+.type-btn.puzzle-disabled {
+	opacity: 0.35;
+	cursor: pointer;
+	pointer-events: auto;
+}
+.type-btn.puzzle-disabled:hover {
+	opacity: 0.6;
+	background: var(--surface-hover);
+}
+
+@keyframes puzzle-wrong {
+	0%, 100% { transform: translateX(0); }
+	20% { transform: translateX(-4px); }
+	40% { transform: translateX(4px); }
+	60% { transform: translateX(-3px); }
+	80% { transform: translateX(3px); }
+}
+
+.type-btn.puzzle-wrong {
+	animation: puzzle-wrong 0.2s ease-out;
+}
+
 /* ============================================================
    SLIDERS
    ============================================================ */
@@ -2112,6 +2134,9 @@ input[type="range"]::-moz-range-thumb {
 #game[data-screen="levelup"] #screen-levelup {
 	display: flex;
 }
+#game[data-screen="victory"] #screen-victory {
+	display: flex;
+}
 #game[data-screen="levelselect"] #screen-levelselect {
 	display: flex;
 }
@@ -2906,4 +2931,21 @@ canvas#mg-canvas {
 
 .type-btn {
 	padding: 8px 2px 6px;
+}
+
+/* ============================================================
+   PREFERS-REDUCED-MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		animation-duration: 0.01ms !important;
+	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		animation-iteration-count: 1 !important;
+	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		transition-duration: 0.01ms !important;
+	}
 }
