@@ -185,9 +185,10 @@ body {
 }
 
 /* ============================================================
-   LOGO
+   Logo
    ============================================================ */
 
+/* Container & Canvas Placement (Untouched) */
 .screen-logo {
 	position: relative;
 	width: 100%;
@@ -202,24 +203,18 @@ body {
 	width: 75%;
 	height: auto;
 	aspect-ratio: 900 / 300;
+	z-index: 2;
 }
 
 .logo-svg {
-	display: block;
-	width: min(100%, 520px);
-	aspect-ratio: 1200 / 700;
+	width: 100%;
 	height: auto;
-	margin-inline: auto;
-	filter: contrast(0.96) saturate(0.92);
+	display: block;
 }
 
-/* ============================================================
-   SVG THEME
-   ============================================================ */
-
-.logo-grid-line {
-	stroke: rgba(255, 255, 255, 0.04);
-	stroke-width: 1;
+/* SVG Shapes */
+.logo-panel {
+	fill: var(--bg);
 }
 
 .logo-grid-midline {
@@ -227,44 +222,24 @@ body {
 	stroke-width: 1;
 }
 
-.logo-panel {
-	fill: var(--bg);
-}
-
-/* ============================================================
-   TEXT
-   ============================================================ */
-
+/* SVG Typography */
 .logo-mixed,
 .logo-signals {
-	/* font-family: var(--font-mono); */
 	font-family: var(--font-ui);
 	font-weight: 900;
 	letter-spacing: 10px;
 	text-transform: uppercase;
 }
 
-/* MIXED */
 .logo-mixed {
 	font-size: 170px;
 	fill: var(--cream);
-	opacity: 0.82;
 }
 
-/* SIGNALS */
 .logo-signals {
 	font-size: 170px;
 	fill: var(--coral);
-	opacity: 0.88;
 }
-
-/* ============================================================
-   WAVEFORMS
-   ============================================================ */
-
-/* ============================================================
-   TAGLINE
-   ============================================================ */
 
 .logo-tagline {
 	font-family: var(--font-ui);
@@ -279,6 +254,12 @@ body {
    ============================================================ */
 
 @media (max-width: 640px) {
+
+	/* (Sanity Check the Mobile Query) You don't need to change this, but you
+	 * should test it on a mobile layout.  Because the SVG is now just a
+	 * lightweight vector shell (without the heavy grid pattern and filters), it
+	 * should scale perfectly and run much smoother on phones. The canvas scope
+	 * will automatically resize to fit that 75% width we set earlier. */
 	.logo-svg {
 		width: 100%;
 	}
@@ -1004,11 +985,22 @@ canvas.scope {
 }
 
 @keyframes puzzle-wrong {
-	0%, 100% { transform: translateX(0); }
-	20% { transform: translateX(-4px); }
-	40% { transform: translateX(4px); }
-	60% { transform: translateX(-3px); }
-	80% { transform: translateX(3px); }
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	20% {
+		transform: translateX(-4px);
+	}
+	40% {
+		transform: translateX(4px);
+	}
+	60% {
+		transform: translateX(-3px);
+	}
+	80% {
+		transform: translateX(3px);
+	}
 }
 
 .type-btn.puzzle-wrong {
@@ -2320,11 +2312,21 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ━━━ MENU BUTTON ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-#btn-hint { color: var(--amber); }
-#btn-skip { color: var(--red); }
-#menu-btn { color: var(--text-dim); }
-#skip-tut { color: var(--green); }
-#btn-freeplay-ready { color: var(--green); }
+#btn-hint {
+	color: var(--amber);
+}
+#btn-skip {
+	color: var(--red);
+}
+#menu-btn {
+	color: var(--text-dim);
+}
+#skip-tut {
+	color: var(--green);
+}
+#btn-freeplay-ready {
+	color: var(--green);
+}
 
 /* The color: var(--text-dim) keeps menu visually subordinate
    to HINT (amber) and SKIP (red) so it doesn't compete for attention. */
@@ -2941,11 +2943,11 @@ canvas#mg-canvas {
 	*,
 	*::before,
 	*::after {
-	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
 		animation-duration: 0.01ms !important;
-	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
 		animation-iteration-count: 1 !important;
-	/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
+		/* biome-ignore lint/complexity/noImportantStyles: utility class must override component display */
 		transition-duration: 0.01ms !important;
 	}
 }
