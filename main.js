@@ -4990,6 +4990,27 @@ showScreen("start");
 		document.head.appendChild(s);
 	});
 })();
+
+/**
+ * 🕹️ AUTOPLAY STEALTH LOADER
+ *
+ * Type:
+ *
+ * bot
+ *
+ * Toggles the autoplay/demo mode.
+ */
+(() => {
+	let buffer = "";
+	const secret = "bot";
+	window.addEventListener("keydown", function loader(e) {
+		if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
+		if (buffer === secret && window.autoplay) {
+			window.autoplay.toggle();
+		}
+	});
+})();
 // ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
 initControls();
 
