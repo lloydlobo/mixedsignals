@@ -3,25 +3,42 @@
 	"use strict";
 
 	const AUTOPLAY = {};
+	const TICK_MS = 200;
+	const BOOT_RETRY_MS = 300;
+	const MAX_BOOT_RETRIES = 20;
+
 	let _interval = null;
 	let _active = false;
+	let _busy = false;
+	let _bootRetries = 0;
 
 	function log(msg) {
 		console.log("[autoplay]", msg);
 	}
 
+	function byId(id) {
+		return document.getElementById(id);
+	}
+
+	function isVisible(el) {
+		return !!el && !el.classList.contains("hidden");
+	}
+
 	function screen() {
-		const g = document.getElementById("game");
-		return g ? g.dataset.screen || "start" : null;
+		const gameEl = byId("game");
+		return gameEl ? gameEl.dataset.screen || "start" : null;
 	}
 
 	function ceremonyVisible() {
-		const co = document.getElementById("ceremony-overlay");
-		return co && !co.classList.contains("hidden");
+		return isVisible(byId("ceremony-overlay"));
 	}
 
-	function click(id) {
-		const el = document.getElementById(id);
+	function settingsVisible() {
+		return isVisible(byId("settings-overlay"));
+	}
+
+	function clickIfEnabled(id) {
+		const el = byId(id);
 		if (el && !el.disabled) {
 			el.click();
 			return true;
@@ -29,13 +46,40 @@
 		return false;
 	}
 
+	function ready() {
+		return typeof Round !== "undefined" && typeof Session !== "undefined";
+	}
+
+	function closeSettingsIfOpen() {
+		if (!settingsVisible()) return false;
+
+		const closeBtn = byId("btn-close-settings");
+		if (closeBtn) closeBtn.click();
+		return true;
+	}
+
+	function dismissCeremonyIfOpen() {
+		if (!ceremonyVisible()) return false;
+
+		dismissCeremony();
+		return true;
+	}
+
 	function solveRound() {
+		if (!ready()) return false;
 		if (!targetSignal?.type || Round.won || Session.freePlayActive) return false;
+		if (typeof applySignal !== "function") return false;
 
 		const typeBtn = document.querySelector(`.type-btn[data-t="${targetSignal.type}"]`);
-		// Always click even if .active — Guide/Ghost archetypes mark the correct
-		// button as active (visual hint) but setType() must still fire to resolve
-		// the _typePuzzle lock. Calling setType on the active type is a no-op.
+
+		// IMPORTANT:
+		// Some archetypes (Guide/Ghost) visually preselect the correct waveform type
+		// by marking the button `.active`, but the round still requires an explicit
+		// click event to clear the internal `_typePuzzle` gate.
+		//
+		// Do NOT skip clicking when the button is already active.
+		// The visual state is only a hint; removing this unconditional click breaks
+		// those rounds.
 		if (typeBtn) typeBtn.click();
 
 		applySignal({
@@ -46,36 +90,32 @@
 			harm: targetSignal.harm,
 			noise: targetSignal.noise || 0,
 		});
-		_smoothPhase = yoursSignal.phase;
-		scheduleRender();
+
+		if (typeof yoursSignal !== "undefined" && yoursSignal) {
+			_smoothPhase = yoursSignal.phase;
+		}
+		if (typeof scheduleRender === "function") {
+			scheduleRender();
+		}
 
 		return true;
 	}
 
 	function tick() {
 		if (!_active) return;
-		if (typeof Round === "undefined" || typeof Session === "undefined") return;
+		if (!ready()) return;
 
-		const so = document.getElementById("settings-overlay");
-		if (so && !so.classList.contains("hidden")) {
-			const closeBtn = document.getElementById("btn-close-settings");
-			if (closeBtn) closeBtn.click();
-			return;
-		}
-
-		if (ceremonyVisible()) {
-			dismissCeremony();
-			return;
-		}
+		if (closeSettingsIfOpen()) return;
+		if (dismissCeremonyIfOpen()) return;
 
 		switch (screen()) {
 			case "start":
-				click("btn-new-game");
+				clickIfEnabled("btn-new-game");
 				break;
 
 			case "game":
 				if (Session.freePlayActive) {
-					click("btn-freeplay-ready");
+					clickIfEnabled("btn-freeplay-ready");
 					return;
 				}
 				if (Round.won) return;
@@ -83,32 +123,50 @@
 				break;
 
 			case "levelup":
-				click("btn-continue-level");
+				clickIfEnabled("btn-continue-level");
 				break;
 
 			case "dead":
-				click("btn-retry");
+				clickIfEnabled("btn-retry");
 				break;
 
 			case "victory":
-				click("btn-victory-continue");
+				clickIfEnabled("btn-victory-continue");
 				break;
 
 			case "minigame": {
-				const mgBtn = document.getElementById("mg-btn");
+				const mgBtn = byId("mg-btn");
 				if (mgBtn && !mgBtn.disabled) mgBtn.click();
 				break;
 			}
 		}
 	}
 
+	function pump() {
+		if (_busy || !_active) return;
+		_busy = true;
+		try {
+			tick();
+		} finally {
+			_busy = false;
+		}
+	}
+
 	AUTOPLAY.start = () => {
 		if (_active) return;
-		if (typeof Round === "undefined") {
-			setTimeout(AUTOPLAY.start, 300);
+
+		if (!ready()) {
+			_bootRetries += 1;
+			if (_bootRetries > MAX_BOOT_RETRIES) {
+				log("start failed: game globals never became ready");
+				_bootRetries = 0;
+				return;
+			}
+			setTimeout(AUTOPLAY.start, BOOT_RETRY_MS);
 			return;
 		}
 
+		_bootRetries = 0;
 		_active = true;
 		log("started");
 
@@ -116,12 +174,9 @@
 		Session.minigames = false;
 		Session.ceremonies = false;
 
-		const so = document.getElementById("settings-overlay");
-		if (so && !so.classList.contains("hidden")) {
-			closeSettings();
-		}
+		closeSettingsIfOpen();
 
-		_interval = setInterval(tick, 200);
+		_interval = setInterval(pump, TICK_MS);
 	};
 
 	AUTOPLAY.stop = () => {
@@ -130,6 +185,7 @@
 			clearInterval(_interval);
 			_interval = null;
 		}
+		_busy = false;
 		log("stopped");
 	};
 
@@ -149,7 +205,9 @@
 
 	if (window.location.search.includes("autoplay")) {
 		if (document.readyState === "loading") {
-			document.addEventListener("DOMContentLoaded", () => setTimeout(AUTOPLAY.start, 500));
+			document.addEventListener("DOMContentLoaded", () => {
+				setTimeout(AUTOPLAY.start, 500);
+			});
 		} else {
 			setTimeout(AUTOPLAY.start, 500);
 		}
@@ -158,26 +216,116 @@
 	log("loaded");
 })();
 
-/* 
+/*
 
-Changes
-autoplay.js (new, 157 lines) — Self-contained autoplay module with a 200ms polling loop that:
-- Start screen → clicks "NEW GAME"
-- Game screen → reads targetSignal, clicks correct type button, copies all params via applySignal()
-- Freeplay → clicks "READY"
-- Level-up → clicks "CONTINUE"
-- Dead screen → clicks "RETRY"
-- Victory → clicks "CONTINUE"
-- Minigame → clicks the action button
-- Ceremony overlay → auto-dismisses
-- Settings overlay → auto-closes
-index.html — Added <script src="autoplay.js" defer></script> after main.js
-main.js (line 5003) — Added "bot" stealth key listener (same pattern as zenith/deepscan)
+Autoplay System
+===============
+
+Files
+-----
+- autoplay.js (new)
+  Self-contained autoplay/devtool module driven by a lightweight polling loop.
+
+- index.html
+  Added:
+    <script src="autoplay.js" defer></script>
+  after main.js so autoplay initializes against fully-loaded game globals.
+
+- main.js
+  Added hidden "bot" key-sequence listener (same stealth pattern used by
+  zenith/deepscan) to toggle autoplay in-game.
+
+
+Behavior
+--------
+Polling interval: 200ms
+
+The autoplay layer observes current game/UI state and performs the minimal
+input required to advance naturally through the existing gameplay flow.
+
+Screen handling:
+- Start screen
+  -> clicks "NEW GAME"
+
+- Game screen
+  -> reads targetSignal
+  -> explicitly clicks the waveform type button
+  -> applies waveform parameters via applySignal()
+
+- Freeplay
+  -> clicks "READY"
+
+- Level-up
+  -> clicks "CONTINUE"
+
+- Dead screen
+  -> clicks "RETRY"
+
+- Victory screen
+  -> clicks "CONTINUE"
+
+- Minigame
+  -> clicks the minigame action button
+
+Overlay handling:
+- Ceremony overlays are auto-dismissed
+- Settings overlay is auto-closed
+
+
+Important Gameplay Edge Case
+----------------------------
+Guide/Ghost archetypes may visually pre-highlight the correct waveform type
+by marking the button `.active`.
+
+This is ONLY a visual hint.
+
+The round still requires a real click event to clear the internal
+`_typePuzzle` lock, so autoplay intentionally clicks the waveform type
+button even when it already appears active.
+
+Removing this unconditional click breaks those rounds.
+
+
 Usage
-Method	How
-URL param	index.html?autoplay — auto-starts on load
-Stealth key	Type b, o, t in-game to toggle
-Console	autoplay.start(), .stop(), .toggle(), .runAll()
-The game's own updateMeter() detects the 100% match and triggers the win flow naturally (1800ms lock animation → nextRound()), so the autoplay just sets the answer and the game handles the rest. Real-time timer means scoring reflects actual time bonuses.
+-----
+URL param:
+  index.html?autoplay
+  -> auto-start autoplay on page load
+
+Stealth key sequence:
+  Type: b, o, t
+  -> toggles autoplay in-game
+
+Console API:
+  autoplay.start()
+  autoplay.stop()
+  autoplay.toggle()
+  autoplay.runAll()
+
+
+Design Notes
+------------
+Autoplay does NOT bypass normal game progression.
+
+The system only:
+- selects the correct waveform type
+- applies the target signal values
+- triggers the same UI/input flow as a real player
+
+The existing game systems still handle:
+- meter validation
+- win detection
+- animations
+- round transitions
+- timers
+- scoring
+- bonuses
+
+Specifically:
+`updateMeter()` detects the 100% match and triggers the normal win flow:
+  lock animation (~1800ms) -> nextRound()
+
+This keeps autoplay aligned with real gameplay timing and preserves genuine
+score/time behavior during automated runs.
 
 */
