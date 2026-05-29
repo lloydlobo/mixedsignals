@@ -3185,11 +3185,7 @@ function _timerTick() {
 		el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
 	}
 	if (ring) {
-		ring.style.stroke = _timerGrace
-			? (LEVELS[Session.level].graceColor ?? "var(--blue)")
-			: urgent
-			? "#e85a4a"
-			: "#f0690a";
+		ring.style.stroke = _timerGrace ? (LEVELS[Session.level].graceColor ?? "var(--blue)") : urgent ? "#e85a4a" : "#f0690a";
 	}
 	if (urgent) {
 		const pct = Math.max(0, (Round.timeLeft - 1) / 7);
@@ -4994,23 +4990,84 @@ showScreen("start");
 /**
  * 🕹️ AUTOPLAY STEALTH LOADER
  *
- * Type:
+ * Desktop:
+ *   Type: bot
  *
- * bot
+ * Mobile:
+ *   Tap a screen corner multiple times quickly
  *
- * Toggles the autoplay/demo mode.
+ * Corners:
+ *   "top-right"
+ *   "top-left"
+ *   "bottom-right"
+ *   "bottom-left"
+ *
+ * Activation tuning:
+ *   - smaller CORNER_SIZE = harder to trigger
+ *   - larger REQUIRED_TAPS = more deliberate activation
+ *   - smaller TAP_WINDOW_MS = faster tap sequence required
+ *
+ * Designed to stay hidden during normal gameplay while still being
+ * convenient for testing, demos, speedruns, and automated balancing runs.
  */
 (() => {
+	const SECRET = "bot";
+
+	// Mobile tap trigger
+	const CORNER = "top-left";
+	const CORNER_SIZE = 60;
+	const REQUIRED_TAPS = 5;
+	const TAP_WINDOW_MS = 2000;
+
 	let buffer = "";
-	const secret = "bot";
-	window.addEventListener("keydown", function loader(e) {
-		if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-		buffer = (buffer + e.key.toLowerCase()).slice(-secret.length);
-		if (buffer === secret && window.autoplay) {
-			window.autoplay.toggle();
+	let taps = [];
+
+	const toggle = () => window.autoplay?.toggle();
+
+	function inCorner(x, y) {
+		const w = window.innerWidth;
+		const h = window.innerHeight;
+
+		switch (CORNER) {
+			case "top-right":
+				return w - x < CORNER_SIZE && y < CORNER_SIZE;
+			case "top-left":
+				return x < CORNER_SIZE && y < CORNER_SIZE;
+			case "bottom-right":
+				return w - x < CORNER_SIZE && h - y < CORNER_SIZE;
+			case "bottom-left":
+				return x < CORNER_SIZE && h - y < CORNER_SIZE;
+			default:
+				return false;
+		}
+	}
+
+	// Desktop: type "bot"
+	window.addEventListener("keydown", e => {
+		const tag = e.target.tagName;
+		if (tag === "INPUT" || tag === "TEXTAREA") return;
+		buffer = (buffer + e.key.toLowerCase()).slice(-SECRET.length);
+		if (buffer === SECRET) {
+			buffer = "";
+			toggle();
+		}
+	});
+
+	// Mobile: multi-tap corner
+	document.addEventListener("touchstart", e => {
+		if (e.touches.length !== 1) return;
+		const t = e.touches[0];
+		if (!inCorner(t.clientX, t.clientY)) return;
+		const now = performance.now();
+		taps.push(now);
+		taps = taps.filter(t => now - t < TAP_WINDOW_MS);
+		if (taps.length >= REQUIRED_TAPS) {
+			taps = [];
+			toggle();
 		}
 	});
 })();
+
 // ─── RESPONSIVE CONTROL MODE ─────────────────────────────────────────────────
 initControls();
 

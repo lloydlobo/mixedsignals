@@ -3,6 +3,7 @@
 	"use strict";
 
 	const AUTOPLAY = {};
+
 	const TICK_MS = 200;
 	const BOOT_RETRY_MS = 300;
 	const MAX_BOOT_RETRIES = 20;
@@ -11,6 +12,7 @@
 	let _active = false;
 	let _busy = false;
 	let _bootRetries = 0;
+	let _statusEl = null;
 
 	function log(msg) {
 		console.log("[autoplay]", msg);
@@ -39,10 +41,12 @@
 
 	function clickIfEnabled(id) {
 		const el = byId(id);
+
 		if (el && !el.disabled) {
 			el.click();
 			return true;
 		}
+
 		return false;
 	}
 
@@ -50,12 +54,56 @@
 		return typeof Round !== "undefined" && typeof Session !== "undefined";
 	}
 
+	function ensureStatusEl() {
+		if (_statusEl) return _statusEl;
+
+		const el = document.createElement("div");
+
+		el.id = "autoplay-status";
+		el.textContent = "AUTOPLAY";
+
+		Object.assign(el.style, {
+			position: "fixed",
+			top: "12px",
+			right: "12px",
+			zIndex: "999999",
+			padding: "6px 10px",
+			font: "12px monospace",
+			fontWeight: "bold",
+			letterSpacing: "0.08em",
+			borderRadius: "6px",
+			pointerEvents: "none",
+			userSelect: "none",
+			transition: "opacity 120ms ease",
+			background: "rgba(0,0,0,0.75)",
+			color: "#7CFF7C",
+			border: "1px solid rgba(124,255,124,0.35)",
+			boxShadow: "0 0 12px rgba(124,255,124,0.25)",
+			opacity: "0",
+		});
+
+		document.body.appendChild(el);
+
+		_statusEl = el;
+		return el;
+	}
+
+	function updateStatus(active) {
+		const el = ensureStatusEl();
+		el.style.opacity = active ? "1" : "0";
+	}
+
 	function closeSettingsIfOpen() {
 		if (!settingsVisible()) return false;
 
 		const closeBtn = byId("btn-close-settings");
-		if (closeBtn) closeBtn.click();
-		return true;
+
+		if (closeBtn) {
+			closeBtn.click();
+			return true;
+		}
+
+		return false;
 	}
 
 	function dismissCeremonyIfOpen() {
@@ -80,7 +128,9 @@
 		// Do NOT skip clicking when the button is already active.
 		// The visual state is only a hint; removing this unconditional click breaks
 		// those rounds.
-		if (typeBtn) typeBtn.click();
+		if (typeBtn) {
+			typeBtn.click();
+		}
 
 		applySignal({
 			freq: targetSignal.freq,
@@ -94,6 +144,7 @@
 		if (typeof yoursSignal !== "undefined" && yoursSignal) {
 			_smoothPhase = yoursSignal.phase;
 		}
+
 		if (typeof scheduleRender === "function") {
 			scheduleRender();
 		}
@@ -118,7 +169,9 @@
 					clickIfEnabled("btn-freeplay-ready");
 					return;
 				}
+
 				if (Round.won) return;
+
 				solveRound();
 				break;
 
@@ -136,7 +189,11 @@
 
 			case "minigame": {
 				const mgBtn = byId("mg-btn");
-				if (mgBtn && !mgBtn.disabled) mgBtn.click();
+
+				if (mgBtn && !mgBtn.disabled) {
+					mgBtn.click();
+				}
+
 				break;
 			}
 		}
@@ -144,7 +201,9 @@
 
 	function pump() {
 		if (_busy || !_active) return;
+
 		_busy = true;
+
 		try {
 			tick();
 		} finally {
@@ -157,20 +216,26 @@
 
 		if (!ready()) {
 			_bootRetries += 1;
+
 			if (_bootRetries > MAX_BOOT_RETRIES) {
 				log("start failed: game globals never became ready");
 				_bootRetries = 0;
 				return;
 			}
+
 			setTimeout(AUTOPLAY.start, BOOT_RETRY_MS);
 			return;
 		}
 
 		_bootRetries = 0;
 		_active = true;
+
+		updateStatus(true);
+
 		log("started");
 
 		lsSet("tutorialSeen", true);
+
 		Session.minigames = false;
 		Session.ceremonies = false;
 
@@ -181,17 +246,25 @@
 
 	AUTOPLAY.stop = () => {
 		_active = false;
+
 		if (_interval) {
 			clearInterval(_interval);
 			_interval = null;
 		}
+
 		_busy = false;
+
+		updateStatus(false);
+
 		log("stopped");
 	};
 
 	AUTOPLAY.toggle = () => {
-		if (_active) AUTOPLAY.stop();
-		else AUTOPLAY.start();
+		if (_active) {
+			AUTOPLAY.stop();
+		} else {
+			AUTOPLAY.start();
+		}
 	};
 
 	AUTOPLAY.runAll = () => {
