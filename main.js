@@ -522,6 +522,17 @@ function initEvents() {
 	window.addEventListener("blur", () => {
 		_lastTime = 0;
 		_elapsedTime = 0;
+		pauseGame();
+	});
+	window.addEventListener("focus", () => {
+		resumeGame();
+	});
+	document.addEventListener("visibilitychange", () => {
+		if (document.hidden) {
+			pauseGame();
+		} else {
+			resumeGame();
+		}
 	});
 
 	document.addEventListener("keydown", e => {
@@ -3111,70 +3122,118 @@ function applyLevelUI() {
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
 
+let _timerStart = 0;
+let _timerTotalMs = 0;
+let _timerRemainingMs = 0;
+let _timerPaused = false;
+let _timerGrace = false;
+let _timerTotalSec = 0;
+let _timerGraceColor = null;
+
 function startTimer() {
 	clearInterval(timerInterval);
+	timerInterval = null;
 	resetTensionFilter();
 	const lv = LEVELS[Session.level];
-	const grace = lv.grace && Round.roundNo === 1; // grace round: timeout advances, never kills
-	// biome-ignore lint/suspicious/noAssignInExpressions: <quick obvious semantic assignment>
-	const total = (Round.timeLeft = lv.time);
+	_timerGrace = !!(lv.grace && Round.roundNo === 1); // grace round: timeout advances, never kills
+	_timerTotalSec = lv.time;
+	Round.timeLeft = _timerTotalSec;
+	_timerTotalMs = _timerTotalSec * 1000;
+	_timerStart = performance.now();
+	_timerRemainingMs = _timerTotalMs;
+	_timerPaused = false;
+	_timerGraceColor = _timerGrace ? (lv.graceColor ?? "var(--blue)") : null;
+
 	const el = UI.displays.timer,
 		ring = UI.timerRingFill,
 		C = RENDER.TIMER_CIRC;
 
 	ring.style.transition = "none";
 	ring.style.strokeDashoffset = "0";
-	const graceColor = grace ? (lv.graceColor ?? "var(--blue)") : null;
-	ring.style.stroke = graceColor ?? "#f0690a";
+	ring.style.stroke = _timerGraceColor ?? "#f0690a";
 	ring.style.transition = "stroke-dashoffset 1s linear, stroke 0.3s";
 
 	// Grace theme: tint meter + scope-wrap to match the new param
 	const meterFill = UI.displays.fill;
-	if (meterFill) meterFill.style.background = graceColor ?? "";
-	if (UI.scopeWrap) UI.scopeWrap.classList.toggle("grace-active", grace);
+	if (meterFill) meterFill.style.background = _timerGraceColor ?? "";
+	if (UI.scopeWrap) UI.scopeWrap.classList.toggle("grace-active", _timerGrace);
 
 	el.textContent = Round.timeLeft;
 	el.className = "timer-ring-label";
-	if (grace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
+	if (_timerGrace) UI.displays.feedback.textContent = "Explore freely — no penalty this round.";
 
-	const _timerStart = performance.now();
-	const _totalMs = total * 1000;
+	_timerTick();
+}
 
-	function _timerTick() {
-		const elapsed = performance.now() - _timerStart;
-		const remaining = Math.max(0, _totalMs - elapsed);
-		Round.timeLeft = Math.ceil(remaining / 1000);
+function _timerTick() {
+	if (_timerPaused || Round.won || Session.freePlayActive) return;
 
-		ring.style.strokeDashoffset = C * (1 - Round.timeLeft / total);
-		const urgent = !Session.assistDisableUrgent && !grace && Round.timeLeft <= 8;
+	const elapsed = performance.now() - _timerStart;
+	_timerRemainingMs = Math.max(0, _timerTotalMs - elapsed);
+	Round.timeLeft = Math.ceil(_timerRemainingMs / 1000);
+
+	const el = UI.displays.timer,
+		ring = UI.timerRingFill,
+		C = RENDER.TIMER_CIRC;
+
+	if (ring) {
+		ring.style.strokeDashoffset = C * (1 - Round.timeLeft / _timerTotalSec);
+	}
+	const urgent = !Session.assistDisableUrgent && !_timerGrace && Round.timeLeft <= 8;
+	if (el) {
 		el.textContent = Round.timeLeft;
 		el.className = urgent ? "timer-ring-label urgent" : "timer-ring-label";
-		ring.style.stroke = grace ? (lv.graceColor ?? "var(--blue)") : urgent ? "#e85a4a" : "#f0690a";
-		if (urgent) {
-			const pct = Math.max(0, (Round.timeLeft - 1) / 7);
-			const freq = 150 + pct * 2050;
-			_tensionFilter.frequency.setValueAtTime(freq, actx().currentTime);
-			const now = Date.now();
-			if (now - Round._lastUrgentSfx > 500) {
-				SFX.urgent();
-				Round._lastUrgentSfx = now;
-			}
+	}
+	if (ring) {
+		ring.style.stroke = _timerGrace
+			? (LEVELS[Session.level].graceColor ?? "var(--blue)")
+			: urgent
+			? "#e85a4a"
+			: "#f0690a";
+	}
+	if (urgent) {
+		const pct = Math.max(0, (Round.timeLeft - 1) / 7);
+		const freq = 150 + pct * 2050;
+		const ac = actx();
+		if (_tensionFilter && ac) _tensionFilter.frequency.setValueAtTime(freq, ac.currentTime);
+		const now = Date.now();
+		if (now - Round._lastUrgentSfx > 500) {
+			SFX.urgent();
+			Round._lastUrgentSfx = now;
 		}
-		if (UI.scopeWrap) UI.scopeWrap.classList.toggle("urgent", urgent);
-		if (UI.canvas) UI.canvas.classList.toggle("urgent", urgent);
-		if (UI.timerRingWrap) UI.timerRingWrap.classList.toggle("urgent", urgent);
-		if (Round.timeLeft <= 0 && !Round.won) {
-			if (grace) {
-				UI.displays.feedback.textContent = "Time's up. Now it counts.";
-			} else if (!Session.assistInfiniteTime) {
-				gameOver();
-			}
-			return;
+	}
+	if (UI.scopeWrap) UI.scopeWrap.classList.toggle("urgent", urgent);
+	if (UI.canvas) UI.canvas.classList.toggle("urgent", urgent);
+	if (UI.timerRingWrap) UI.timerRingWrap.classList.toggle("urgent", urgent);
+
+	if (Round.timeLeft <= 0 && !Round.won) {
+		if (_timerGrace) {
+			UI.displays.feedback.textContent = "Time's up. Now it counts.";
+		} else if (!Session.assistInfiniteTime) {
+			gameOver();
 		}
-		timerInterval = setTimeout(_timerTick, 100);
+		return;
 	}
 
 	timerInterval = setTimeout(_timerTick, 100);
+}
+
+function pauseTimer() {
+	if (!_timerPaused && timerInterval) {
+		clearInterval(timerInterval);
+		timerInterval = null;
+		const elapsed = performance.now() - _timerStart;
+		_timerRemainingMs = Math.max(0, _timerTotalMs - elapsed);
+		_timerPaused = true;
+	}
+}
+
+function resumeTimer() {
+	if (_timerPaused && !Round.won && !Session.freePlayActive) {
+		_timerPaused = false;
+		_timerStart = performance.now() - (_timerTotalMs - _timerRemainingMs);
+		_timerTick();
+	}
 }
 
 // ─── LOOP CONTROL ────────────────────────────────────────────────────────────
@@ -3200,6 +3259,7 @@ function exitLevel() {
 	Round.reset();
 	clearInterval(timerInterval);
 	timerInterval = null;
+	_timerPaused = false;
 	stopLoop();
 	stopSignalPlayback();
 	if (UI.archetypeName) {
@@ -3213,6 +3273,37 @@ function exitLevel() {
 	const reveal = document.getElementById("target-reveal");
 	if (reveal) reveal.classList.add("hidden");
 	document.querySelectorAll(".type-btn").forEach(b => void b.classList.remove("puzzle-disabled", "puzzle-wrong"));
+}
+
+let _gamePaused = false;
+
+function pauseGame() {
+	if (_gamePaused) return;
+	_gamePaused = true;
+	pauseTimer();
+	if (_actx && _actx.state === "running") {
+		_actx.suspend().catch(() => {});
+	}
+	if (UI.audio && !UI.audio.paused) {
+		UI.audio.pause();
+	}
+	stopLoop();
+}
+
+function resumeGame() {
+	if (!_gamePaused) return;
+	_gamePaused = false;
+	if (_actx && _actx.state === "suspended") {
+		_actx.resume().catch(() => {});
+	}
+	if (UI.audio && UI.audio.paused && !Session.muted) {
+		UI.audio.play().catch(() => {});
+	}
+	_lastTime = 0;
+	if (currentScreen() === "game" && !Round.won) {
+		startLoop();
+	}
+	resumeTimer();
 }
 
 function enterLevel() {
@@ -3452,7 +3543,6 @@ function dismissCeremony() {
 }
 
 // ─── SETTINGS OVERLAY ─────────────────────────────────────────────────────────
-
 function showSettings() {
 	SFX.nav();
 	const overlay = document.getElementById("settings-overlay");
@@ -3460,14 +3550,20 @@ function showSettings() {
 	overlay.classList.remove("hidden");
 	_prevBgmState = _bgmState;
 	transitionBGM(BGM_STATE.SETTINGS);
+	pauseTimer();
+	stopLoop();
 }
 
 function closeSettings() {
 	SFX.back();
 	document.getElementById("settings-overlay").classList.add("hidden");
 	transitionBGM(_prevBgmState);
+	_lastTime = 0;
+	if (currentScreen() === "game" && !Round.won) {
+		startLoop();
+	}
+	resumeTimer();
 }
-
 function renderSettings() {
 	const save = loadSave();
 	const s = save.settings;
